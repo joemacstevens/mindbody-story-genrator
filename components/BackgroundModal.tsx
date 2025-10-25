@@ -305,8 +305,38 @@ const BackgroundModal: React.FC<BackgroundModalProps> = ({ isOpen, onClose, curr
                             {unsplashError && <p className="text-red-400">{unsplashError}</p>}
                             <div className="grid grid-cols-3 gap-2">
                                 {unsplashResults.map(photo => (
-                                    <button key={photo.id} onClick={() => handleSelectImage(photo.urls.regular)} className="aspect-[9/16] bg-gray-700 rounded-md overflow-hidden group">
-                                        <img src={photo.urls.thumb} alt={photo.user.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform"/>
+                                    <button
+                                        key={photo.id}
+                                        onClick={() => handleSelectImage(photo.urls.regular)}
+                                        className="aspect-[9/16] bg-gray-700 rounded-md overflow-hidden group relative"
+                                    >
+                                        <img
+                                            src={`${photo.urls.small}&fit=crop&w=200&h=356`}
+                                            alt={photo.alt_description || photo.user.name}
+                                            loading="lazy"
+                                            onLoad={(e) => {
+                                                const target = e.target as HTMLImageElement;
+                                                target.style.opacity = '1';
+                                            }}
+                                            onError={(e) => {
+                                                const target = e.target as HTMLImageElement;
+                                                // Try the raw URL as fallback
+                                                if (!target.src.includes('?fallback')) {
+                                                    target.src = photo.urls.thumb + '?fallback=1';
+                                                } else {
+                                                    target.style.display = 'none';
+                                                    const parent = target.parentElement;
+                                                    if (parent && !parent.querySelector('.fallback-text')) {
+                                                        const div = document.createElement('div');
+                                                        div.className = 'fallback-text flex items-center justify-center h-full text-xs text-gray-400';
+                                                        div.textContent = 'Image unavailable';
+                                                        parent.appendChild(div);
+                                                    }
+                                                }
+                                            }}
+                                            style={{ opacity: 0, transition: 'opacity 0.3s' }}
+                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                        />
                                     </button>
                                 ))}
                             </div>

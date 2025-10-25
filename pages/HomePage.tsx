@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import type { AppSettings, TemplateId, Style, Schedule } from '../types';
 import { getAppSettings, saveAppSettings, CONFIG_UPDATED_EVENT, getSchedule, SCHEDULE_UPDATED_EVENT } from '../services/api';
-import StyleEditor from '../components/StyleEditor';
+import SimplifiedEditor from '../components/SimplifiedEditor';
 import StoryRenderer from '../components/StoryRenderer';
 import TemplateGallery from '../components/TemplateGallery';
 import { MOCK_SCHEDULE, DEFAULT_APP_SETTINGS } from '../constants';
@@ -20,7 +20,7 @@ const HomePage: React.FC = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [schedule, setSchedule] = useState<Schedule>(MOCK_SCHEDULE);
   const [activeTab, setActiveTab] = useState<TabType>('preview');
-  const [isEditorSheetOpen, setEditorSheetOpen] = useState(false);
+  const [isEditorCollapsed, setEditorCollapsed] = useState(false);
   const [previewScale, setPreviewScale] = useState(1);
 
   const settings = history[currentIndex];
@@ -120,16 +120,6 @@ const HomePage: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleUndo, handleRedo]);
-  
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setShowMenu(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   const setActiveTemplate = (templateId: TemplateId) => {
     if (!settings) return;
@@ -186,56 +176,95 @@ const HomePage: React.FC = () => {
 
       case 'preview':
         return (
-          <div className="h-full flex flex-col items-center justify-center p-4 bg-gray-50 dark:bg-gray-900">
-            {/* Action Bar Above Preview */}
-            <div className="w-full max-w-sm flex justify-end items-center gap-2 mb-4 px-3">
-              <button
-                onClick={handleUndo}
-                disabled={currentIndex <= 0}
-                className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                aria-label="Undo"
-              >
-                <UndoIcon className="w-5 h-5" />
-              </button>
-              <button
-                onClick={handleRedo}
-                disabled={currentIndex >= history.length - 1}
-                className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                aria-label="Redo"
-              >
-                <RedoIcon className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Phone Mockup */}
-            <div className="w-[320px] h-[568px] sm:w-[360px] sm:h-[640px] flex-shrink-0 bg-gray-900 rounded-3xl p-3 shadow-2xl ring-4 ring-gray-800">
-              <div className="w-full h-full overflow-hidden rounded-xl bg-black">
-                {activeStyle && (
-                  <div
-                    className="origin-top-left"
-                    style={{ transform: `scale(${previewScale})` }}
-                  >
-                    <StoryRenderer
-                      templateId={settings.activeTemplateId}
-                      style={activeStyle}
-                      schedule={schedule}
-                      onContentChange={handleContentChange}
-                      isFullSize={false}
-                    />
+          <div className="h-full flex flex-col">
+            {/* Split View: Preview (60%) + Editor (40%) */}
+            <div className={`flex-1 flex ${isEditorCollapsed ? 'flex-col' : 'flex-col lg:flex-row'} overflow-hidden`}>
+              {/* Preview Area */}
+              <div className={`${isEditorCollapsed ? 'flex-1' : 'flex-1 lg:flex-[6]'} flex flex-col items-center justify-center p-4 bg-gray-50 dark:bg-gray-900`}>
+                {/* Action Bar */}
+                <div className="w-full max-w-lg flex justify-between items-center mb-4 px-2">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleUndo}
+                      disabled={currentIndex <= 0}
+                      className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      aria-label="Undo"
+                    >
+                      <UndoIcon className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={handleRedo}
+                      disabled={currentIndex >= history.length - 1}
+                      className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      aria-label="Redo"
+                    >
+                      <RedoIcon className="w-5 h-5" />
+                    </button>
                   </div>
-                )}
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                    {settings.activeTemplateId
+                      .split('-')
+                      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                      .join(' ')}
+                  </p>
+                </div>
+
+                {/* Story Preview - Larger on desktop */}
+                <div className="w-full max-w-sm lg:max-w-md aspect-[9/16] bg-gray-900 rounded-2xl lg:rounded-3xl p-2 lg:p-3 shadow-2xl">
+                  <div className="w-full h-full overflow-hidden rounded-xl lg:rounded-2xl bg-black relative">
+                    {activeStyle && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div
+                          style={{
+                            width: '1080px',
+                            height: '1920px',
+                            transform: 'scale(0.2)',
+                            transformOrigin: 'center center',
+                          }}
+                        >
+                          <StoryRenderer
+                            templateId={settings.activeTemplateId}
+                            style={activeStyle}
+                            schedule={schedule}
+                            onContentChange={handleContentChange}
+                            isFullSize={false}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
+
+              {/* Editor Panel */}
+              {!isEditorCollapsed && activeStyle && (
+                <div className="flex-1 lg:flex-[4] border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-gray-700">
+                  <SimplifiedEditor
+                    currentStyle={activeStyle}
+                    onChange={handleStyleChange}
+                    onSave={handleStyleSave}
+                    onReset={() => {
+                      const presetStyle = DEFAULT_APP_SETTINGS.configs[settings.activeTemplateId];
+                      if (presetStyle) handleStyleChange(presetStyle);
+                    }}
+                    isCollapsed={isEditorCollapsed}
+                    onToggleCollapse={() => setEditorCollapsed(!isEditorCollapsed)}
+                  />
+                </div>
+              )}
             </div>
 
-            {/* Template Name */}
-            <div className="mt-4 text-center">
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {settings.activeTemplateId
-                  .split('-')
-                  .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-                  .join(' ')}
-              </p>
-            </div>
+            {/* Show Editor Button (when collapsed) */}
+            {isEditorCollapsed && (
+              <div className="flex-shrink-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 py-3 flex justify-center">
+                <button
+                  onClick={() => setEditorCollapsed(false)}
+                  className="px-6 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-colors"
+                >
+                  Show Editor ▲
+                </button>
+              </div>
+            )}
           </div>
         );
 
@@ -243,15 +272,10 @@ const HomePage: React.FC = () => {
         return (
           <div className="h-full overflow-hidden">
             {activeStyle && (
-              <StyleEditor
+              <SimplifiedEditor
                 currentStyle={activeStyle}
-                allConfigs={settings.configs}
                 onChange={handleStyleChange}
                 onSave={handleStyleSave}
-                activeTemplateId={settings.activeTemplateId}
-                onTemplateSelect={setActiveTemplate}
-                isSheetOpen={false}
-                onSheetClose={() => {}}
                 onReset={() => {
                   const presetStyle = DEFAULT_APP_SETTINGS.configs[settings.activeTemplateId];
                   if (presetStyle) handleStyleChange(presetStyle);
@@ -284,12 +308,12 @@ const HomePage: React.FC = () => {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-grow overflow-hidden">
+      <main className="flex-grow overflow-hidden pb-16 lg:pb-0">
         {renderTabContent()}
       </main>
 
-      {/* Bottom Navigation */}
-      <nav className="flex-shrink-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg z-30">
+      {/* Bottom Navigation - Fixed on mobile, static on desktop */}
+      <nav className="fixed lg:relative bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg z-30 safe-area-bottom">
         <div className="max-w-screen-2xl mx-auto px-2 py-2">
           <div className="flex justify-around items-center">
             <button

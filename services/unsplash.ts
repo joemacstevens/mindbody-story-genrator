@@ -6,6 +6,7 @@ const API_URL = 'https://api.unsplash.com';
 
 export interface UnsplashPhoto {
   id: string;
+  alt_description?: string;
   urls: {
     raw: string;
     full: string;

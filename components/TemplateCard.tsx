@@ -70,21 +70,22 @@ const TemplateCard: React.FC<TemplateCardProps> = ({
 
       {/* Template Preview */}
       <div className="relative aspect-[9/16] rounded-t-2xl overflow-hidden bg-gray-900">
-        <div
-          className="w-full h-full"
-          style={{
-            transform: 'scale(0.25)',
-            transformOrigin: 'top left',
-            width: '400%',
-            height: '400%',
-          }}
-        >
-          <StoryRenderer
-            templateId={id}
-            style={style}
-            schedule={schedule}
-            isFullSize={false}
-          />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div
+            style={{
+              width: '1080px',
+              height: '1920px',
+              transform: 'scale(0.1)',
+              transformOrigin: 'center center',
+            }}
+          >
+            <StoryRenderer
+              templateId={id}
+              style={style}
+              schedule={schedule}
+              isFullSize={false}
+            />
+          </div>
         </div>
       </div>
 

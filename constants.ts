@@ -36,7 +36,7 @@ const IMPACT_DARK: Style = {
   cardBackgroundColor: 'rgba(25, 25, 25, 0.5)',
   textColorPrimary: '#FFFFFF',
   textColorSecondary: '#A0A0A0',
-  supportsBackgroundImage: false,
+  supportsBackgroundImage: true,
 };
 
 const IMPACT_LIGHT: Style = {
@@ -45,7 +45,7 @@ const IMPACT_LIGHT: Style = {
   cardBackgroundColor: 'rgba(250, 250, 250, 0.5)',
   textColorPrimary: '#111111',
   textColorSecondary: '#666666',
-  supportsBackgroundImage: false,
+  supportsBackgroundImage: true,
 };
 
 const CLASSIC: Style = {
@@ -120,7 +120,7 @@ const HIIT_IMPACT: Style = {
   dividerStyle: 'thin',
   accentLines: true,
   footerBar: false,
-  supportsBackgroundImage: false,
+  supportsBackgroundImage: true,
 };
 
 const BOXING_KNOCKOUT: Style = {

@@ -322,8 +322,47 @@ const StyleEditor: React.FC<StyleEditorProps> = ({ currentStyle, onChange, onSav
     </div>
   );
 
+  // When isSheetOpen is false and we're on mobile, render as full-page content
+  const isInlineMode = !isSheetOpen && typeof window !== 'undefined' && window.innerWidth < 1024;
+
   return (
     <>
+      {/* Inline Full-Page Editor (for mobile tab view) */}
+      {isInlineMode && (
+        <div className="h-full flex flex-col bg-white dark:bg-gray-900 overflow-hidden">
+          <div className="p-4 border-b dark:border-gray-700 flex-shrink-0">
+            <h2 className="text-xl font-bold">Style Editor</h2>
+          </div>
+          <div className="p-2 border-b dark:border-gray-700 flex-shrink-0 flex gap-2">
+            {(['Templates', 'Theme'] as EditorTab[]).map(tab => (
+              <button
+                key={tab}
+                onClick={() => setSheetActiveTab(tab)}
+                className={`flex-1 py-1.5 px-3 rounded-md text-sm font-semibold transition-colors ${
+                  sheetActiveTab === tab ? 'bg-indigo-600 text-white' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+          <form onSubmit={handleSubmit} className="flex-grow flex flex-col overflow-hidden">
+            <div className="flex-grow overflow-y-auto">
+              {sheetActiveTab === 'Templates' && <TemplatesTabContent />}
+              {sheetActiveTab === 'Theme' && <MobileThemeEditor />}
+            </div>
+            <div className="p-4 border-t dark:border-gray-700 flex-shrink-0 flex items-center justify-between gap-2">
+              <button type="button" onClick={onReset} className="py-2 px-4 rounded-md text-sm font-semibold border border-gray-300 dark:border-gray-600">
+                Reset
+              </button>
+              <button type="submit" className="py-2 px-4 rounded-md text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 flex-grow">
+                Save Theme
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* Desktop Sidebar */}
       <aside className={`hidden lg:flex flex-col flex-shrink-0 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 shadow-lg transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'w-12' : 'w-80'}`}>
         <div className="relative w-full h-full flex flex-col">
