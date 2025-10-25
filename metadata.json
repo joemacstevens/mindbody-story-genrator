@@ -1,0 +1,5 @@
+{
+  "name": "Instagram Story Schedule Generator",
+  "description": "A web app to generate daily Instagram Story schedules from JSON data. Users can select templates, customize styles, and preview the final 1080x1920 story image, which can be screenshotted by an automation service.",
+  "requestFramePermissions": []
+}
