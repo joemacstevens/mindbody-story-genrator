@@ -1,6 +1,6 @@
-# Instagram Story Schedule Generator
+# Studiogram
 
-This is a simple web application for generating daily Instagram Story schedules. It allows users to choose between light and dark templates, customize the styling, and render a final 1080x1920 HTML page ready for screenshotting.
+Studiogram is a web application for generating daily Instagram Story schedules. It allows users to choose between light and dark templates, customize the styling, and render a final 1080x1920 HTML page ready for screenshotting.
 
 ## How It Works
 

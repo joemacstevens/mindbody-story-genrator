@@ -298,7 +298,7 @@ const HomePage: React.FC = () => {
         <div className="max-w-screen-2xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
           <div>
             <p className="text-[11px] uppercase tracking-[0.4em] text-indigo-200/70">Studio OS</p>
-            <h1 className="text-lg sm:text-xl font-bold tracking-tight">Story Generator</h1>
+            <h1 className="text-lg sm:text-xl font-bold tracking-tight">Studiogram</h1>
           </div>
           <div className="flex items-center gap-2">
             <Link

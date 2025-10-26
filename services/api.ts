@@ -10,6 +10,7 @@ import { isAppSettings } from '../types';
 
 const SCHEDULE_KEY = 'story_scheduler_schedule';
 const SETTINGS_PATH = 'settings';
+const LATEST_SCHEDULE_PATH = 'latestSchedule';
 
 // Custom events for cross-component state updates
 export const CONFIG_UPDATED_EVENT = 'config_updated';
@@ -116,4 +117,11 @@ export const getSchedule = (): Schedule => {
 export const saveSchedule = (schedule: Schedule): void => {
   sessionStorage.setItem(SCHEDULE_KEY, JSON.stringify(schedule));
   window.dispatchEvent(new Event(SCHEDULE_UPDATED_EVENT));
+
+  try {
+    const scheduleRef = rtdb.ref(db, LATEST_SCHEDULE_PATH);
+    void rtdb.set(scheduleRef, schedule);
+  } catch (error) {
+    console.error('Failed to sync schedule to Realtime Database:', error);
+  }
 };
