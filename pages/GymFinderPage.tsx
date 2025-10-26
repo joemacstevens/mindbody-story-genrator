@@ -1,10 +1,18 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import StoryRenderer from '../components/StoryRenderer';
 import { DEFAULT_APP_SETTINGS, MOCK_SCHEDULE } from '../constants';
 import type { Schedule } from '../types';
 import { saveSchedule } from '../services/api';
 import { slugifyLocation, humanizeDate } from '../utils/slugify';
+import SavedGymsDrawer from '../components/SavedGymsDrawer';
+import {
+  loadSavedGyms,
+  removeSavedGym,
+  saveGymRecord,
+  setDefaultGym,
+  touchSavedGym,
+} from '../services/savedGyms';
+import type { SavedGym, SavedGymsState } from '../services/savedGyms';
 
 const PREVIEW_TEMPLATE_ID = DEFAULT_APP_SETTINGS.activeTemplateId;
 const PREVIEW_STYLE = DEFAULT_APP_SETTINGS.configs[PREVIEW_TEMPLATE_ID];
@@ -30,6 +38,7 @@ const GymFinderPage: React.FC = () => {
   const today = new Date().toISOString().split('T')[0];
 
   const [gymName, setGymName] = useState('');
+  const [customSlug, setCustomSlug] = useState<string | null>(null);
   const [date, setDate] = useState(today);
   const [radius, setRadius] = useState('5');
   const [status, setStatus] = useState<FetchState>('idle');
@@ -42,8 +51,13 @@ const GymFinderPage: React.FC = () => {
     count: number;
   } | null>(null);
   const [applyHint, setApplyHint] = useState<string | null>(null);
+  const [showSavePrompt, setShowSavePrompt] = useState(false);
+  const [gymSaveMessage, setGymSaveMessage] = useState<string | null>(null);
+  const [savedGymsState, setSavedGymsState] = useState<SavedGymsState>(() => loadSavedGyms());
+  const [hasLoadedDefault, setHasLoadedDefault] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-  const slug = useMemo(() => slugifyLocation(gymName), [gymName]);
+  const slug = useMemo(() => customSlug ?? slugifyLocation(gymName), [customSlug, gymName]);
   const scheduleEndpoint =
     (import.meta.env.VITE_SCHEDULE_ENDPOINT as string | undefined) || '/api/schedule';
 
@@ -62,63 +76,146 @@ const GymFinderPage: React.FC = () => {
     };
   }, [date, radius, slug]);
 
+  const fetchScheduleData = useCallback(
+    async ({
+      gymName: targetGymName,
+      slug: targetSlug,
+      radius: targetRadius,
+      date: targetDate,
+    }: {
+      gymName: string;
+      slug: string;
+      radius: number;
+      date: string;
+    }) => {
+      if (!targetSlug) {
+        setErrorMessage('Enter a gym name to generate the Mindbody slug.');
+        return;
+      }
+
+      setGymName(targetGymName);
+      setRadius(String(targetRadius));
+      setCustomSlug(targetSlug);
+      setStatus('loading');
+      setErrorMessage(null);
+      setResultMeta(null);
+      setApplyHint(null);
+      setShowSavePrompt(false);
+      setGymSaveMessage(null);
+
+      const payload = {
+        gymName: targetGymName,
+        locationSlug: targetSlug,
+        date: targetDate,
+        radius: targetRadius,
+      };
+
+      try {
+        const response = await fetch(scheduleEndpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
+          cache: 'no-store',
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Request failed with status ${response.status}`);
+        }
+
+        const data = await response.json();
+        const nextSchedule: Schedule | null = data?.schedule ?? null;
+
+        if (!nextSchedule) {
+          throw new Error('Schedule payload missing from response.');
+        }
+
+        const finalSlug = typeof data?.slug === 'string' && data.slug ? data.slug : targetSlug;
+
+        setCustomSlug(finalSlug);
+        setSchedule(nextSchedule);
+        setRawResponse(data?.raw ?? null);
+        setStatus('success');
+
+        if (data?.slug && data?.source) {
+          setResultMeta({
+            slug: data.slug,
+            source: data.source,
+            count: data?.count ?? nextSchedule.items.length,
+          });
+        } else {
+          setResultMeta({
+            slug: finalSlug,
+            source: 'live',
+            count: nextSchedule.items.length,
+          });
+        }
+
+        const currentState = loadSavedGyms();
+        const alreadySaved = currentState.gyms.some((gym) => gym.slug === finalSlug);
+
+        if (alreadySaved) {
+          const updatedState = touchSavedGym(finalSlug);
+          setSavedGymsState(updatedState);
+          setShowSavePrompt(false);
+        } else {
+          setSavedGymsState(currentState);
+          setShowSavePrompt(true);
+        }
+      } catch (error) {
+        console.error('Mindbody fetch failed:', error);
+        setSchedule(buildMockSchedule(targetDate));
+        setRawResponse(null);
+        setStatus('error');
+        setResultMeta(null);
+        setShowSavePrompt(false);
+        setGymSaveMessage(null);
+        setErrorMessage(
+          'Could not reach the schedule service yet. Showing a placeholder schedule so you can test the flow.',
+        );
+      }
+    },
+    [scheduleEndpoint],
+  );
+
+  useEffect(() => {
+    if (hasLoadedDefault) {
+      return;
+    }
+    const { defaultGymSlug, gyms } = savedGymsState;
+    if (!defaultGymSlug) {
+      setHasLoadedDefault(true);
+      return;
+    }
+    const defaultGym = gyms.find((gym) => gym.slug === defaultGymSlug) ?? gyms[0];
+    if (!defaultGym) {
+      setHasLoadedDefault(true);
+      return;
+    }
+    setHasLoadedDefault(true);
+    setGymName(defaultGym.name);
+    setCustomSlug(defaultGym.slug);
+    setRadius(String(defaultGym.radius));
+    void fetchScheduleData({
+      gymName: defaultGym.name,
+      slug: defaultGym.slug,
+      radius: defaultGym.radius,
+      date,
+    });
+  }, [savedGymsState, hasLoadedDefault, date, fetchScheduleData]);
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    const trimmedGymName = gymName.trim();
     if (!slug) {
       setErrorMessage('Enter a gym name to generate the Mindbody slug.');
       return;
     }
-
-    setStatus('loading');
-    setErrorMessage(null);
-    setResultMeta(null);
-    setApplyHint(null);
-    const payload = {
-      gymName,
-      locationSlug: slug,
-      date,
+    await fetchScheduleData({
+      gymName: trimmedGymName || gymName,
+      slug,
       radius: Number(radius) || 1,
-    };
-
-    try {
-      const response = await fetch(scheduleEndpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
-        cache: 'no-store',
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Request failed with status ${response.status}`);
-      }
-
-      const data = await response.json();
-      const nextSchedule: Schedule | null = data?.schedule ?? null;
-
-      if (!nextSchedule) {
-        throw new Error('Schedule payload missing from response.');
-      }
-
-      setSchedule(nextSchedule);
-      setRawResponse(data?.raw ?? null);
-      setStatus('success');
-      if (data?.slug && data?.source) {
-        setResultMeta({
-          slug: data.slug,
-          source: data.source,
-          count: data?.count ?? nextSchedule.items.length,
-        });
-      }
-    } catch (error) {
-      console.error('Mindbody fetch failed:', error);
-      setSchedule(buildMockSchedule(date));
-      setRawResponse(null);
-      setStatus('error');
-      setResultMeta(null);
-      setErrorMessage(
-        'Could not reach the schedule service yet. Showing a placeholder schedule so you can test the flow.',
-      );
-    }
+      date,
+    });
   };
 
   const handleApply = async (destination: 'editor' | 'render') => {
@@ -133,6 +230,57 @@ const GymFinderPage: React.FC = () => {
       navigate('/render');
     } else {
       navigate('/');
+    }
+  };
+
+  const handleSaveGym = () => {
+    if (!slug) return;
+    const trimmedGymName = gymName.trim();
+    if (!trimmedGymName) return;
+    const radiusValue = Number(radius) || 1;
+    const updatedState = saveGymRecord(
+      { name: trimmedGymName, slug, radius: radiusValue },
+      { setAsDefault: true },
+    );
+    setSavedGymsState(updatedState);
+    setShowSavePrompt(false);
+    setGymSaveMessage(`${trimmedGymName} saved as your default gym. We\'ll load it automatically next time.`);
+  };
+
+  const handleDismissSavePrompt = () => {
+    setShowSavePrompt(false);
+  };
+
+  const savedGyms = savedGymsState.gyms;
+  const defaultGymSlug = savedGymsState.defaultGymSlug;
+
+  const handleSelectSavedGym = (gym: SavedGym) => {
+    setIsDrawerOpen(false);
+    setGymName(gym.name);
+    setCustomSlug(gym.slug);
+    setRadius(String(gym.radius));
+    setGymSaveMessage(null);
+    setShowSavePrompt(false);
+    void fetchScheduleData({
+      gymName: gym.name,
+      slug: gym.slug,
+      radius: gym.radius,
+      date,
+    });
+  };
+
+  const handleSetDefaultGym = (gym: SavedGym) => {
+    const updatedState = setDefaultGym(gym.slug);
+    setSavedGymsState(updatedState);
+    setGymSaveMessage(`${gym.name} is now your default gym.`);
+  };
+
+  const handleRemoveGym = (gym: SavedGym) => {
+    const updatedState = removeSavedGym(gym.slug);
+    setSavedGymsState(updatedState);
+    setGymSaveMessage(`${gym.name} was removed from your saved gyms.`);
+    if (updatedState.gyms.length === 0) {
+      setHasLoadedDefault(true);
     }
   };
 
@@ -199,6 +347,13 @@ const GymFinderPage: React.FC = () => {
                   {resultMeta.source === 'live' ? 'Live data' : 'Sample data'}
                 </span>
               )}
+              <button
+                type="button"
+                onClick={() => setIsDrawerOpen(true)}
+                className="inline-flex items-center gap-2 rounded-full border border-white/15 px-3 py-1 text-xs font-semibold text-slate-200 hover:border-white/40 hover:text-white transition"
+              >
+                Saved gyms{savedGyms.length ? ` (${savedGyms.length})` : ''}
+              </button>
             </div>
           </div>
 
@@ -208,7 +363,12 @@ const GymFinderPage: React.FC = () => {
               <input
                 type="text"
                 value={gymName}
-                onChange={(event) => setGymName(event.target.value)}
+                onChange={(event) => {
+                  setGymName(event.target.value);
+                  setCustomSlug(null);
+                  setShowSavePrompt(false);
+                  setGymSaveMessage(null);
+                }}
                 placeholder="Humble Yoga"
                 className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-base focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
               />
@@ -221,7 +381,10 @@ const GymFinderPage: React.FC = () => {
                 <input
                   type="date"
                   value={date}
-                  onChange={(event) => setDate(event.target.value)}
+                  onChange={(event) => {
+                    setDate(event.target.value);
+                    setGymSaveMessage(null);
+                  }}
                   className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-base focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
                 />
               </div>
@@ -231,7 +394,10 @@ const GymFinderPage: React.FC = () => {
                   type="number"
                   min="1"
                   value={radius}
-                  onChange={(event) => setRadius(event.target.value)}
+                  onChange={(event) => {
+                    setRadius(event.target.value);
+                    setGymSaveMessage(null);
+                  }}
                   className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-base focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
                 />
               </div>
@@ -269,6 +435,12 @@ const GymFinderPage: React.FC = () => {
           {errorMessage && (
             <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
               {errorMessage}
+            </div>
+          )}
+
+          {gymSaveMessage && (
+            <div className="rounded-2xl border border-indigo-500/30 bg-indigo-500/10 p-4 text-sm text-indigo-100">
+              {gymSaveMessage}
             </div>
           )}
 
@@ -360,6 +532,35 @@ const GymFinderPage: React.FC = () => {
             )}
           </div>
 
+          {showSavePrompt && status === 'success' && schedule && (
+            <div className="rounded-2xl border border-indigo-500/30 bg-indigo-500/10 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-indigo-100">
+                  Save {gymName || 'this gym'} for next time?
+                </p>
+                <p className="text-xs text-indigo-200/80">
+                  We’ll set it as your default and load it automatically when you come back.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleSaveGym}
+                  className="rounded-full bg-indigo-500 px-4 py-2 text-xs font-semibold text-white shadow-[0_12px_30px_rgba(99,102,241,0.35)] hover:bg-indigo-400"
+                >
+                  Save gym
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDismissSavePrompt}
+                  className="rounded-full border border-white/20 px-4 py-2 text-xs font-semibold text-slate-200 hover:border-white/50"
+                >
+                  Not now
+                </button>
+              </div>
+            </div>
+          )}
+
           {applyHint && (
             <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-100">
               {applyHint}
@@ -378,6 +579,15 @@ const GymFinderPage: React.FC = () => {
           )}
         </section>
       </main>
+      <SavedGymsDrawer
+        isOpen={isDrawerOpen}
+        gyms={savedGyms}
+        defaultGymSlug={defaultGymSlug}
+        onClose={() => setIsDrawerOpen(false)}
+        onSelectGym={handleSelectSavedGym}
+        onSetDefault={handleSetDefaultGym}
+        onRemove={handleRemoveGym}
+      />
     </div>
   );
 };
