@@ -206,16 +206,19 @@ const BackgroundModal: React.FC<BackgroundModalProps> = ({ isOpen, onClose, curr
 
   const modalContent = (
     <div 
-        className="fixed inset-0 bg-slate-950/90 backdrop-blur-lg z-50 flex items-center justify-center" 
+        className="fixed inset-0 bg-slate-950/90 backdrop-blur-lg z-50 flex items-end md:items-center justify-center p-0 md:p-8" 
         onClick={onClose}
         role="dialog"
         aria-modal="true"
     >
       <div 
-        className="bg-slate-900 text-slate-100 w-[95vw] h-[95vh] rounded-3xl border border-white/10 shadow-[0_30px_80px_rgba(2,6,23,0.9)] flex flex-col"
+        className="bg-slate-900 text-slate-100 w-full max-w-3xl md:max-w-6xl h-[92vh] md:h-[95vh] rounded-t-3xl md:rounded-3xl border border-white/10 shadow-[0_30px_80px_rgba(2,6,23,0.9)] flex flex-col overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
-        <header className="flex items-center justify-between p-5 border-b border-white/10">
+        <div className="md:hidden flex justify-center pt-3">
+          <span className="w-12 h-1.5 rounded-full bg-white/30" />
+        </div>
+        <header className="shrink-0 flex items-center justify-between px-5 py-4 md:p-5 border-b border-white/10 bg-slate-900 sticky top-0 z-10">
           <div>
             <p className="text-xs uppercase tracking-[0.4em] text-indigo-200/70">Background</p>
             <h2 className="text-2xl font-bold">Upload artwork</h2>
@@ -225,49 +228,50 @@ const BackgroundModal: React.FC<BackgroundModalProps> = ({ isOpen, onClose, curr
           </button>
         </header>
 
-        <div className="flex-grow flex p-4 gap-4 overflow-hidden">
-          {/* Main Content Area */}
-          <div className="w-1/2 flex items-center justify-center bg-slate-950/50 rounded-2xl p-4 border border-white/5">
-            {!tempStyle.bgImage ? (
-                <div className="text-center text-slate-500">
-                    <p>Select an image to see a preview</p>
-                </div>
-            ) : (
-                <div className="w-[270px] h-[480px] rounded-2xl overflow-hidden relative bg-slate-950">
-                    <div 
-                        ref={imagePreviewRef}
-                        className="w-full h-full"
-                        style={{ 
-                            backgroundImage: `url(${tempStyle.bgImage})`,
-                            backgroundSize: tempStyle.bgFit as 'cover' | 'contain',
-                            backgroundPosition: tempStyle.bgPosition,
-                            cursor: 'grab'
-                        }}
-                        onMouseDown={handlePanStart}
-                    />
-                    <div className="absolute inset-0 pointer-events-none" style={{
-                        backgroundColor: tempStyle.overlayColor || 'transparent',
-                        backdropFilter: `blur(${(tempStyle.bgBlur || 0)}px)`
-                    }}/>
-                </div>
-            )}
-          </div>
-
-          {/* Controls */}
-          <div className="w-1/2 flex flex-col gap-4">
-            {/* Tabs */}
-            <div className="flex gap-2 p-1 bg-slate-950/40 rounded-2xl border border-white/5">
-                {(['upload', 'unsplash', 'url'] as Tab[]).map(tab => (
-                    <button key={tab} onClick={() => setActiveTab(tab)} className={`w-full py-2 px-4 rounded-xl text-sm font-semibold transition ${
-                      activeTab === tab ? 'bg-white text-slate-900 shadow-lg' : 'text-slate-300 hover:bg-white/5'
-                    }`}>
-                        {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                    </button>
-                ))}
+        <div className="flex-1 overflow-hidden">
+          <div className="h-full flex flex-col lg:flex-row p-4 gap-4 overflow-y-auto lg:overflow-hidden">
+            {/* Main Content Area */}
+            <div className="w-full lg:w-1/2 flex items-center justify-center bg-slate-950/50 rounded-2xl p-4 border border-white/5 min-h-[260px]">
+              {!tempStyle.bgImage ? (
+                  <div className="text-center text-slate-500">
+                      <p>Select an image to see a preview</p>
+                  </div>
+              ) : (
+                  <div className="w-full max-w-[320px] aspect-[9/16] rounded-2xl overflow-hidden relative bg-slate-950">
+                      <div 
+                          ref={imagePreviewRef}
+                          className="w-full h-full"
+                          style={{ 
+                              backgroundImage: `url(${tempStyle.bgImage})`,
+                              backgroundSize: tempStyle.bgFit as 'cover' | 'contain',
+                              backgroundPosition: tempStyle.bgPosition,
+                              cursor: 'grab'
+                          }}
+                          onMouseDown={handlePanStart}
+                      />
+                      <div className="absolute inset-0 pointer-events-none" style={{
+                          backgroundColor: tempStyle.overlayColor || 'transparent',
+                          backdropFilter: `blur(${(tempStyle.bgBlur || 0)}px)`
+                      }}/>
+                  </div>
+              )}
             </div>
 
-            {/* Tab Content */}
-            <div className="flex-grow bg-slate-950/30 rounded-2xl p-4 overflow-y-auto border border-white/5">
+            {/* Controls */}
+            <div className="w-full lg:w-1/2 flex flex-col gap-4">
+              {/* Tabs */}
+              <div className="flex gap-2 p-1 bg-slate-950/40 rounded-2xl border border-white/5 overflow-x-auto">
+                  {(['upload', 'unsplash', 'url'] as Tab[]).map(tab => (
+                      <button key={tab} onClick={() => setActiveTab(tab)} className={`w-full py-2 px-4 rounded-xl text-sm font-semibold transition ${
+                        activeTab === tab ? 'bg-white text-slate-900 shadow-lg' : 'text-slate-300 hover:bg-white/5'
+                      }`}>
+                          {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                      </button>
+                  ))}
+              </div>
+
+              {/* Tab Content */}
+              <div className="flex-grow bg-slate-950/30 rounded-2xl p-4 overflow-y-auto border border-white/5">
                 {activeTab === 'upload' && (
                     <div 
                         className="w-full h-full flex flex-col items-center justify-center border-2 border-dashed border-white/15 rounded-2xl p-8 text-slate-300 hover:bg-white/5 hover:border-white/40 transition-colors"
@@ -390,21 +394,27 @@ const BackgroundModal: React.FC<BackgroundModalProps> = ({ isOpen, onClose, curr
           </div>
         </div>
 
-        <footer className="flex items-center justify-between p-4 border-t border-gray-700">
-            <div>
+        <footer className="shrink-0 flex flex-col gap-4 md:flex-row md:items-center md:justify-between p-4 border-t border-gray-700 bg-slate-900">
+            <div className="w-full md:w-auto">
                  <h4 className="text-sm font-bold mb-2">Recent</h4>
-                 <div className="flex gap-2">
+                 <div className="flex gap-2 overflow-x-auto pr-2">
                     {recents.map(url => (
-                        <button key={url} onClick={() => handleSelectImage(url)} className="w-16 h-16 rounded-md bg-gray-700 overflow-hidden border-2 border-transparent hover:border-indigo-500">
+                        <button
+                            key={url}
+                            onClick={() => handleSelectImage(url)}
+                            className="w-16 h-16 rounded-md bg-gray-700 overflow-hidden border-2 border-transparent hover:border-indigo-500 flex-shrink-0"
+                        >
                              <img src={url} className="w-full h-full object-cover"/>
                         </button>
                     ))}
                  </div>
             </div>
-            <div className="flex items-center gap-4">
-                <button onClick={handleClear} className="text-sm font-semibold text-gray-400 hover:text-white">Clear Background</button>
-                <button onClick={onClose} className="py-2 px-6 rounded-lg bg-gray-700 hover:bg-gray-600 font-semibold">Cancel</button>
-                <button onClick={handleApply} className="py-2 px-6 rounded-lg bg-indigo-600 hover:bg-indigo-700 font-semibold">Apply</button>
+            <div className="w-full md:w-auto flex flex-col sm:flex-row gap-3">
+                <button onClick={handleClear} className="text-sm font-semibold text-gray-400 hover:text-white w-full sm:w-auto text-center">Clear Background</button>
+                <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                  <button onClick={onClose} className="py-2 px-6 rounded-lg bg-gray-700 hover:bg-gray-600 font-semibold w-full sm:w-auto">Cancel</button>
+                  <button onClick={handleApply} className="py-2 px-6 rounded-lg bg-indigo-600 hover:bg-indigo-700 font-semibold w-full sm:w-auto">Apply</button>
+                </div>
             </div>
         </footer>
       </div>
