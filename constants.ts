@@ -22,6 +22,10 @@ const BASE_STYLE_SHARED = {
   dividerStyle: 'thin' as const,
   accentLines: true,
   footerBar: false,
+  showHeading: true,
+  showSubtitle: true,
+  showSchedule: true,
+  showFooter: true,
 };
 
 // --- New Theme Presets ---

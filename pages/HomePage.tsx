@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import type { AppSettings, TemplateId, Style, Schedule } from '../types';
+import type { AppSettings, TemplateId, Style, Schedule, SelectedElement } from '../types';
 import {
   getAppSettings,
   saveAppSettings,
@@ -28,6 +28,7 @@ const HomePage: React.FC = () => {
   const [history, setHistory] = useState<(AppSettings | null)[]>([null]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [schedule, setSchedule] = useState<Schedule>(MOCK_SCHEDULE);
+  const [selectedElement, setSelectedElement] = useState<SelectedElement | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('preview');
   const [isEditorCollapsed, setEditorCollapsed] = useState(false);
   const [previewScale, setPreviewScale] = useState(0.3);
@@ -157,6 +158,7 @@ const HomePage: React.FC = () => {
     // non-default templates were unselectable.
     const newSettings = { ...settings, activeTemplateId: templateId };
     setSettings(newSettings);
+    setSelectedElement(null);
   };
   
   const handleStyleChange = (newStyle: Style) => {
@@ -165,6 +167,10 @@ const HomePage: React.FC = () => {
     const newConfigs = { ...settings.configs, [activeTemplateId]: newStyle };
     const newSettings = { ...settings, configs: newConfigs };
     setSettings(newSettings);
+  };
+
+  const handleSelectElement = (element: SelectedElement | null) => {
+    setSelectedElement(element);
   };
   
   const handleContentChange = (update: Partial<Pick<Style, 'heading' | 'subtitle' | 'footer'>>) => {
@@ -241,9 +247,12 @@ const HomePage: React.FC = () => {
 
                 {/* Story Preview - Larger on desktop */}
                 <div className="w-full max-w-sm lg:max-w-md aspect-[9/16] bg-slate-900/70 rounded-3xl p-3 shadow-[0_20px_60px_rgba(2,6,23,0.8)] border border-white/5">
-                  <div className="w-full h-full overflow-hidden rounded-2xl bg-slate-950 relative">
+                  <div
+                    className="w-full h-full overflow-hidden rounded-2xl bg-slate-950 relative"
+                    onClick={() => setSelectedElement(null)}
+                  >
                     {activeStyle && (
-                      <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="absolute inset-0 flex items-center justify-center" onClick={(event) => event.stopPropagation()}>
                         <div
                           style={{
                             width: '1080px',
@@ -258,6 +267,8 @@ const HomePage: React.FC = () => {
                             schedule={schedule}
                             onContentChange={handleContentChange}
                             isFullSize={false}
+                            selectedElement={selectedElement}
+                            onSelectElement={handleSelectElement}
                           />
                         </div>
                       </div>
@@ -279,6 +290,8 @@ const HomePage: React.FC = () => {
                     }}
                     isCollapsed={isEditorCollapsed}
                     onToggleCollapse={() => setEditorCollapsed(!isEditorCollapsed)}
+                    selectedElement={selectedElement}
+                    onSelectElement={handleSelectElement}
                   />
                 </div>
               )}
@@ -310,6 +323,8 @@ const HomePage: React.FC = () => {
                   const presetStyle = DEFAULT_APP_SETTINGS.configs[settings.activeTemplateId];
                   if (presetStyle) handleStyleChange(presetStyle);
                 }}
+                selectedElement={selectedElement}
+                onSelectElement={handleSelectElement}
               />
             )}
           </div>
@@ -343,7 +358,7 @@ const HomePage: React.FC = () => {
               aria-label="View final render page"
             >
               <ExternalLinkIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span className="hidden sm:inline">Export</span>
+              <span className="hidden sm:inline">Preview</span>
             </Link>
           </div>
         </div>

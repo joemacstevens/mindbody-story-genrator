@@ -35,6 +35,16 @@ export type Style = {
   accentLines: boolean;
   footerBar: boolean;
   supportsBackgroundImage?: boolean;
+  showHeading?: boolean;
+  showSubtitle?: boolean;
+  showSchedule?: boolean;
+  showFooter?: boolean;
+};
+
+export type SelectedElementType = 'heading' | 'subtitle' | 'footer' | 'schedule';
+
+export type SelectedElement = {
+  type: SelectedElementType;
 };
 
 export type AppSettings = {

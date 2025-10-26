@@ -1,6 +1,7 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
+import { toPng } from 'html-to-image';
 import StoryRenderer from '../components/StoryRenderer';
 import { FALLBACK_SCHEDULE } from '../constants';
 import {
@@ -42,6 +43,10 @@ const RenderPage: React.FC = () => {
   );
   const [key, setKey] = useState(Date.now());
   const [scale, setScale] = useState(1);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const storyContainerRef = useRef<HTMLDivElement | null>(null);
+  const [forceInlineBackground, setForceInlineBackground] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -144,6 +149,39 @@ const RenderPage: React.FC = () => {
   const finalTemplateId = templateIdOverride || settings?.activeTemplateId;
   
   const style = finalTemplateId ? settings?.configs[finalTemplateId] : null;
+
+  const handleExport = async () => {
+    if (!storyContainerRef.current) {
+      setExportError('Renderer not ready yet. Please try again in a moment.');
+      return;
+    }
+    setIsExporting(true);
+    setExportError(null);
+    setForceInlineBackground(true);
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+    try {
+      const dataUrl = await toPng(storyContainerRef.current, {
+        cacheBust: true,
+        quality: 1,
+        pixelRatio: 2,
+        width: 1080,
+        height: 1920,
+        backgroundColor: style?.backgroundColor ?? '#000000',
+      });
+      const downloadLink = document.createElement('a');
+      const slugSegment = activeSlug?.replace(/[^a-z0-9-]/gi, '-') || 'schedule';
+      const templateSegment = finalTemplateId?.replace(/[^a-z0-9-]/gi, '-') || 'template';
+      downloadLink.download = `${slugSegment}-${templateSegment}.png`;
+      downloadLink.href = dataUrl;
+      downloadLink.click();
+    } catch (error) {
+      console.error('Export failed:', error);
+      setExportError('Could not export the image. Please retry.');
+    } finally {
+      setIsExporting(false);
+      setForceInlineBackground(false);
+    }
+  };
   
   useEffect(() => {
     const isDark = style ? isColorDark(style.backgroundColor) : finalTemplateId?.includes('dark');
@@ -170,15 +208,35 @@ const RenderPage: React.FC = () => {
   const pageBgClass = isPageDark ? 'bg-gray-800' : 'bg-gray-50';
 
   return (
-    <div className={`w-screen h-screen flex items-center justify-center overflow-hidden ${pageBgClass}`}>
+    <div
+      className={`relative w-screen h-screen flex items-center justify-center overflow-hidden ${pageBgClass}`}
+    >
+      <div className="absolute top-6 right-6 flex flex-col items-end gap-2">
+        <button
+          type="button"
+          onClick={handleExport}
+          disabled={isExporting}
+          className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-lg transition hover:bg-indigo-500 disabled:opacity-50"
+        >
+          {isExporting ? 'Exporting…' : 'Export PNG'}
+        </button>
+        {exportError && (
+          <span className="text-xs text-red-200 bg-red-900/40 px-3 py-1 rounded-full">
+            {exportError}
+          </span>
+        )}
+      </div>
       <div style={{ transform: `scale(${scale})`, transformOrigin: 'center' }}>
-        <StoryRenderer
-          key={key}
-          templateId={finalTemplateId}
-          style={style}
-          schedule={schedule}
-          isFullSize={true}
-        />
+        <div ref={storyContainerRef} className="w-[1080px] h-[1920px]">
+          <StoryRenderer
+            key={key}
+            templateId={finalTemplateId}
+            style={style}
+            schedule={schedule}
+            isFullSize={true}
+            forceInlineBackground={forceInlineBackground}
+          />
+        </div>
       </div>
     </div>
   );

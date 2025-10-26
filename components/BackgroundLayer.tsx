@@ -6,14 +6,11 @@ interface BackgroundLayerProps {
 }
 
 const BackgroundLayer: React.FC<BackgroundLayerProps> = ({ style }) => {
-  // This component now handles both the solid background color and the image layer.
-  // It always renders to provide the base background color, and the -z-10
-  // keeps it behind the main content card.
   return (
     <div
       aria-hidden="true"
-      className="absolute inset-0 overflow-hidden -z-10"
-      style={{ backgroundColor: style.backgroundColor }}
+      className="absolute inset-0 overflow-hidden"
+      style={{ backgroundColor: style.backgroundColor, zIndex: 0 }}
     >
       {style.bgImage && (
         <>
@@ -21,15 +18,15 @@ const BackgroundLayer: React.FC<BackgroundLayerProps> = ({ style }) => {
             className="w-full h-full"
             style={{
               backgroundImage: `url(${style.bgImage})`,
-              backgroundSize: style.bgFit,
-              backgroundPosition: style.bgPosition,
+              backgroundSize: style.bgFit || 'cover',
+              backgroundPosition: style.bgPosition || '50% 50%',
+              filter: style.bgBlur ? `blur(${style.bgBlur}px)` : undefined,
             }}
           />
           <div
             className="absolute inset-0"
             style={{
               backgroundColor: style.overlayColor || 'transparent',
-              backdropFilter: `blur(${(style.bgBlur || 0)}px)`,
             }}
           />
         </>

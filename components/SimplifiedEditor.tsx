@@ -1,8 +1,59 @@
-import React, { useState } from 'react';
-import type { Style, LogoPosition } from '../types';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import type { Style, LogoPosition, SelectedElement } from '../types';
 import { COLOR_PALETTES } from '../constants';
 import { uploadImage } from '../services/storage';
 import BackgroundModal from './BackgroundModal';
+
+type EditorTab = 'colors' | 'text' | 'background' | 'logo' | 'advanced';
+
+const fontOptions = [
+  { name: 'Inter', value: 'Inter, system-ui, sans-serif' },
+  { name: 'Lexend', value: "'Lexend', sans-serif" },
+  { name: 'Montserrat', value: "'Montserrat', sans-serif" },
+  { name: 'Bebas Neue', value: "'Bebas Neue', sans-serif" },
+  { name: 'Anton', value: "'Anton', sans-serif" },
+  { name: 'Playfair Display', value: "'Playfair Display', serif" },
+];
+
+const clamp = (value: number, min = 0, max = 1) => Math.min(Math.max(value, min), max);
+
+const parseOverlayColor = (value?: string | null) => {
+  const defaultColor = { r: 0, g: 0, b: 0, a: 0 };
+  if (!value) {
+    return defaultColor;
+  }
+  const match = value.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*(\d*\.?\d+))?\)/i);
+  if (!match) {
+    return defaultColor;
+  }
+  const [, r, g, b, a] = match;
+  return {
+    r: Number(r),
+    g: Number(g),
+    b: Number(b),
+    a: typeof a !== 'undefined' ? clamp(Number(a)) : 1,
+  };
+};
+
+const hexToRgb = (hex: string) => {
+  const normalized = hex.replace('#', '');
+  const bigint = parseInt(
+    normalized.length === 3 ? normalized.split('').map((c) => c + c).join('') : normalized,
+    16,
+  );
+  return {
+    r: (bigint >> 16) & 255,
+    g: (bigint >> 8) & 255,
+    b: bigint & 255,
+  };
+};
+
+const componentToHex = (c: number) => c.toString(16).padStart(2, '0');
+const rgbToHex = (r: number, g: number, b: number) =>
+  `#${componentToHex(r)}${componentToHex(g)}${componentToHex(b)}`;
+
+const toRgbaString = (rgb: { r: number; g: number; b: number }, alpha: number) =>
+  `rgba(${rgb.r},${rgb.g},${rgb.b},${clamp(alpha)})`;
 
 interface SimplifiedEditorProps {
   currentStyle: Style;
@@ -11,9 +62,9 @@ interface SimplifiedEditorProps {
   onReset: () => void;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
+  selectedElement?: SelectedElement | null;
+  onSelectElement?: (element: SelectedElement | null) => void;
 }
-
-type EditorTab = 'colors' | 'text' | 'background' | 'logo' | 'advanced';
 
 const SimplifiedEditor: React.FC<SimplifiedEditorProps> = ({
   currentStyle,
@@ -22,14 +73,51 @@ const SimplifiedEditor: React.FC<SimplifiedEditorProps> = ({
   onReset,
   isCollapsed = false,
   onToggleCollapse,
+  selectedElement = null,
+  onSelectElement,
 }) => {
   const [activeTab, setActiveTab] = useState<EditorTab>('colors');
   const [isBackgroundModalOpen, setIsBackgroundModalOpen] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const headingInputRef = useRef<HTMLInputElement>(null);
+  const subtitleInputRef = useRef<HTMLInputElement>(null);
+  const footerInputRef = useRef<HTMLInputElement>(null);
+  const overlayColor = useMemo(() => parseOverlayColor(currentStyle.overlayColor), [currentStyle.overlayColor]);
+
+  useEffect(() => {
+    if (!selectedElement) {
+      return;
+    }
+    setActiveTab('text');
+    if (selectedElement.type === 'heading') {
+      headingInputRef.current?.focus();
+    } else if (selectedElement.type === 'subtitle') {
+      subtitleInputRef.current?.focus();
+    } else if (selectedElement.type === 'footer') {
+      footerInputRef.current?.focus();
+    }
+  }, [selectedElement]);
 
   const handleChange = (updates: Partial<Style>) => {
     onChange({ ...currentStyle, ...updates });
+  };
+  const selectElement = (type: SelectedElement['type']) => {
+    onSelectElement?.({ type });
+  };
+  const clearSelection = () => onSelectElement?.(null);
+  const isElementSelected = (type: SelectedElement['type']) => selectedElement?.type === type;
+  const handleVisibilityToggle = (
+    field: 'showHeading' | 'showSubtitle' | 'showSchedule' | 'showFooter',
+    type?: SelectedElement['type'],
+  ) => {
+    const enabled = currentStyle[field] !== false;
+    handleChange({ [field]: enabled ? false : true } as Partial<Style>);
+    if (enabled && type && isElementSelected(type)) {
+      clearSelection();
+    } else if (!enabled && type) {
+      selectElement(type);
+    }
   };
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -58,6 +146,11 @@ const SimplifiedEditor: React.FC<SimplifiedEditorProps> = ({
     setTimeout(() => setToastMessage(''), 2000);
   };
 
+  const handleResetClick = () => {
+    onReset();
+    clearSelection();
+  };
+
   const handleBackgroundApply = (newBgStyle: Partial<Style>) => {
     handleChange(newBgStyle);
     setIsBackgroundModalOpen(false);
@@ -71,15 +164,6 @@ const SimplifiedEditor: React.FC<SimplifiedEditorProps> = ({
     { value: 'bottom-left', label: 'BL' },
     { value: 'bottom-center', label: 'BC' },
     { value: 'bottom-right', label: 'BR' },
-  ];
-
-  const fontOptions = [
-    { name: 'Inter', value: "Inter, system-ui, sans-serif" },
-    { name: 'Lexend', value: "'Lexend', sans-serif" },
-    { name: 'Montserrat', value: "'Montserrat', sans-serif" },
-    { name: 'Bebas Neue', value: "'Bebas Neue', sans-serif" },
-    { name: 'Anton', value: "'Anton', sans-serif" },
-    { name: 'Playfair Display', value: "'Playfair Display', serif" },
   ];
 
   if (isCollapsed) {
@@ -162,36 +246,103 @@ const SimplifiedEditor: React.FC<SimplifiedEditorProps> = ({
           </div>
         );
 
-      case 'text':
+      case 'text': {
+        const sectionToggles: Array<{
+          field: 'showHeading' | 'showSubtitle' | 'showSchedule' | 'showFooter';
+          label: string;
+          type: SelectedElement['type'];
+        }> = [
+          { field: 'showHeading', label: 'Heading', type: 'heading' },
+          { field: 'showSubtitle', label: 'Subtitle', type: 'subtitle' },
+          { field: 'showSchedule', label: 'Schedule', type: 'schedule' },
+          { field: 'showFooter', label: 'Footer', type: 'footer' },
+        ];
+        const headingEnabled = currentStyle.showHeading !== false;
+        const subtitleEnabled = currentStyle.showSubtitle !== false;
+        const scheduleEnabled = currentStyle.showSchedule !== false;
+        const footerEnabled = currentStyle.showFooter !== false;
+        const baseInputClasses =
+          'w-full px-4 py-3 rounded-lg border-2 text-sm transition focus:outline-none bg-white text-slate-900 placeholder-slate-400 dark:bg-gray-800 dark:text-slate-100 dark:placeholder-slate-500';
+
         return (
           <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-semibold mb-3">Sections</label>
+              <div className="grid grid-cols-2 gap-2">
+                {sectionToggles.map(({ field, label, type }) => {
+                  const enabled = currentStyle[field] !== false;
+                  return (
+                    <button
+                      key={field}
+                      type="button"
+                      onClick={() => handleVisibilityToggle(field, type)}
+                      className={`rounded-lg border-2 px-3 py-2 text-xs font-semibold uppercase tracking-wide transition ${
+                        enabled
+                          ? 'border-emerald-500/80 bg-emerald-500/10 text-emerald-200'
+                          : 'border-gray-700 bg-gray-800 text-gray-400'
+                      }`}
+                    >
+                      {enabled ? 'Hide' : 'Show'} {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Content */}
             <div>
               <label className="block text-sm font-semibold mb-3">Content</label>
               <div className="space-y-3">
                 <input
+                  ref={headingInputRef}
                   type="text"
                   placeholder="Heading"
                   value={currentStyle.heading}
+                  disabled={!headingEnabled}
+                  onFocus={() => selectElement('heading')}
                   onChange={(e) => handleChange({ heading: e.target.value })}
-                  className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 focus:outline-none text-sm"
+                  className={`${baseInputClasses} ${
+                    headingEnabled
+                      ? 'border-gray-200 dark:border-gray-700 focus:border-indigo-500'
+                      : 'border-gray-800 bg-gray-900 text-slate-500 placeholder-slate-500 dark:text-slate-500 dark:placeholder-slate-600 opacity-60 cursor-not-allowed'
+                  } ${isElementSelected('heading') ? 'ring-2 ring-indigo-400/60 border-indigo-400' : ''}`}
                 />
                 <input
+                  ref={subtitleInputRef}
                   type="text"
                   placeholder="Subtitle (optional)"
                   value={currentStyle.subtitle}
+                  disabled={!subtitleEnabled}
+                  onFocus={() => selectElement('subtitle')}
                   onChange={(e) => handleChange({ subtitle: e.target.value })}
-                  className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 focus:outline-none text-sm"
+                  className={`${baseInputClasses} ${
+                    subtitleEnabled
+                      ? 'border-gray-200 dark:border-gray-700 focus:border-indigo-500'
+                      : 'border-gray-800 bg-gray-900 text-slate-500 placeholder-slate-500 dark:text-slate-500 dark:placeholder-slate-600 opacity-60 cursor-not-allowed'
+                  } ${isElementSelected('subtitle') ? 'ring-2 ring-indigo-400/60 border-indigo-400' : ''}`}
                 />
                 <input
+                  ref={footerInputRef}
                   type="text"
                   placeholder="Footer"
                   value={currentStyle.footer}
+                  disabled={!footerEnabled}
+                  onFocus={() => selectElement('footer')}
                   onChange={(e) => handleChange({ footer: e.target.value })}
-                  className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 focus:outline-none text-sm"
+                  className={`${baseInputClasses} ${
+                    footerEnabled
+                      ? 'border-gray-200 dark:border-gray-700 focus:border-indigo-500'
+                      : 'border-gray-800 bg-gray-900 text-slate-500 placeholder-slate-500 dark:text-slate-500 dark:placeholder-slate-600 opacity-60 cursor-not-allowed'
+                  } ${isElementSelected('footer') ? 'ring-2 ring-indigo-400/60 border-indigo-400' : ''}`}
                 />
               </div>
             </div>
+
+            {isElementSelected('schedule') && (
+              <div className="rounded-lg border border-indigo-500/40 bg-indigo-500/10 px-4 py-3 text-xs text-indigo-100">
+                Adjust the font controls below to update every schedule row at once.
+              </div>
+            )}
 
             {/* Font */}
             <div>
@@ -225,12 +376,18 @@ const SimplifiedEditor: React.FC<SimplifiedEditorProps> = ({
                 min="24"
                 max="48"
                 value={currentStyle.bodySize}
+                disabled={!scheduleEnabled}
+                onMouseDown={() => selectElement('schedule')}
+                onTouchStart={() => selectElement('schedule')}
                 onChange={(e) => handleChange({ bodySize: parseInt(e.target.value) })}
-                className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+                className={`w-full h-3 rounded-lg appearance-none cursor-pointer ${
+                  scheduleEnabled ? 'bg-gray-200 dark:bg-gray-700' : 'bg-gray-900 cursor-not-allowed opacity-60'
+                } ${isElementSelected('schedule') ? 'ring-2 ring-indigo-400/60' : ''}`}
               />
             </div>
           </div>
         );
+      }
 
       case 'background':
         return (
@@ -261,6 +418,34 @@ const SimplifiedEditor: React.FC<SimplifiedEditorProps> = ({
                 </button>
               </div>
             )}
+
+            <div className="space-y-3">
+              <label className="block text-sm font-semibold">Overlay Color</label>
+              <input
+                type="color"
+                value={rgbToHex(overlayColor.r, overlayColor.g, overlayColor.b)}
+                onChange={(event) => {
+                  const rgb = hexToRgb(event.target.value);
+                  handleChange({ overlayColor: toRgbaString(rgb, overlayColor.a) });
+                }}
+                className="w-16 h-10 rounded border border-white/10 bg-transparent"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold mb-2">Overlay Opacity</label>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={Math.round(overlayColor.a * 100)}
+                onChange={(event) => {
+                  const opacity = Number(event.target.value) / 100;
+                  handleChange({ overlayColor: toRgbaString(overlayColor, opacity) });
+                }}
+                className="w-full"
+              />
+            </div>
           </div>
         );
 
@@ -488,7 +673,7 @@ const SimplifiedEditor: React.FC<SimplifiedEditorProps> = ({
       <div className="flex-shrink-0 px-4 py-3 border-t border-white/10 flex gap-3">
         <button
           type="button"
-          onClick={onReset}
+          onClick={handleResetClick}
           className="flex-1 py-3 px-4 border border-white/20 font-semibold rounded-full text-slate-100 hover:border-white/60"
         >
           Reset

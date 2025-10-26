@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Style, Schedule, TemplateId } from '../types';
+import type { Style, Schedule, TemplateId, SelectedElement } from '../types';
 import DefaultStoryRenderer from './renderers/DefaultStoryRenderer';
 
 interface StoryRendererProps {
@@ -8,6 +8,9 @@ interface StoryRendererProps {
   schedule: Schedule;
   isFullSize?: boolean;
   onContentChange?: (update: Partial<Pick<Style, 'heading' | 'subtitle' | 'footer'>>) => void;
+  forceInlineBackground?: boolean;
+  selectedElement?: SelectedElement | null;
+  onSelectElement?: (element: SelectedElement | null) => void;
 }
 
 const StoryRenderer: React.FC<StoryRendererProps> = (props) => {
