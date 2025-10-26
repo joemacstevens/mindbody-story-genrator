@@ -11,6 +11,35 @@ The application is a client-side React SPA. It uses `localStorage` to persist st
 -   **`GET /`**: The homepage, which displays template previews and the style editor.
 -   **`GET /#/render`**: Renders the active template at full 1080x1920 resolution. This is the URL that a screenshot service should target.
 -   **`GET /#/ingest`**: The data ingestion endpoint. See details below.
+-   **`GET /#/gym-finder`**: Onboarding page that helps you look up a Mindbody schedule and push it directly into the editor.
+
+### Mindbody schedule function (`/api/schedule`)
+
+The app ships with a Vercel serverless function that proxies Mindbody’s `classTime` search, reshapes the response into the app’s `Schedule` type, and returns it to the UI.  
+This powers the Gym Finder page and can also be called directly.
+
+#### Environment variables
+
+Add the following values in Vercel (or a local `.env` consumed by `vercel dev`):
+
+| Variable | Purpose |
+| --- | --- |
+| `MINDBODY_CLASS_SEARCH_URL` | Full URL of the Mindbody search endpoint you want to call. |
+| `MINDBODY_API_KEY` | Optional API key header for the request. |
+| `MINDBODY_SITE_ID` | Optional site identifier sent as `Site-Id`. |
+| `MINDBODY_BEARER_TOKEN` | Optional Bearer token if the endpoint requires OAuth. |
+| `MINDBODY_USE_SAMPLE` | Set to `true` to force the function to use `mindbody/response` as a local fixture (helpful for development). |
+
+If `MINDBODY_CLASS_SEARCH_URL` is omitted or `MINDBODY_USE_SAMPLE=true`, the function automatically falls back to the sample payload in `mindbody/response`.
+
+#### Local testing with the Vercel CLI
+
+1. `npm install -g vercel` (once), then `vercel login`.
+2. Inside this repo run `vercel link` to connect to an existing project or create a new one.
+3. Use `vercel env pull .env.local` (optional) to sync env vars locally.
+4. `vercel dev` starts both Vite and the serverless function at `http://localhost:3000/api/schedule`.
+
+Deploy with `vercel` (preview) or `vercel deploy --prod` once you are ready.
 
 ## Data Ingestion via URL
 

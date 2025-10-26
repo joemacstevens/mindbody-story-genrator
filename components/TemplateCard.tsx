@@ -69,7 +69,7 @@ const TemplateCard: React.FC<TemplateCardProps> = ({
       )}
 
       {/* Template Preview */}
-      <div className="relative aspect-[9/16] rounded-t-2xl overflow-hidden bg-gray-900">
+      <div className="relative aspect-[9/16] rounded-t-2xl overflow-hidden bg-neutral-600">
         <div className="absolute inset-0 flex items-center justify-center">
           <div
             style={{

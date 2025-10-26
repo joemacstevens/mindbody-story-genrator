@@ -294,16 +294,25 @@ const HomePage: React.FC = () => {
     <div className="h-screen w-screen flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-50 overflow-hidden">
       {/* Header */}
       <header className="flex-shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm z-20">
-        <div className="max-w-screen-2xl mx-auto px-4 h-14 flex items-center justify-between">
+        <div className="max-w-screen-2xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
           <h1 className="text-lg sm:text-xl font-bold truncate">Story Generator</h1>
-          <Link
-            to="/render"
-            className="inline-flex items-center gap-2 bg-indigo-600 text-white font-semibold py-2 px-3 sm:px-4 rounded-lg shadow-md hover:bg-indigo-700 transition-colors text-sm"
-            aria-label="View final render page"
-          >
-            <ExternalLinkIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-            <span className="hidden sm:inline">Export</span>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/gym-finder"
+              className="inline-flex items-center gap-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-semibold py-2 px-3 sm:px-4 rounded-lg hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors text-sm"
+            >
+              <span className="hidden sm:inline">Gym Finder</span>
+              <span className="sm:hidden">Gyms</span>
+            </Link>
+            <Link
+              to="/render"
+              className="inline-flex items-center gap-2 bg-indigo-600 text-white font-semibold py-2 px-3 sm:px-4 rounded-lg shadow-md hover:bg-indigo-700 transition-colors text-sm"
+              aria-label="View final render page"
+            >
+              <ExternalLinkIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="hidden sm:inline">Export</span>
+            </Link>
+          </div>
         </div>
       </header>
 
