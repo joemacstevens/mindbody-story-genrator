@@ -238,17 +238,10 @@ const SimplifiedEditor: React.FC<SimplifiedEditorProps> = ({
             <button
               type="button"
               onClick={() => setIsBackgroundModalOpen(true)}
-              disabled={currentStyle.supportsBackgroundImage === false}
-              className="w-full py-4 px-6 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full py-4 px-6 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-colors"
             >
               {currentStyle.bgImage ? 'Change Background Image' : 'Add Background Image'}
             </button>
-
-            {currentStyle.supportsBackgroundImage === false && (
-              <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
-                This template's design does not support background images
-              </p>
-            )}
 
             {currentStyle.bgImage && (
               <div className="space-y-4">

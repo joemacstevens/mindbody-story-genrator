@@ -69,9 +69,10 @@ const App: React.FC = () => {
             </SignedOut>
           }
         />
+        <Route path="render" element={<RenderPage />} />
+        <Route path="render/:slug" element={<RenderPage />} />
         <Route path="/" element={<ProtectedRoute />}>
           <Route index element={<HomePage />} />
-          <Route path="render" element={<RenderPage />} />
           <Route path="ingest" element={<IngestPage />} />
           <Route path="gym-finder" element={<GymFinderPage />} />
         </Route>

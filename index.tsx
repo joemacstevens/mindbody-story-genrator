@@ -11,11 +11,11 @@ if (!rootElement) {
 
 const root = ReactDOM.createRoot(rootElement);
 
-const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+const clerkPublishableKey = import.meta.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
 if (!clerkPublishableKey) {
   throw new Error(
-    'Missing Clerk publishable key. Please set VITE_CLERK_PUBLISHABLE_KEY in your environment.'
+    'Missing Clerk publishable key. Please set NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY in your environment.'
   );
 }
 

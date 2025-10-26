@@ -1,7 +1,16 @@
 
 import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import StoryRenderer from '../components/StoryRenderer';
-import { getAppSettings, getSchedule, CONFIG_UPDATED_EVENT, SCHEDULE_UPDATED_EVENT, fetchLatestSchedule, cacheScheduleLocally } from '../services/api';
+import { FALLBACK_SCHEDULE } from '../constants';
+import {
+  getAppSettings,
+  getSchedule,
+  CONFIG_UPDATED_EVENT,
+  SCHEDULE_UPDATED_EVENT,
+  fetchLatestSchedule,
+  cacheScheduleLocally,
+} from '../services/api';
 import type { AppSettings, Schedule, TemplateId } from '../types';
 
 const isColorDark = (hexColor: string): boolean => {
@@ -15,36 +24,81 @@ const isColorDark = (hexColor: string): boolean => {
 };
 
 const RenderPage: React.FC = () => {
+  const { slug: slugFromPath } = useParams<{ slug?: string }>();
   const getSearchParams = () => {
     const hash = window.location.hash;
     const searchString = hash.includes('?') ? hash.substring(hash.indexOf('?')) : '';
     return new URLSearchParams(searchString);
   };
   const searchParams = getSearchParams();
+  const slugFromQuery = searchParams.get('slug') ?? null;
+  const normalizedSlugFromPath = slugFromPath?.trim();
+  const normalizedSlugFromQuery = slugFromQuery?.trim();
+  const activeSlug = normalizedSlugFromPath || normalizedSlugFromQuery || null;
 
   const [settings, setSettings] = useState<AppSettings | null>(null);
-  const [schedule, setSchedule] = useState<Schedule>(getSchedule());
+  const [schedule, setSchedule] = useState<Schedule>(() =>
+    activeSlug ? getSchedule(activeSlug) : FALLBACK_SCHEDULE,
+  );
   const [key, setKey] = useState(Date.now());
   const [scale, setScale] = useState(1);
 
   useEffect(() => {
-    const handleUpdate = async () => {
+    let isMounted = true;
+    const loadSettings = async () => {
       const newSettings = await getAppSettings();
-      setSettings(newSettings);
-      setSchedule(getSchedule());
-      setKey(Date.now());
+      if (isMounted) {
+        setSettings(newSettings);
+        setKey(Date.now());
+      }
     };
-    
-    window.addEventListener(CONFIG_UPDATED_EVENT, handleUpdate);
-    window.addEventListener(SCHEDULE_UPDATED_EVENT, handleUpdate);
-    
-    handleUpdate();
+
+    loadSettings();
+    window.addEventListener(CONFIG_UPDATED_EVENT, loadSettings);
 
     return () => {
-      window.removeEventListener(CONFIG_UPDATED_EVENT, handleUpdate);
-      window.removeEventListener(SCHEDULE_UPDATED_EVENT, handleUpdate);
+      isMounted = false;
+      window.removeEventListener(CONFIG_UPDATED_EVENT, loadSettings);
     };
   }, []);
+
+  useEffect(() => {
+    if (!activeSlug) return;
+
+    const updateFromCache = () => {
+      setSchedule(getSchedule(activeSlug));
+      setKey(Date.now());
+    };
+
+    updateFromCache();
+
+    const handleScheduleUpdate = (event: Event) => {
+      const eventSlug = (event as CustomEvent<{ slug?: string }>).detail?.slug;
+      if (eventSlug && eventSlug !== activeSlug) {
+        return;
+      }
+      updateFromCache();
+    };
+
+    window.addEventListener(SCHEDULE_UPDATED_EVENT, handleScheduleUpdate);
+
+    return () => {
+      window.removeEventListener(SCHEDULE_UPDATED_EVENT, handleScheduleUpdate);
+    };
+  }, [activeSlug]);
+
+  if (!activeSlug) {
+    return (
+      <div className="w-screen h-screen flex flex-col items-center justify-center bg-gray-950 text-slate-100 px-6 text-center space-y-4">
+        <h1 className="text-2xl font-semibold">Choose a gym to render</h1>
+        <p className="text-sm text-slate-300 max-w-md">
+          Open Gym Finder, search for your gym, and choose “Open render” or navigate directly to
+          <span className="mx-1 rounded-md bg-white/10 px-2 py-0.5 font-mono text-xs">/#/render/&lt;slug&gt;</span>
+          to load a specific location.
+        </p>
+      </div>
+    );
+  }
 
   useEffect(() => {
     const calculateScale = () => {
@@ -70,19 +124,21 @@ const RenderPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (!activeSlug) return;
     let isMounted = true;
     const syncSchedule = async () => {
-      const remote = await fetchLatestSchedule();
+      const remote = await fetchLatestSchedule(activeSlug);
       if (remote && isMounted) {
-        cacheScheduleLocally(remote);
+        cacheScheduleLocally(remote, activeSlug);
         setSchedule(remote);
+        setKey(Date.now());
       }
     };
     syncSchedule();
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [activeSlug]);
   
   const templateIdOverride = searchParams.get('templateId') as TemplateId | null;
   const finalTemplateId = templateIdOverride || settings?.activeTemplateId;

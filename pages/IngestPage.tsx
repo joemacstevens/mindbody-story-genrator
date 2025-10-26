@@ -11,6 +11,10 @@ const IngestPage: React.FC = () => {
       return new URLSearchParams(searchString);
     };
     const searchParams = getSearchParams();
+    const slugParam = searchParams.get('slug');
+    const normalizedSlug = slugParam?.trim() || null;
+    const slugWasProvided = Boolean(normalizedSlug);
+    let resolvedSlug = normalizedSlug;
 
     const processData = async () => {
       try {
@@ -65,7 +69,8 @@ const IngestPage: React.FC = () => {
 
         // Step 3: Save data
         if (scheduleData) {
-          await saveSchedule(scheduleData);
+          const savedSlug = await saveSchedule(scheduleData, normalizedSlug ?? undefined);
+          resolvedSlug = savedSlug;
         } else {
           console.error("No valid schedule data provided via 'schedule' or 'scheduleUrl' parameter.");
         }
@@ -89,7 +94,8 @@ const IngestPage: React.FC = () => {
       } catch (error) {
         console.error('Data ingestion failed:', error);
       } finally {
-        window.location.replace('/#/render');
+        const slugSuffix = slugWasProvided && resolvedSlug ? `/${resolvedSlug}` : '';
+        window.location.replace(`/#/render${slugSuffix}`);
       }
     };
 

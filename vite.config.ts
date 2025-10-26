@@ -9,6 +9,9 @@ export default defineConfig(({ mode }) => {
         port: 3000,
         host: '0.0.0.0',
       },
+      // Allow both standard Vite (`VITE_`) and legacy Next.js (`NEXT_PUBLIC_`) prefixes
+      // so we can keep existing Clerk env variables without renaming them.
+      envPrefix: ['VITE_', 'NEXT_PUBLIC_'],
       plugins: [react()],
       define: {
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),

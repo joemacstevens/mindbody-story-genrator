@@ -1,7 +1,16 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import type { AppSettings, TemplateId, Style, Schedule } from '../types';
-import { getAppSettings, saveAppSettings, CONFIG_UPDATED_EVENT, getSchedule, SCHEDULE_UPDATED_EVENT, fetchLatestSchedule, cacheScheduleLocally } from '../services/api';
+import {
+  getAppSettings,
+  saveAppSettings,
+  CONFIG_UPDATED_EVENT,
+  getSchedule,
+  SCHEDULE_UPDATED_EVENT,
+  fetchLatestSchedule,
+  cacheScheduleLocally,
+  getLastUsedScheduleSlug,
+} from '../services/api';
 import SimplifiedEditor from '../components/SimplifiedEditor';
 import StoryRenderer from '../components/StoryRenderer';
 import TemplateGallery from '../components/TemplateGallery';
@@ -22,6 +31,7 @@ const HomePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('preview');
   const [isEditorCollapsed, setEditorCollapsed] = useState(false);
   const [previewScale, setPreviewScale] = useState(0.3);
+  const [renderSlug, setRenderSlug] = useState<string | null>(() => getLastUsedScheduleSlug());
 
   const settings = history[currentIndex];
 
@@ -44,16 +54,19 @@ const HomePage: React.FC = () => {
     setHistory([initialSettings]);
     setCurrentIndex(0);
 
-    const sessionSchedule = getSchedule();
+    const lastSlug = getLastUsedScheduleSlug() ?? undefined;
+    setRenderSlug(lastSlug ?? null);
+    const sessionSchedule = getSchedule(lastSlug);
+
     if (sessionSchedule.items.length > 1 || sessionSchedule.date !== 'Preview Mode') {
-        setSchedule(sessionSchedule);
+      setSchedule(sessionSchedule);
     } else {
-        setSchedule(MOCK_SCHEDULE);
+      setSchedule(MOCK_SCHEDULE);
     }
 
-    const remoteSchedule = await fetchLatestSchedule();
+    const remoteSchedule = await fetchLatestSchedule(lastSlug);
     if (remoteSchedule) {
-      cacheScheduleLocally(remoteSchedule);
+      cacheScheduleLocally(remoteSchedule, lastSlug, false);
       setSchedule(remoteSchedule);
     }
   }, []);
@@ -62,11 +75,21 @@ const HomePage: React.FC = () => {
     fetchInitialData();
 
     const handleConfigUpdate = async () => {
-        const newSettings = await getAppSettings();
-        setHistory([newSettings]);
-        setCurrentIndex(0);
-    }
-    const handleScheduleUpdate = () => setSchedule(getSchedule());
+      const newSettings = await getAppSettings();
+      setHistory([newSettings]);
+      setCurrentIndex(0);
+    };
+
+    const handleScheduleUpdate = (event: Event) => {
+      const eventSlug = (event as CustomEvent<{ slug?: string }>).detail?.slug;
+      const lastSlug = getLastUsedScheduleSlug();
+      if (eventSlug && lastSlug && eventSlug !== lastSlug) {
+        return;
+      }
+      const targetSlug = lastSlug ?? eventSlug ?? undefined;
+      setSchedule(getSchedule(targetSlug));
+      setRenderSlug(targetSlug ?? null);
+    };
 
     window.addEventListener(CONFIG_UPDATED_EVENT, handleConfigUpdate);
     window.addEventListener(SCHEDULE_UPDATED_EVENT, handleScheduleUpdate);
@@ -315,7 +338,7 @@ const HomePage: React.FC = () => {
               <span className="sm:hidden">Gyms</span>
             </Link>
             <Link
-              to="/render"
+              to={renderSlug ? `/render/${renderSlug}` : '/render'}
               className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 px-4 py-2 text-sm font-semibold text-white shadow-[0_15px_35px_rgba(99,102,241,0.4)] hover:brightness-110 transition"
               aria-label="View final render page"
             >

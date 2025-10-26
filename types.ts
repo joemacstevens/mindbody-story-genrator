@@ -53,6 +53,14 @@ export type Schedule = {
   items: ScheduleItem[];
 };
 
+export type GymLocation = {
+  name: string;
+  slug: string;
+  city: string;
+  state: string;
+  country: string;
+};
+
 export type ColorPalette = {
   name: string;
   colors: {
@@ -107,5 +115,17 @@ export const isAppSettings = (data: any): data is AppSettings => {
     typeof data.configs === 'object' &&
     data.configs !== null &&
     !Array.isArray(data.configs)
+  );
+};
+
+export const isGymLocation = (data: any): data is GymLocation => {
+  return (
+    data &&
+    typeof data === 'object' &&
+    typeof data.name === 'string' &&
+    typeof data.slug === 'string' &&
+    typeof data.city === 'string' &&
+    typeof data.state === 'string' &&
+    typeof data.country === 'string'
   );
 };

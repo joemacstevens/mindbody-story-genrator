@@ -228,16 +228,12 @@ const StyleEditor: React.FC<StyleEditorProps> = ({ currentStyle, onChange, onSav
         onChange({ ...currentStyle, cornerRadius: newRadius as Style['cornerRadius'] });
     };
 
-    const supportsBg = currentStyle.supportsBackgroundImage !== false;
-
     return (
         <div className="space-y-4">
             <button
                 type="button"
                 onClick={() => setIsModalOpen(true)}
-                disabled={!supportsBg}
-                title={!supportsBg ? "This template's design does not support a background image." : "Modify background image and effects"}
-                className="w-full text-center py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md text-sm hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+                className="w-full text-center py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-opacity"
             >
                 Change Background
             </button>

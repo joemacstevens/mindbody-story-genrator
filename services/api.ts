@@ -9,8 +9,45 @@ import type { AppSettings, Schedule, Style, TemplateId } from '../types';
 import { isAppSettings, isSchedule } from '../types';
 
 const SCHEDULE_KEY = 'story_scheduler_schedule';
+const LAST_SCHEDULE_SLUG_KEY = 'story_scheduler_last_slug';
+const DEFAULT_SCHEDULE_SLUG = 'global';
 const SETTINGS_PATH = 'settings';
-const LATEST_SCHEDULE_PATH = 'latestSchedule';
+const LEGACY_LATEST_SCHEDULE_PATH = 'latestSchedule';
+const LATEST_SCHEDULE_COLLECTION = 'latestSchedules';
+
+const getScheduleStorageKey = (slug: string) => `${SCHEDULE_KEY}::${slug}`;
+
+const readLastUsedScheduleSlug = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.localStorage.getItem(LAST_SCHEDULE_SLUG_KEY);
+  } catch {
+    return null;
+  }
+};
+
+const resolveScheduleSlug = (slug?: string | null): string => {
+  const trimmed = slug?.trim();
+  if (trimmed) {
+    return trimmed;
+  }
+  const stored = readLastUsedScheduleSlug();
+  if (stored?.trim()) {
+    return stored.trim();
+  }
+  return DEFAULT_SCHEDULE_SLUG;
+};
+
+export const getLastUsedScheduleSlug = (): string | null => readLastUsedScheduleSlug();
+
+const setLastUsedScheduleSlug = (slug: string): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(LAST_SCHEDULE_SLUG_KEY, slug);
+  } catch {
+    // Ignore write failures (e.g., storage disabled)
+  }
+};
 
 // Custom events for cross-component state updates
 export const CONFIG_UPDATED_EVENT = 'config_updated';
@@ -104,47 +141,85 @@ export const saveAppSettings = async (settings: AppSettings): Promise<void> => {
   }
 };
 
-export const getSchedule = (): Schedule => {
+export const getSchedule = (slug?: string): Schedule => {
+  const resolvedSlug = resolveScheduleSlug(slug);
   try {
-    const scheduleStr = sessionStorage.getItem(SCHEDULE_KEY);
+    if (typeof window === 'undefined' || !window.sessionStorage) {
+      return FALLBACK_SCHEDULE;
+    }
+    const scheduleStr = window.sessionStorage.getItem(getScheduleStorageKey(resolvedSlug));
     return scheduleStr ? JSON.parse(scheduleStr) : FALLBACK_SCHEDULE;
   } catch (error) {
-    console.error('Failed to parse schedule from sessionStorage:', error);
+    console.error(`Failed to parse schedule for slug "${resolvedSlug}" from sessionStorage:`, error);
     return FALLBACK_SCHEDULE;
   }
 };
 
-export const cacheScheduleLocally = (schedule: Schedule, emitEvent = true): void => {
-  sessionStorage.setItem(SCHEDULE_KEY, JSON.stringify(schedule));
-  if (emitEvent) {
-    window.dispatchEvent(new Event(SCHEDULE_UPDATED_EVENT));
-  }
-};
-
-export const saveSchedule = async (schedule: Schedule): Promise<void> => {
-  cacheScheduleLocally(schedule);
-
+export const cacheScheduleLocally = (schedule: Schedule, slug?: string, emitEvent = true): void => {
+  const resolvedSlug = resolveScheduleSlug(slug);
   try {
-    const scheduleRef = rtdb.ref(db, LATEST_SCHEDULE_PATH);
-    await rtdb.set(scheduleRef, schedule);
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      window.sessionStorage.setItem(getScheduleStorageKey(resolvedSlug), JSON.stringify(schedule));
+    }
   } catch (error) {
-    console.error('Failed to sync schedule to Realtime Database:', error);
+    console.error(`Failed to cache schedule for slug "${resolvedSlug}" locally:`, error);
+  }
+  if (emitEvent && typeof window !== 'undefined') {
+    window.dispatchEvent(
+      new CustomEvent(SCHEDULE_UPDATED_EVENT, {
+        detail: { slug: resolvedSlug },
+      }),
+    );
   }
 };
 
-export const fetchLatestSchedule = async (): Promise<Schedule | null> => {
+export const saveSchedule = async (schedule: Schedule, slug?: string): Promise<string> => {
+  const resolvedSlug = resolveScheduleSlug(slug);
+  cacheScheduleLocally(schedule, resolvedSlug);
+  setLastUsedScheduleSlug(resolvedSlug);
+
   try {
-    const scheduleRef = rtdb.ref(db, LATEST_SCHEDULE_PATH);
+    const scheduleRef = rtdb.ref(db, `${LATEST_SCHEDULE_COLLECTION}/${resolvedSlug}`);
+    await rtdb.set(scheduleRef, schedule);
+
+    if (resolvedSlug === DEFAULT_SCHEDULE_SLUG) {
+      const legacyRef = rtdb.ref(db, LEGACY_LATEST_SCHEDULE_PATH);
+      await rtdb.set(legacyRef, schedule);
+    }
+  } catch (error) {
+    console.error(`Failed to sync schedule for slug "${resolvedSlug}" to Realtime Database:`, error);
+  }
+
+  return resolvedSlug;
+};
+
+export const fetchLatestSchedule = async (slug?: string): Promise<Schedule | null> => {
+  const resolvedSlug = resolveScheduleSlug(slug);
+  try {
+    const scheduleRef = rtdb.ref(db, `${LATEST_SCHEDULE_COLLECTION}/${resolvedSlug}`);
     const snapshot = await rtdb.get(scheduleRef);
     if (snapshot.exists()) {
       const data = snapshot.val();
       if (isSchedule(data)) {
         return data;
       }
-      console.warn('Invalid schedule structure in Realtime Database. Ignoring.');
+      console.warn(`Invalid schedule structure for slug "${resolvedSlug}" in Realtime Database. Ignoring.`);
+      return null;
+    }
+
+    if (resolvedSlug === DEFAULT_SCHEDULE_SLUG) {
+      const legacyRef = rtdb.ref(db, LEGACY_LATEST_SCHEDULE_PATH);
+      const legacySnapshot = await rtdb.get(legacyRef);
+      if (legacySnapshot.exists()) {
+        const legacyData = legacySnapshot.val();
+        if (isSchedule(legacyData)) {
+          return legacyData;
+        }
+        console.warn('Invalid legacy schedule structure in Realtime Database. Ignoring.');
+      }
     }
   } catch (error) {
-    console.error('Failed to fetch latest schedule from Realtime Database:', error);
+    console.error(`Failed to fetch latest schedule for slug "${resolvedSlug}" from Realtime Database:`, error);
   }
   return null;
 };

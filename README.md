@@ -9,7 +9,7 @@ The application is a client-side React SPA. It uses `localStorage` to persist st
 ### Endpoints
 
 -   **`GET /`**: The homepage, which displays template previews and the style editor.
--   **`GET /#/render`**: Renders the active template at full 1080x1920 resolution. This is the URL that a screenshot service should target.
+-   **`GET /#/render/<slug>`**: Renders the active template at full 1080x1920 resolution for a specific gym/location slug. Visiting `/#/render` without a slug now instructs you to open a slugged URL instead.
 -   **`GET /#/ingest`**: The data ingestion endpoint. See details below.
 -   **`GET /#/gym-finder`**: Onboarding page that helps you look up a Mindbody schedule and push it directly into the editor.
 
@@ -91,7 +91,7 @@ const ingestUrl = `/#/ingest?scheduleUrl=${encodedUrl}`;
 ## Usage with Browserless
 
 1.  **Prepare the Ingest URL**: Use an automation tool (like n8n or a script) to construct the `/#/ingest` URL with the latest schedule data.
-2.  **Navigate and Screenshot**: Instruct Browserless to navigate to the generated ingest URL. The app will automatically redirect to `/#/render`.
+2.  **Navigate and Screenshot**: Instruct Browserless to navigate to the generated ingest URL. The app will automatically redirect to `/#/render/<slug>` (or `/#/render` if no slug was provided).
 3.  **Set Viewport**: Ensure Browserless is configured with a 1080x1920 viewport to capture the story perfectly.
     ```json
     {

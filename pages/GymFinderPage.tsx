@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { DEFAULT_APP_SETTINGS, MOCK_SCHEDULE } from '../constants';
-import type { Schedule } from '../types';
+import type { GymLocation, Schedule } from '../types';
 import { saveSchedule } from '../services/api';
 import { slugifyLocation, humanizeDate } from '../utils/slugify';
 import SavedGymsDrawer from '../components/SavedGymsDrawer';
@@ -13,6 +13,7 @@ import {
   touchSavedGym,
 } from '../services/savedGyms';
 import type { SavedGym, SavedGymsState } from '../services/savedGyms';
+import { searchGymLocations } from '../services/gymLocations';
 
 const PREVIEW_TEMPLATE_ID = DEFAULT_APP_SETTINGS.activeTemplateId;
 const PREVIEW_STYLE = DEFAULT_APP_SETTINGS.configs[PREVIEW_TEMPLATE_ID];
@@ -56,6 +57,9 @@ const GymFinderPage: React.FC = () => {
   const [savedGymsState, setSavedGymsState] = useState<SavedGymsState>(() => loadSavedGyms());
   const [hasLoadedDefault, setHasLoadedDefault] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [gymSuggestions, setGymSuggestions] = useState<GymLocation[]>([]);
+  const [isSearchingGyms, setIsSearchingGyms] = useState(false);
+  const [gymSearchError, setGymSearchError] = useState<string | null>(null);
 
   const slug = useMemo(() => customSlug ?? slugifyLocation(gymName), [customSlug, gymName]);
   const scheduleEndpoint =
@@ -177,6 +181,15 @@ const GymFinderPage: React.FC = () => {
     [scheduleEndpoint],
   );
 
+  const handleSelectGymSuggestion = (location: GymLocation) => {
+    setGymName(location.name);
+    setCustomSlug(location.slug);
+    setGymSuggestions([]);
+    setShowSavePrompt(false);
+    setGymSaveMessage(null);
+    setGymSearchError(null);
+  };
+
   useEffect(() => {
     if (hasLoadedDefault) {
       return;
@@ -203,6 +216,43 @@ const GymFinderPage: React.FC = () => {
     });
   }, [savedGymsState, hasLoadedDefault, date, fetchScheduleData]);
 
+  useEffect(() => {
+    const trimmed = gymName.trim();
+    if (trimmed.length < 2) {
+      setGymSuggestions([]);
+      setGymSearchError(null);
+      setIsSearchingGyms(false);
+      return;
+    }
+
+    let isCurrent = true;
+    setIsSearchingGyms(true);
+
+    const debounceId = window.setTimeout(() => {
+      searchGymLocations(trimmed, { limit: 6 })
+        .then((results) => {
+          if (!isCurrent) return;
+          setGymSuggestions(results);
+          setGymSearchError(null);
+        })
+        .catch((error) => {
+          console.error('Gym autocomplete failed:', error);
+          if (!isCurrent) return;
+          setGymSuggestions([]);
+          setGymSearchError('Could not search gyms right now. Try again shortly.');
+        })
+        .finally(() => {
+          if (!isCurrent) return;
+          setIsSearchingGyms(false);
+        });
+    }, 300);
+
+    return () => {
+      isCurrent = false;
+      clearTimeout(debounceId);
+    };
+  }, [gymName]);
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     const trimmedGymName = gymName.trim();
@@ -220,14 +270,18 @@ const GymFinderPage: React.FC = () => {
 
   const handleApply = async (destination: 'editor' | 'render') => {
     if (!schedule) return;
-    await saveSchedule(schedule);
+    if (!slug) {
+      setApplyHint('Generate a Mindbody slug before applying the schedule.');
+      return;
+    }
+    const resolvedSlug = await saveSchedule(schedule, slug);
     setApplyHint(
       destination === 'editor'
         ? 'Schedule applied to the editor.'
         : 'Schedule applied. Opening render preview...',
     );
     if (destination === 'render') {
-      navigate('/render');
+      navigate(`/render/${resolvedSlug}`);
     } else {
       navigate('/');
     }
@@ -261,6 +315,8 @@ const GymFinderPage: React.FC = () => {
     setRadius(String(gym.radius));
     setGymSaveMessage(null);
     setShowSavePrompt(false);
+    setGymSuggestions([]);
+    setGymSearchError(null);
     void fetchScheduleData({
       gymName: gym.name,
       slug: gym.slug,
@@ -358,7 +414,7 @@ const GymFinderPage: React.FC = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-2">
+            <div className="space-y-2 relative">
               <label className="text-sm font-semibold text-slate-200">Gym name</label>
               <input
                 type="text"
@@ -368,11 +424,43 @@ const GymFinderPage: React.FC = () => {
                   setCustomSlug(null);
                   setShowSavePrompt(false);
                   setGymSaveMessage(null);
+                  setGymSearchError(null);
                 }}
                 placeholder="Humble Yoga"
                 className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-base focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
               />
               <p className="text-xs text-slate-500">Example: “Different Breed Sports Academy”</p>
+              {gymName.trim().length >= 2 &&
+                (isSearchingGyms || gymSuggestions.length > 0 || gymSearchError) && (
+                  <div className="absolute left-0 right-0 top-full z-30 mt-2">
+                    <div className="rounded-2xl border border-white/15 bg-slate-950/90 backdrop-blur-md shadow-2xl">
+                      {isSearchingGyms ? (
+                        <div className="px-4 py-3 text-sm text-slate-300">Searching gyms…</div>
+                      ) : gymSearchError ? (
+                        <div className="px-4 py-3 text-sm text-amber-200">{gymSearchError}</div>
+                      ) : gymSuggestions.length === 0 ? (
+                        <div className="px-4 py-3 text-sm text-slate-400">No gyms found.</div>
+                      ) : (
+                        <ul className="divide-y divide-white/5 max-h-64 overflow-auto">
+                          {gymSuggestions.map((location) => (
+                            <li key={location.slug}>
+                              <button
+                                type="button"
+                                onClick={() => handleSelectGymSuggestion(location)}
+                                className="w-full text-left px-4 py-3 hover:bg-white/5 focus:bg-white/10 focus:outline-none transition rounded-2xl"
+                              >
+                                <p className="text-sm font-semibold text-white">{location.name}</p>
+                                <p className="text-xs text-slate-400">
+                                  {location.city}, {location.state} · {location.slug}
+                                </p>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </div>
+                )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

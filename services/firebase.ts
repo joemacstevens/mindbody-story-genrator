@@ -3,6 +3,7 @@ import { initializeApp, getApps } from 'firebase/app';
 // (`* as rtdb`) to resolve the "no exported member" error. This is a common
 // workaround for module resolution or CJS/ESM interop issues with bundlers.
 import * as rtdb from 'firebase/database';
+import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
@@ -21,4 +22,5 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0
 
 // FIX: `getDatabase` is now accessed through the `rtdb` namespace.
 export const db = rtdb.getDatabase(app);
+export const firestore = getFirestore(app);
 export const storage = getStorage(app);
