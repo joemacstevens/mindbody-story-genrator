@@ -6,7 +6,7 @@ import { db } from './firebase';
 import * as rtdb from 'firebase/database';
 import { DEFAULT_APP_SETTINGS, FALLBACK_SCHEDULE } from '../constants';
 import type { AppSettings, Schedule, Style, TemplateId } from '../types';
-import { isAppSettings } from '../types';
+import { isAppSettings, isSchedule } from '../types';
 
 const SCHEDULE_KEY = 'story_scheduler_schedule';
 const SETTINGS_PATH = 'settings';
@@ -114,9 +114,15 @@ export const getSchedule = (): Schedule => {
   }
 };
 
-export const saveSchedule = async (schedule: Schedule): Promise<void> => {
+export const cacheScheduleLocally = (schedule: Schedule, emitEvent = true): void => {
   sessionStorage.setItem(SCHEDULE_KEY, JSON.stringify(schedule));
-  window.dispatchEvent(new Event(SCHEDULE_UPDATED_EVENT));
+  if (emitEvent) {
+    window.dispatchEvent(new Event(SCHEDULE_UPDATED_EVENT));
+  }
+};
+
+export const saveSchedule = async (schedule: Schedule): Promise<void> => {
+  cacheScheduleLocally(schedule);
 
   try {
     const scheduleRef = rtdb.ref(db, LATEST_SCHEDULE_PATH);
@@ -124,4 +130,21 @@ export const saveSchedule = async (schedule: Schedule): Promise<void> => {
   } catch (error) {
     console.error('Failed to sync schedule to Realtime Database:', error);
   }
+};
+
+export const fetchLatestSchedule = async (): Promise<Schedule | null> => {
+  try {
+    const scheduleRef = rtdb.ref(db, LATEST_SCHEDULE_PATH);
+    const snapshot = await rtdb.get(scheduleRef);
+    if (snapshot.exists()) {
+      const data = snapshot.val();
+      if (isSchedule(data)) {
+        return data;
+      }
+      console.warn('Invalid schedule structure in Realtime Database. Ignoring.');
+    }
+  } catch (error) {
+    console.error('Failed to fetch latest schedule from Realtime Database:', error);
+  }
+  return null;
 };

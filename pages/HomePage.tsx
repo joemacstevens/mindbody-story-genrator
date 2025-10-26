@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import type { AppSettings, TemplateId, Style, Schedule } from '../types';
-import { getAppSettings, saveAppSettings, CONFIG_UPDATED_EVENT, getSchedule, SCHEDULE_UPDATED_EVENT } from '../services/api';
+import { getAppSettings, saveAppSettings, CONFIG_UPDATED_EVENT, getSchedule, SCHEDULE_UPDATED_EVENT, fetchLatestSchedule, cacheScheduleLocally } from '../services/api';
 import SimplifiedEditor from '../components/SimplifiedEditor';
 import StoryRenderer from '../components/StoryRenderer';
 import TemplateGallery from '../components/TemplateGallery';
@@ -49,6 +49,12 @@ const HomePage: React.FC = () => {
         setSchedule(sessionSchedule);
     } else {
         setSchedule(MOCK_SCHEDULE);
+    }
+
+    const remoteSchedule = await fetchLatestSchedule();
+    if (remoteSchedule) {
+      cacheScheduleLocally(remoteSchedule);
+      setSchedule(remoteSchedule);
     }
   }, []);
 

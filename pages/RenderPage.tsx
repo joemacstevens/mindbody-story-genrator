@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import StoryRenderer from '../components/StoryRenderer';
-import { getAppSettings, getSchedule, CONFIG_UPDATED_EVENT, SCHEDULE_UPDATED_EVENT } from '../services/api';
+import { getAppSettings, getSchedule, CONFIG_UPDATED_EVENT, SCHEDULE_UPDATED_EVENT, fetchLatestSchedule, cacheScheduleLocally } from '../services/api';
 import type { AppSettings, Schedule, TemplateId } from '../types';
 
 const isColorDark = (hexColor: string): boolean => {
@@ -66,6 +66,21 @@ const RenderPage: React.FC = () => {
 
     return () => {
       window.removeEventListener('resize', calculateScale);
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    const syncSchedule = async () => {
+      const remote = await fetchLatestSchedule();
+      if (remote && isMounted) {
+        cacheScheduleLocally(remote);
+        setSchedule(remote);
+      }
+    };
+    syncSchedule();
+    return () => {
+      isMounted = false;
     };
   }, []);
   
