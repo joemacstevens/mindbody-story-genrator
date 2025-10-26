@@ -65,7 +65,7 @@ const IngestPage: React.FC = () => {
 
         // Step 3: Save data
         if (scheduleData) {
-          saveSchedule(scheduleData);
+          await saveSchedule(scheduleData);
         } else {
           console.error("No valid schedule data provided via 'schedule' or 'scheduleUrl' parameter.");
         }

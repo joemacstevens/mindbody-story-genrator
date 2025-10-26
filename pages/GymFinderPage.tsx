@@ -121,9 +121,9 @@ const GymFinderPage: React.FC = () => {
     }
   };
 
-  const handleApply = (destination: 'editor' | 'render') => {
+  const handleApply = async (destination: 'editor' | 'render') => {
     if (!schedule) return;
-    saveSchedule(schedule);
+    await saveSchedule(schedule);
     setApplyHint(
       destination === 'editor'
         ? 'Schedule applied to the editor.'

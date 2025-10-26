@@ -114,13 +114,13 @@ export const getSchedule = (): Schedule => {
   }
 };
 
-export const saveSchedule = (schedule: Schedule): void => {
+export const saveSchedule = async (schedule: Schedule): Promise<void> => {
   sessionStorage.setItem(SCHEDULE_KEY, JSON.stringify(schedule));
   window.dispatchEvent(new Event(SCHEDULE_UPDATED_EVENT));
 
   try {
     const scheduleRef = rtdb.ref(db, LATEST_SCHEDULE_PATH);
-    void rtdb.set(scheduleRef, schedule);
+    await rtdb.set(scheduleRef, schedule);
   } catch (error) {
     console.error('Failed to sync schedule to Realtime Database:', error);
   }
