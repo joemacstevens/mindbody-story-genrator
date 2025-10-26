@@ -71,18 +71,18 @@ const TemplateGallery: React.FC<TemplateGalleryProps> = ({
   ];
 
   return (
-    <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900">
+    <div className="h-full flex flex-col bg-slate-950 text-slate-100">
       {/* Category Filter */}
-      <div className="flex-shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3">
+      <div className="flex-shrink-0 bg-slate-900/70 border-b border-white/5 px-4 py-3 backdrop-blur">
         <div className="flex gap-2 overflow-x-auto scrollbar-hide">
           {categories.map((cat) => (
             <button
               key={cat.key}
               onClick={() => setActiveCategory(cat.key)}
-              className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all ${
+              className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition ${
                 activeCategory === cat.key
-                  ? 'bg-indigo-600 text-white shadow-lg'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  ? 'bg-white text-slate-900 shadow-lg'
+                  : 'bg-white/5 text-slate-300 hover:bg-white/10'
               }`}
             >
               <span className="mr-2">{cat.icon}</span>
@@ -94,8 +94,8 @@ const TemplateGallery: React.FC<TemplateGalleryProps> = ({
 
       {/* Category Description */}
       {activeCategory !== 'all' && (
-        <div className="flex-shrink-0 bg-indigo-50 dark:bg-indigo-900/20 px-4 py-3 border-b border-indigo-100 dark:border-indigo-800">
-          <p className="text-sm text-indigo-900 dark:text-indigo-200">
+        <div className="flex-shrink-0 bg-indigo-500/10 px-4 py-3 border-b border-indigo-500/30">
+          <p className="text-sm text-indigo-100">
             {TEMPLATE_CATEGORIES[activeCategory as keyof typeof TEMPLATE_CATEGORIES]?.description}
           </p>
         </div>
@@ -108,12 +108,12 @@ const TemplateGallery: React.FC<TemplateGalleryProps> = ({
           {onCreateNew && (
             <button
               onClick={onCreateNew}
-              className="aspect-[9/16] rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-indigo-500 dark:hover:border-indigo-500 bg-white dark:bg-gray-800 flex flex-col items-center justify-center gap-3 transition-all hover:shadow-lg group"
+              className="aspect-[9/16] rounded-3xl border-2 border-dashed border-white/20 hover:border-white/50 bg-slate-900/70 flex flex-col items-center justify-center gap-3 transition-all hover:shadow-xl group"
             >
-              <div className="w-12 h-12 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center group-hover:bg-indigo-200 dark:group-hover:bg-indigo-800 transition-colors">
-                <UploadIcon className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+              <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-white/20 transition-colors">
+                <UploadIcon className="w-6 h-6 text-indigo-200" />
               </div>
-              <span className="text-sm font-semibold text-gray-600 dark:text-gray-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+              <span className="text-sm font-semibold text-slate-300 group-hover:text-white">
                 Create New
               </span>
             </button>
@@ -137,9 +137,9 @@ const TemplateGallery: React.FC<TemplateGalleryProps> = ({
 
         {/* Empty State */}
         {filteredTemplates.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-64 text-center">
-            <p className="text-gray-500 dark:text-gray-400 text-lg">No templates in this category</p>
-            <p className="text-gray-400 dark:text-gray-500 text-sm mt-2">
+          <div className="flex flex-col items-center justify-center h-64 text-center text-slate-500">
+            <p className="text-lg">No templates in this category</p>
+            <p className="text-sm mt-2">
               Try selecting a different category
             </p>
           </div>
@@ -150,20 +150,20 @@ const TemplateGallery: React.FC<TemplateGalleryProps> = ({
       {menuTemplateId && (
         <div
           ref={menuRef}
-          className="fixed bg-white dark:bg-gray-800 rounded-lg shadow-xl ring-1 ring-black ring-opacity-5 z-50 py-1"
+          className="fixed bg-slate-900 border border-white/10 rounded-xl shadow-2xl z-50 py-1"
           style={{
             top: menuPosition.y,
             left: menuPosition.x,
             transform: 'translate(-100%, 0)',
           }}
         >
-          <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
+          <button className="block w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-white/5">
             Duplicate
           </button>
-          <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
+          <button className="block w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-white/5">
             Rename
           </button>
-          <button className="block w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700">
+          <button className="block w-full text-left px-4 py-2 text-sm text-rose-400 hover:bg-white/5">
             Delete
           </button>
         </div>

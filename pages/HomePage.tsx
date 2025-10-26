@@ -21,7 +21,7 @@ const HomePage: React.FC = () => {
   const [schedule, setSchedule] = useState<Schedule>(MOCK_SCHEDULE);
   const [activeTab, setActiveTab] = useState<TabType>('preview');
   const [isEditorCollapsed, setEditorCollapsed] = useState(false);
-  const [previewScale, setPreviewScale] = useState(1);
+  const [previewScale, setPreviewScale] = useState(0.3);
 
   const settings = history[currentIndex];
 
@@ -161,6 +161,7 @@ const HomePage: React.FC = () => {
   }
 
   const activeStyle = settings.configs[settings.activeTemplateId];
+  const phonePreviewScale = Math.min(Math.max(previewScale, 0.18), 0.4);
 
   // Render tab content
   const renderTabContent = () => {
@@ -210,15 +211,15 @@ const HomePage: React.FC = () => {
                 </div>
 
                 {/* Story Preview - Larger on desktop */}
-                <div className="w-full max-w-sm lg:max-w-md aspect-[9/16] bg-gray-900 rounded-2xl lg:rounded-3xl p-2 lg:p-3 shadow-2xl">
-                  <div className="w-full h-full overflow-hidden rounded-xl lg:rounded-2xl bg-black relative">
+                <div className="w-full max-w-sm lg:max-w-md aspect-[9/16] bg-slate-900/70 rounded-3xl p-3 shadow-[0_20px_60px_rgba(2,6,23,0.8)] border border-white/5">
+                  <div className="w-full h-full overflow-hidden rounded-2xl bg-slate-950 relative">
                     {activeStyle && (
                       <div className="absolute inset-0 flex items-center justify-center">
                         <div
                           style={{
                             width: '1080px',
                             height: '1920px',
-                            transform: 'scale(0.2)',
+                            transform: `scale(${phonePreviewScale})`,
                             transformOrigin: 'center center',
                           }}
                         >
@@ -238,7 +239,7 @@ const HomePage: React.FC = () => {
 
               {/* Editor Panel */}
               {!isEditorCollapsed && activeStyle && (
-                <div className="flex-1 lg:flex-[4] border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-gray-700">
+                <div className="flex-1 lg:flex-[4] border-t lg:border-t-0 lg:border-l border-white/5 bg-slate-950/40">
                   <SimplifiedEditor
                     currentStyle={activeStyle}
                     onChange={handleStyleChange}
@@ -256,10 +257,10 @@ const HomePage: React.FC = () => {
 
             {/* Show Editor Button (when collapsed) */}
             {isEditorCollapsed && (
-              <div className="flex-shrink-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 py-3 flex justify-center">
+              <div className="flex-shrink-0 bg-slate-900/80 border-t border-white/5 py-3 flex justify-center">
                 <button
                   onClick={() => setEditorCollapsed(false)}
-                  className="px-6 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-colors"
+                  className="px-6 py-2 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold shadow-lg hover:brightness-110 transition"
                 >
                   Show Editor ▲
                 </button>
@@ -291,22 +292,25 @@ const HomePage: React.FC = () => {
   };
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-50 overflow-hidden">
+    <div className="h-screen w-screen flex flex-col bg-slate-950 text-slate-100 overflow-hidden">
       {/* Header */}
-      <header className="flex-shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm z-20">
-        <div className="max-w-screen-2xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
-          <h1 className="text-lg sm:text-xl font-bold truncate">Story Generator</h1>
+      <header className="flex-shrink-0 bg-slate-900/80 backdrop-blur-xl border-b border-white/5 shadow-[0_10px_40px_rgba(15,23,42,0.6)] z-20">
+        <div className="max-w-screen-2xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.4em] text-indigo-200/70">Studio OS</p>
+            <h1 className="text-lg sm:text-xl font-bold tracking-tight">Story Generator</h1>
+          </div>
           <div className="flex items-center gap-2">
             <Link
               to="/gym-finder"
-              className="inline-flex items-center gap-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-semibold py-2 px-3 sm:px-4 rounded-lg hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors text-sm"
+              className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-sm font-semibold text-slate-100/80 hover:border-white/40 hover:text-white transition"
             >
               <span className="hidden sm:inline">Gym Finder</span>
               <span className="sm:hidden">Gyms</span>
             </Link>
             <Link
               to="/render"
-              className="inline-flex items-center gap-2 bg-indigo-600 text-white font-semibold py-2 px-3 sm:px-4 rounded-lg shadow-md hover:bg-indigo-700 transition-colors text-sm"
+              className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 px-4 py-2 text-sm font-semibold text-white shadow-[0_15px_35px_rgba(99,102,241,0.4)] hover:brightness-110 transition"
               aria-label="View final render page"
             >
               <ExternalLinkIcon className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -317,48 +321,46 @@ const HomePage: React.FC = () => {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-grow overflow-hidden pb-16 lg:pb-0">
+      <main className="flex-grow overflow-hidden pb-20 lg:pb-0 bg-slate-950">
         {renderTabContent()}
       </main>
 
-      {/* Bottom Navigation - Fixed on mobile, static on desktop */}
-      <nav className="fixed lg:relative bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg z-30 safe-area-bottom">
-        <div className="max-w-screen-2xl mx-auto px-2 py-2">
-          <div className="flex justify-around items-center">
+      {/* Bottom Navigation */}
+      <nav className="fixed lg:relative bottom-0 left-0 right-0 bg-slate-900/80 backdrop-blur-xl border-t border-white/10 shadow-[0_-10px_30px_rgba(2,6,23,0.8)] z-30 safe-area-bottom">
+        <div className="max-w-screen-2xl mx-auto px-3 py-2">
+          <div className="flex justify-around items-center gap-2">
             <button
               onClick={() => setActiveTab('templates')}
-              className={`flex flex-col items-center justify-center flex-1 py-2 px-3 rounded-lg transition-all ${
+              className={`flex flex-col items-center justify-center flex-1 py-2 px-3 rounded-2xl text-[11px] font-semibold uppercase tracking-wide transition ${
                 activeTab === 'templates'
-                  ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  ? 'bg-white text-slate-900 shadow-lg'
+                  : 'text-slate-400 hover:text-white hover:bg-white/5'
               }`}
             >
-              <GridIcon className="w-6 h-6 mb-1" />
-              <span className="text-xs font-semibold">Templates</span>
+              <GridIcon className="w-5 h-5 mb-1" />
+              Templates
             </button>
-
             <button
               onClick={() => setActiveTab('preview')}
-              className={`flex flex-col items-center justify-center flex-1 py-2 px-3 rounded-lg transition-all ${
+              className={`flex flex-col items-center justify-center flex-1 py-2 px-3 rounded-2xl text-[11px] font-semibold uppercase tracking-wide transition ${
                 activeTab === 'preview'
-                  ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  ? 'bg-white text-slate-900 shadow-lg'
+                  : 'text-slate-400 hover:text-white hover:bg-white/5'
               }`}
             >
-              <EyeIcon className="w-6 h-6 mb-1" />
-              <span className="text-xs font-semibold">Preview</span>
+              <EyeIcon className="w-5 h-5 mb-1" />
+              Preview
             </button>
-
             <button
               onClick={() => setActiveTab('editor')}
-              className={`flex flex-col items-center justify-center flex-1 py-2 px-3 rounded-lg transition-all ${
+              className={`flex flex-col items-center justify-center flex-1 py-2 px-3 rounded-2xl text-[11px] font-semibold uppercase tracking-wide transition ${
                 activeTab === 'editor'
-                  ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  ? 'bg-white text-slate-900 shadow-lg'
+                  : 'text-slate-400 hover:text-white hover:bg-white/5'
               }`}
             >
-              <SlidersIcon className="w-6 h-6 mb-1" />
-              <span className="text-xs font-semibold">Editor</span>
+              <SlidersIcon className="w-5 h-5 mb-1" />
+              Editor
             </button>
           </div>
         </div>

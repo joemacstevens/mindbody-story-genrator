@@ -37,11 +37,11 @@ const TemplateCard: React.FC<TemplateCardProps> = ({
   return (
     <div
       onClick={handleClick}
-      className={`relative group cursor-pointer rounded-2xl transition-all duration-200 ${
+      className={`relative group cursor-pointer rounded-3xl transition-all duration-200 ${
         isActive
-          ? 'ring-4 ring-indigo-500 shadow-xl scale-[1.02]'
-          : 'ring-2 ring-gray-200 dark:ring-gray-700 hover:ring-gray-300 dark:hover:ring-gray-600 hover:shadow-lg'
-      }`}
+          ? 'ring-4 ring-white shadow-[0_15px_35px_rgba(15,23,42,0.8)] scale-[1.02]'
+          : 'ring-2 ring-white/10 hover:ring-white/40 hover:shadow-lg'
+      } bg-slate-900/70`}
     >
       {/* Active Indicator */}
       {isActive && (
@@ -69,7 +69,7 @@ const TemplateCard: React.FC<TemplateCardProps> = ({
       )}
 
       {/* Template Preview */}
-      <div className="relative aspect-[9/16] rounded-t-2xl overflow-hidden bg-neutral-600">
+      <div className="relative aspect-[9/16] rounded-t-3xl overflow-hidden bg-slate-950">
         <div className="absolute inset-0 flex items-center justify-center">
           <div
             style={{
@@ -90,8 +90,8 @@ const TemplateCard: React.FC<TemplateCardProps> = ({
       </div>
 
       {/* Template Info */}
-      <div className="p-4 bg-white dark:bg-gray-800 rounded-b-2xl">
-        <h3 className="font-semibold text-center text-sm truncate">{name}</h3>
+      <div className="p-4 rounded-b-3xl bg-slate-950/70 border-t border-white/5">
+        <h3 className="font-semibold text-center text-sm truncate text-slate-100">{name}</h3>
       </div>
     </div>
   );

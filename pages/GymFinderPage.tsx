@@ -36,7 +36,12 @@ const GymFinderPage: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [schedule, setSchedule] = useState<Schedule | null>(null);
   const [rawResponse, setRawResponse] = useState<any>(null);
-  const [resultMeta, setResultMeta] = useState<{ slug: string; source: 'live' | 'sample'; count: number } | null>(null);
+  const [resultMeta, setResultMeta] = useState<{
+    slug: string;
+    source: 'live' | 'sample';
+    count: number;
+  } | null>(null);
+  const [applyHint, setApplyHint] = useState<string | null>(null);
 
   const slug = useMemo(() => slugifyLocation(gymName), [gymName]);
   const scheduleEndpoint =
@@ -67,6 +72,7 @@ const GymFinderPage: React.FC = () => {
     setStatus('loading');
     setErrorMessage(null);
     setResultMeta(null);
+    setApplyHint(null);
     const payload = {
       gymName,
       locationSlug: slug,
@@ -115,10 +121,19 @@ const GymFinderPage: React.FC = () => {
     }
   };
 
-  const handleApplyToEditor = () => {
+  const handleApply = (destination: 'editor' | 'render') => {
     if (!schedule) return;
     saveSchedule(schedule);
-    navigate('/');
+    setApplyHint(
+      destination === 'editor'
+        ? 'Schedule applied to the editor.'
+        : 'Schedule applied. Opening render preview...',
+    );
+    if (destination === 'render') {
+      navigate('/render');
+    } else {
+      navigate('/');
+    }
   };
 
   const statusLabel: Record<FetchState, string> = {
@@ -129,188 +144,237 @@ const GymFinderPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100">
-      <header className="border-b border-gray-900/60 bg-gray-900/70 backdrop-blur-md">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
-          <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-gray-500">Mindbody onboarding</p>
-            <h1 className="text-2xl font-bold mt-1">Find Your Gym Schedule</h1>
+    <div className="min-h-screen bg-slate-950 text-slate-100">
+      <header className="bg-gradient-to-r from-indigo-600/40 via-purple-600/20 to-transparent border-b border-white/5">
+        <div className="max-w-5xl mx-auto px-4 py-8 space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.4em] text-indigo-200/80">Mindbody sync</p>
+              <h1 className="text-3xl sm:text-4xl font-bold">Find your gym schedule</h1>
+              <p className="text-sm text-indigo-50/80 max-w-2xl mt-2">
+                Paste the gym name, pick a day, and we’ll pull the official Mindbody schedule so
+                your templates stay on-brand without spreadsheets.
+              </p>
+            </div>
+            <Link
+              to="/"
+              className="hidden sm:inline-flex items-center gap-2 rounded-full border border-white/20 px-4 py-2 text-sm font-semibold text-white/90 hover:border-white hover:text-white transition"
+            >
+              ← Back to editor
+            </Link>
           </div>
-          <Link
-            to="/"
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-800 px-4 py-2 text-sm font-semibold text-gray-200 hover:border-indigo-500 hover:text-white transition-colors"
-          >
-            ← Back to Editor
-          </Link>
+          <div className="sm:hidden">
+            <Link
+              to="/"
+              className="inline-flex items-center gap-2 rounded-full border border-white/20 px-4 py-2 text-sm font-semibold text-white/90 hover:border-white hover:text-white transition"
+            >
+              ← Back to editor
+            </Link>
+          </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-8 flex flex-col lg:flex-row gap-8">
-        <section className="flex-1 rounded-2xl border border-gray-900 bg-gray-900/60 p-6 space-y-6">
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Status</p>
-                <p className="text-lg font-semibold">{statusLabel[status]}</p>
-              </div>
+      <main className="max-w-5xl mx-auto px-4 py-8 space-y-8">
+        {/* Step 1 */}
+        <section className="rounded-3xl border border-white/10 bg-slate-900/70 p-6 sm:p-8 space-y-6 shadow-[0_15px_60px_rgba(15,23,42,0.45)]">
+          <div className="flex flex-wrap items-start gap-4 justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.4em] text-indigo-200/70">Step 1</p>
+              <h2 className="text-2xl font-semibold mt-1">Search your gym</h2>
+              <p className="text-sm text-slate-400 mt-1">
+                Use the official name from Mindbody. We’ll auto-generate the slug and pull the
+                classes within a mile radius.
+              </p>
+            </div>
+            <div className="flex flex-col items-end gap-2">
+              <span className="text-sm font-semibold text-slate-300">{statusLabel[status]}</span>
               {resultMeta && (
                 <span
-                  className={`text-xs font-semibold px-3 py-1 rounded-full ${
+                  className={`inline-flex items-center gap-1 text-xs font-semibold px-3 py-1 rounded-full ${
                     resultMeta.source === 'live'
-                      ? 'bg-emerald-500/10 text-emerald-200 border border-emerald-400/30'
-                      : 'bg-amber-500/10 text-amber-200 border border-amber-400/30'
+                      ? 'bg-emerald-500/10 text-emerald-200 border border-emerald-400/40'
+                      : 'bg-amber-500/10 text-amber-200 border border-amber-400/40'
                   }`}
                 >
                   {resultMeta.source === 'live' ? 'Live data' : 'Sample data'}
                 </span>
               )}
-              {errorMessage && (
-                <span className="text-xs font-semibold text-amber-300 bg-amber-500/10 px-3 py-1 rounded-full">
-                  Attention
-                </span>
-              )}
             </div>
-
-            {resultMeta && (
-              <div className="flex flex-wrap gap-4 text-sm text-gray-400">
-                <div>
-                  <p className="uppercase text-xs tracking-wide text-gray-500">Slug used</p>
-                  <p className="font-semibold text-gray-200">{resultMeta.slug}</p>
-                </div>
-                <div>
-                  <p className="uppercase text-xs tracking-wide text-gray-500">Classes found</p>
-                  <p className="font-semibold text-gray-200">{resultMeta.count}</p>
-                </div>
-              </div>
-            )}
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="text-sm font-semibold text-gray-300">Gym name</label>
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-200">Gym name</label>
               <input
                 type="text"
                 value={gymName}
                 onChange={(event) => setGymName(event.target.value)}
-                placeholder="Different Breed Sports Academy"
-                className="mt-2 w-full rounded-xl border border-gray-800 bg-gray-900/80 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none"
+                placeholder="Humble Yoga"
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-base focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
               />
-              <p className="mt-2 text-xs text-gray-500">
-                We convert this into a Mindbody location slug automatically.
-              </p>
+              <p className="text-xs text-slate-500">Example: “Different Breed Sports Academy”</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-semibold text-gray-300">Date</label>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-200">Date</label>
                 <input
                   type="date"
                   value={date}
                   onChange={(event) => setDate(event.target.value)}
-                  className="mt-2 w-full rounded-xl border border-gray-800 bg-gray-900/80 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none"
+                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-base focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
                 />
               </div>
-              <div>
-                <label className="text-sm font-semibold text-gray-300">Radius (miles)</label>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-200">Radius (miles)</label>
                 <input
                   type="number"
                   min="1"
                   value={radius}
                   onChange={(event) => setRadius(event.target.value)}
-                  className="mt-2 w-full rounded-xl border border-gray-800 bg-gray-900/80 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none"
+                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-base focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
                 />
               </div>
             </div>
 
-            <div className="rounded-2xl border border-gray-800 bg-black/20 p-4">
-              <p className="text-xs font-semibold uppercase text-gray-500 tracking-wide">Slug</p>
-              <p className="mt-1 text-lg font-mono text-indigo-300">
+            <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Mindbody slug</p>
+              <p className="mt-1 text-lg font-mono text-indigo-200">
                 {slug || 'type-a-gym-name-to-generate'}
               </p>
             </div>
 
             <button
               type="submit"
-              className="w-full rounded-xl bg-indigo-600 py-3 text-sm font-semibold shadow-lg shadow-indigo-900/40 transition hover:bg-indigo-500 disabled:opacity-50"
+              className="w-full rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 py-3 text-base font-semibold shadow-[0_20px_40px_rgba(99,102,241,0.35)] transition hover:brightness-110 disabled:opacity-50"
               disabled={status === 'loading'}
             >
-              {status === 'loading' ? 'Fetching schedule…' : 'Fetch schedule'}
+              {status === 'loading' ? 'Finding classes…' : 'Fetch schedule'}
             </button>
           </form>
 
+          {resultMeta && (
+            <div className="flex flex-wrap gap-6 text-sm text-slate-400">
+              <div>
+                <p className="uppercase text-xs tracking-wide text-slate-500">Slug used</p>
+                <p className="font-semibold text-slate-100">{resultMeta.slug}</p>
+              </div>
+              <div>
+                <p className="uppercase text-xs tracking-wide text-slate-500">Classes found</p>
+                <p className="font-semibold text-slate-100">{resultMeta.count}</p>
+              </div>
+            </div>
+          )}
+
           {errorMessage && (
-            <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-100">
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
               {errorMessage}
             </div>
           )}
+
           {resultMeta?.source === 'sample' && !errorMessage && (
-            <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-100">
-              You are currently viewing sample data. Configure the Mindbody environment variables on
-              Vercel to fetch live schedules for different gyms.
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-50/90">
+              You’re viewing the sample payload. Add your Mindbody endpoint in the Vercel env vars to
+              pull live schedules automatically.
             </div>
           )}
 
-          <div>
-            <p className="text-sm font-semibold text-gray-300 mb-2">Mindbody request preview</p>
-            <pre className="max-h-64 overflow-auto rounded-2xl border border-gray-900 bg-black/40 p-4 text-xs leading-relaxed">
+          <details className="rounded-2xl border border-white/5 bg-slate-950/30 p-4">
+            <summary className="cursor-pointer text-sm font-semibold text-slate-300">
+              Need to double-check the API payload?
+            </summary>
+            <pre className="mt-4 max-h-64 w-full overflow-auto whitespace-pre-wrap break-words rounded-xl border border-white/5 bg-black/50 p-4 text-xs leading-relaxed">
 {JSON.stringify(requestPreview, null, 2)}
             </pre>
-          </div>
+          </details>
         </section>
 
-        <section className="flex-1 rounded-2xl border border-gray-900 bg-gray-900/60 p-6 flex flex-col gap-6">
-          <div className="flex items-center justify-between">
+        {/* Step 2 */}
+        <section className="rounded-3xl border border-white/10 bg-slate-900/80 p-6 sm:p-8 space-y-6 shadow-[0_15px_60px_rgba(15,23,42,0.45)]">
+          <div className="flex items-start justify-between flex-wrap gap-3">
             <div>
-              <p className="text-sm text-gray-400">Preview</p>
-              <p className="text-lg font-semibold">What will be saved</p>
+              <p className="text-xs uppercase tracking-[0.4em] text-indigo-200/70">Step 2</p>
+              <h2 className="text-2xl font-semibold mt-1">Preview & send to templates</h2>
+              <p className="text-sm text-slate-400 mt-1">
+                Everything shown here will automatically load in the editor and full render.
+              </p>
             </div>
-            <button
-              type="button"
-              onClick={handleApplyToEditor}
-              disabled={!schedule}
-              className="rounded-lg border border-indigo-500/50 px-4 py-2 text-sm font-semibold text-indigo-100 hover:bg-indigo-500/10 disabled:opacity-40"
-            >
-              Send to editor
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => handleApply('editor')}
+                disabled={!schedule}
+                className="rounded-full border border-indigo-400/50 px-4 py-2 text-sm font-semibold text-indigo-100 hover:bg-indigo-500/10 disabled:opacity-40"
+              >
+                Save to editor
+              </button>
+              <button
+                type="button"
+                onClick={() => handleApply('render')}
+                disabled={!schedule}
+                className="rounded-full bg-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(99,102,241,0.4)] hover:bg-indigo-400 disabled:opacity-40"
+              >
+                Open render
+              </button>
+            </div>
           </div>
-
-          <div className="flex-1 overflow-hidden rounded-2xl border border-gray-800 bg-gray-950/40 flex items-center justify-center p-4">
+          <div className="rounded-2xl border border-white/5 bg-slate-950/30 p-4 flex flex-col gap-4">
             {schedule ? (
-              <div className="w-full max-w-sm">
-                <div className="relative aspect-[9/16] rounded-xl bg-gray-900">
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div
-                      style={{
-                        width: '1080px',
-                        height: '1920px',
-                        transform: 'scale(0.25)',
-                        transformOrigin: 'top center',
-                      }}
-                    >
-                      <StoryRenderer
-                        templateId={PREVIEW_TEMPLATE_ID}
-                        style={PREVIEW_STYLE}
-                        schedule={schedule}
-                        isFullSize={false}
-                      />
-                    </div>
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-slate-500">Schedule date</p>
+                    <p className="text-lg font-semibold text-white">{schedule.date}</p>
+                  </div>
+                  <div className="rounded-full bg-white/5 px-3 py-1 text-xs font-semibold text-slate-200">
+                    {schedule.items.length} classes
                   </div>
                 </div>
-              </div>
+                <ul className="space-y-3 max-h-96 overflow-auto pr-1">
+                  {schedule.items.map((item, idx) => (
+                    <li
+                      key={`${item.time}-${idx}`}
+                      className="rounded-2xl border border-white/5 bg-white/[0.03] p-3 flex items-center gap-3"
+                    >
+                      <div className="w-24 text-sm font-semibold text-indigo-200">
+                        {item.time}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-white">{item.class}</p>
+                        <p className="text-xs text-slate-400">with {item.coach}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </>
             ) : (
-              <p className="text-center text-sm text-gray-500 px-4">
-                Enter a gym name and date to preview how the schedule will look.
-              </p>
+              <div className="text-center space-y-2">
+                <p className="text-sm font-semibold text-slate-200">
+                  Preview loads after you fetch a gym
+                </p>
+                <p className="text-xs text-slate-500">
+                  We’ll list the full day’s classes here so you can double-check everything before
+                  saving.
+                </p>
+              </div>
             )}
           </div>
 
+          {applyHint && (
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-100">
+              {applyHint}
+            </div>
+          )}
+
           {rawResponse && (
-            <div>
-              <p className="text-sm font-semibold text-gray-300 mb-2">Raw API snippet</p>
-              <pre className="max-h-48 overflow-auto rounded-2xl border border-gray-900 bg-black/40 p-4 text-xs leading-relaxed">
+            <details className="rounded-2xl border border-white/5 bg-slate-950/30 p-4">
+              <summary className="cursor-pointer text-sm font-semibold text-slate-300">
+                Developer view
+              </summary>
+              <pre className="mt-4 max-h-64 w-full overflow-auto whitespace-pre-wrap break-words rounded-xl border border-white/5 bg-black/50 p-4 text-xs leading-relaxed">
 {JSON.stringify(rawResponse, null, 2)}
               </pre>
-            </div>
+            </details>
           )}
         </section>
       </main>

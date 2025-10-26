@@ -206,31 +206,34 @@ const BackgroundModal: React.FC<BackgroundModalProps> = ({ isOpen, onClose, curr
 
   const modalContent = (
     <div 
-        className="fixed inset-0 bg-gray-900/80 backdrop-blur-sm z-50 flex items-center justify-center" 
+        className="fixed inset-0 bg-slate-950/90 backdrop-blur-lg z-50 flex items-center justify-center" 
         onClick={onClose}
         role="dialog"
         aria-modal="true"
     >
       <div 
-        className="bg-gray-800 text-white w-[95vw] h-[95vh] rounded-2xl shadow-2xl flex flex-col"
+        className="bg-slate-900 text-slate-100 w-[95vw] h-[95vh] rounded-3xl border border-white/10 shadow-[0_30px_80px_rgba(2,6,23,0.9)] flex flex-col"
         onClick={e => e.stopPropagation()}
       >
-        <header className="flex items-center justify-between p-4 border-b border-gray-700">
-          <h2 className="text-2xl font-bold">Upload Background</h2>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-700" aria-label="Close modal">
+        <header className="flex items-center justify-between p-5 border-b border-white/10">
+          <div>
+            <p className="text-xs uppercase tracking-[0.4em] text-indigo-200/70">Background</p>
+            <h2 className="text-2xl font-bold">Upload artwork</h2>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-white/10" aria-label="Close modal">
             <XIcon className="w-6 h-6"/>
           </button>
         </header>
 
         <div className="flex-grow flex p-4 gap-4 overflow-hidden">
           {/* Main Content Area */}
-          <div className="w-1/2 flex items-center justify-center bg-gray-900/50 rounded-lg p-2">
+          <div className="w-1/2 flex items-center justify-center bg-slate-950/50 rounded-2xl p-4 border border-white/5">
             {!tempStyle.bgImage ? (
-                <div className="text-center text-gray-400">
+                <div className="text-center text-slate-500">
                     <p>Select an image to see a preview</p>
                 </div>
             ) : (
-                <div className="w-[270px] h-[480px] rounded-lg overflow-hidden relative bg-gray-900">
+                <div className="w-[270px] h-[480px] rounded-2xl overflow-hidden relative bg-slate-950">
                     <div 
                         ref={imagePreviewRef}
                         className="w-full h-full"
@@ -253,19 +256,21 @@ const BackgroundModal: React.FC<BackgroundModalProps> = ({ isOpen, onClose, curr
           {/* Controls */}
           <div className="w-1/2 flex flex-col gap-4">
             {/* Tabs */}
-            <div className="flex gap-2 p-1 bg-gray-900/50 rounded-lg">
+            <div className="flex gap-2 p-1 bg-slate-950/40 rounded-2xl border border-white/5">
                 {(['upload', 'unsplash', 'url'] as Tab[]).map(tab => (
-                    <button key={tab} onClick={() => setActiveTab(tab)} className={`w-full py-2 px-4 rounded-md text-sm font-semibold transition-colors ${activeTab === tab ? 'bg-indigo-600 text-white' : 'hover:bg-gray-700'}`}>
+                    <button key={tab} onClick={() => setActiveTab(tab)} className={`w-full py-2 px-4 rounded-xl text-sm font-semibold transition ${
+                      activeTab === tab ? 'bg-white text-slate-900 shadow-lg' : 'text-slate-300 hover:bg-white/5'
+                    }`}>
                         {tab.charAt(0).toUpperCase() + tab.slice(1)}
                     </button>
                 ))}
             </div>
 
             {/* Tab Content */}
-            <div className="flex-grow bg-gray-900/50 rounded-lg p-4 overflow-y-auto">
+            <div className="flex-grow bg-slate-950/30 rounded-2xl p-4 overflow-y-auto border border-white/5">
                 {activeTab === 'upload' && (
                     <div 
-                        className="w-full h-full flex flex-col items-center justify-center border-2 border-dashed border-gray-600 rounded-lg p-8 text-gray-400 hover:bg-gray-700/50 hover:border-gray-500 transition-colors"
+                        className="w-full h-full flex flex-col items-center justify-center border-2 border-dashed border-white/15 rounded-2xl p-8 text-slate-300 hover:bg-white/5 hover:border-white/40 transition-colors"
                         onDragOver={e => e.preventDefault()}
                         onDrop={e => { e.preventDefault(); handleFileChange(e.dataTransfer.files); }}
                     >
@@ -282,7 +287,7 @@ const BackgroundModal: React.FC<BackgroundModalProps> = ({ isOpen, onClose, curr
                           <UploadIcon className="w-16 h-16 mb-4"/>
                           <p className="font-semibold">Drag & drop an image</p>
                           <p className="text-sm my-2">or</p>
-                          <label className="bg-indigo-600 text-white py-2 px-4 rounded-md cursor-pointer hover:bg-indigo-700">
+                          <label className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white py-2 px-4 rounded-full cursor-pointer hover:brightness-110">
                               Choose file
                               <input type="file" className="hidden" accept="image/*" onChange={e => handleFileChange(e.target.files)}/>
                           </label>
@@ -298,7 +303,7 @@ const BackgroundModal: React.FC<BackgroundModalProps> = ({ isOpen, onClose, curr
                             value={unsplashQuery}
                             onChange={e => setUnsplashQuery(e.target.value)}
                             placeholder="Search Unsplash for portrait photos..."
-                            className="w-full p-2 rounded-md bg-gray-700 border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500"
+                            className="w-full p-3 rounded-xl bg-slate-800 border border-white/10 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                         />
                         <div className="flex-grow mt-4 overflow-y-auto">
                             {unsplashLoading && <p>Loading...</p>}

@@ -452,14 +452,14 @@ const SimplifiedEditor: React.FC<SimplifiedEditorProps> = ({
   ];
 
   return (
-    <div className="h-full flex flex-col bg-white dark:bg-gray-800">
+    <div className="h-full flex flex-col bg-slate-900 text-slate-100">
       {/* Header with Collapse Button */}
-      <div className="flex-shrink-0 px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-        <h2 className="text-lg font-bold">Customize</h2>
+      <div className="flex-shrink-0 px-4 py-3 border-b border-white/10 flex items-center justify-between">
+        <h2 className="text-lg font-bold tracking-tight">Customize</h2>
         {onToggleCollapse && (
           <button
             onClick={onToggleCollapse}
-            className="text-sm font-semibold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+            className="text-sm font-semibold text-slate-400 hover:text-white"
           >
             Hide ▼
           </button>
@@ -467,16 +467,16 @@ const SimplifiedEditor: React.FC<SimplifiedEditorProps> = ({
       </div>
 
       {/* Tabs */}
-      <div className="flex-shrink-0 px-2 py-2 border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
+      <div className="flex-shrink-0 px-2 py-2 border-b border-white/10 overflow-x-auto">
         <div className="flex gap-1">
           {tabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`flex-shrink-0 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+              className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition ${
                 activeTab === tab.key
-                  ? 'bg-indigo-600 text-white'
-                  : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                  ? 'bg-white text-slate-900 shadow'
+                  : 'text-slate-400 hover:bg-white/5'
               }`}
             >
               <span className="mr-1.5">{tab.icon}</span>
@@ -487,23 +487,23 @@ const SimplifiedEditor: React.FC<SimplifiedEditorProps> = ({
       </div>
 
       {/* Tab Content */}
-      <div className="flex-grow overflow-y-auto p-4">
+      <div className="flex-grow overflow-y-auto p-4 space-y-4">
         {renderTabContent()}
       </div>
 
       {/* Footer Actions */}
-      <div className="flex-shrink-0 px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex gap-3">
+      <div className="flex-shrink-0 px-4 py-3 border-t border-white/10 flex gap-3">
         <button
           type="button"
           onClick={onReset}
-          className="flex-1 py-3 px-4 border-2 border-gray-300 dark:border-gray-600 font-semibold rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          className="flex-1 py-3 px-4 border border-white/20 font-semibold rounded-full text-slate-100 hover:border-white/60"
         >
           Reset
         </button>
         <button
           type="button"
           onClick={handleSave}
-          className="flex-1 py-3 px-4 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-colors"
+          className="flex-1 py-3 px-4 bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold rounded-full shadow-lg hover:brightness-110 transition"
         >
           Save
         </button>
