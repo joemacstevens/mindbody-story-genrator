@@ -170,19 +170,32 @@ const RenderPage: React.FC = () => {
   };
 
   const tryShareImage = async (blob: Blob, fileName: string) => {
-    if (!navigator.canShare) {
+    if (!navigator.share) {
       return false;
     }
+
     const file = new File([blob], fileName, { type: 'image/png' });
-    if (!navigator.canShare({ files: [file] })) {
+
+    if (navigator.canShare && !navigator.canShare({ files: [file] })) {
       return false;
     }
-    await navigator.share({
-      files: [file],
-      title: 'Studiogram Export',
-      text: 'Exported with Studiogram',
-    });
-    return true;
+
+    try {
+      await navigator.share({
+        files: [file],
+        title: 'Studiogram Export',
+        text: 'Exported with Studiogram',
+      });
+      return true;
+    } catch (error) {
+      if ((error as DOMException)?.name === 'AbortError') {
+        // The user dismissed the share sheet; treat as a handled case so we don't
+        // fall back to the download flow.
+        return true;
+      }
+      console.error('Share failed:', error);
+      return false;
+    }
   };
 
   const downloadBlob = (blob: Blob, fileName: string) => {
