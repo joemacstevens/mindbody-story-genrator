@@ -150,9 +150,23 @@ const RenderPage: React.FC = () => {
   
   const style = finalTemplateId ? settings?.configs[finalTemplateId] : null;
 
-  const convertDataUrlToBlob = async (dataUrl: string): Promise<Blob> => {
-    const response = await fetch(dataUrl);
-    return response.blob();
+  const convertDataUrlToBlob = (dataUrl: string): Blob => {
+    const [header, base64Data] = dataUrl.split(',');
+    if (!header || !base64Data) {
+      throw new Error('Invalid data URL');
+    }
+
+    const mimeMatch = header.match(/data:(.*?);base64/);
+    const mimeType = mimeMatch?.[1] ?? 'image/png';
+
+    const binaryString = atob(base64Data);
+    const length = binaryString.length;
+    const bytes = new Uint8Array(length);
+    for (let i = 0; i < length; i += 1) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    return new Blob([bytes], { type: mimeType });
   };
 
   const tryShareImage = async (blob: Blob, fileName: string) => {
@@ -203,7 +217,7 @@ const RenderPage: React.FC = () => {
       const slugSegment = activeSlug?.replace(/[^a-z0-9-]/gi, '-') || 'schedule';
       const templateSegment = finalTemplateId?.replace(/[^a-z0-9-]/gi, '-') || 'template';
       const fileName = `${slugSegment}-${templateSegment}.png`;
-      const blob = await convertDataUrlToBlob(dataUrl);
+      const blob = convertDataUrlToBlob(dataUrl);
 
       const shared = await tryShareImage(blob, fileName);
       if (!shared) {
