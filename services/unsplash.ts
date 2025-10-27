@@ -25,28 +25,60 @@ export interface UnsplashPhoto {
   };
 }
 
-interface UnsplashSearchResponse {
+export interface UnsplashSearchResponse {
   results: UnsplashPhoto[];
   total: number;
   total_pages: number;
 }
 
-export const searchUnsplashPhotos = async (query: string): Promise<UnsplashSearchResponse> => {
-  if (!query.trim()) {
+export interface UnsplashSearchParams {
+  query: string;
+  page?: number;
+  perPage?: number;
+  orientation?: 'landscape' | 'portrait' | 'squarish';
+  orderBy?: 'relevant' | 'latest';
+}
+
+const buildQueryString = (params: Record<string, string | number | undefined>) => {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (typeof value === 'undefined') return;
+    query.set(key, String(value));
+  });
+  return query.toString();
+};
+
+export const searchUnsplashPhotos = async (
+  params: string | UnsplashSearchParams,
+): Promise<UnsplashSearchResponse> => {
+  const normalized: UnsplashSearchParams =
+    typeof params === 'string' ? { query: params } : params;
+
+  if (!normalized.query.trim()) {
     return { results: [], total: 0, total_pages: 0 };
   }
-  
-  // FIX: Removed the check for a placeholder API key, as the actual key is already provided.
-  // This resolves a TypeScript error about comparing two literals with no overlap.
 
-  const response = await fetch(
-    `${API_URL}/search/photos?query=${encodeURIComponent(query)}&orientation=portrait&per_page=30`,
-    {
-      headers: {
-        Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}`,
-      },
-    }
-  );
+  const {
+    query,
+    page = 1,
+    perPage = 12,
+    orientation = 'portrait',
+    orderBy = 'relevant',
+  } = normalized;
+
+  const queryString = buildQueryString({
+    query,
+    page,
+    per_page: perPage,
+    orientation,
+    order_by: orderBy,
+  });
+
+  const response = await fetch(`${API_URL}/search/photos?${queryString}`, {
+    headers: {
+      Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}`,
+    },
+  });
 
   if (!response.ok) {
     throw new Error(`Unsplash API error (${response.status}): ${response.statusText}`);

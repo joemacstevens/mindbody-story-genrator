@@ -1,20 +1,29 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import ReactDOM from 'react-dom';
 import type { Style } from '../types';
 import { useDebounce } from '../hooks/useDebounce';
-import { searchUnsplashPhotos, UnsplashPhoto } from '../services/unsplash';
+import {
+  searchUnsplashPhotos,
+  UnsplashPhoto,
+} from '../services/unsplash';
 import { uploadImage } from '../services/storage';
 import XIcon from './icons/XIcon';
 import UploadIcon from './icons/UploadIcon';
 
-type Tab = 'upload' | 'unsplash' | 'url';
-interface TempStyle {
-  bgImage?: string;
-  bgFit?: 'cover' | 'contain';
-  bgPosition?: string;
-  overlayColor?: string;
-  bgBlur?: number;
-}
+type CategoryKey =
+  | 'all'
+  | 'fitness'
+  | 'motivation'
+  | 'nature'
+  | 'minimal'
+  | 'dark'
+  | 'athletic';
 
 interface BackgroundModalProps {
   isOpen: boolean;
@@ -23,405 +32,834 @@ interface BackgroundModalProps {
   onApply: (newBgStyle: Partial<Style>) => void;
 }
 
+type BackgroundSource = 'unsplash' | 'upload' | 'custom';
+
+interface BackgroundSelection {
+  id: string;
+  url: string;
+  thumbUrl: string;
+  source: BackgroundSource;
+  attribution?: string;
+  photographerName?: string;
+  unsplashLink?: string;
+  description?: string;
+}
+
+interface RecentBackground extends BackgroundSelection {
+  timestamp: number;
+}
+
+const CATEGORY_QUERIES: Record<CategoryKey, string> = {
+  all: 'fitness studio dark background gradient',
+  fitness: 'fitness gym workout portrait background',
+  motivation: 'motivational athletic poster background',
+  nature: 'nature forest calm gradient background',
+  minimal: 'minimalist abstract gradient dark background',
+  dark: 'dark moody gradient texture background',
+  athletic: 'athlete sports action background portrait',
+};
+
+const CATEGORY_LABELS: Record<CategoryKey, string> = {
+  all: 'All',
+  fitness: 'Fitness',
+  motivation: 'Motivation',
+  nature: 'Nature',
+  minimal: 'Minimal',
+  dark: 'Dark',
+  athletic: 'Athletic',
+};
+
+const RECENT_STORAGE_KEY = 'recentBackgroundsV2';
+const ACCEPTED_FORMATS = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_UPLOAD_SIZE = 10 * 1024 * 1024; // 10MB
+
+const withUnsplashParams = (
+  url: string,
+  params: Record<string, string | number>,
+) => {
+  try {
+    const parsed = new URL(url);
+    Object.entries(params).forEach(([key, value]) => {
+      parsed.searchParams.set(key, String(value));
+    });
+    return parsed.toString();
+  } catch (error) {
+    const separator = url.includes('?') ? '&' : '?';
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      query.set(key, String(value));
+    });
+    return `${url}${separator}${query.toString()}`;
+  }
+};
+
+const mapUnsplashPhotoToSelection = (photo: UnsplashPhoto): BackgroundSelection => {
+  const mainUrl = withUnsplashParams(photo.urls.regular, {
+    auto: 'format',
+    fit: 'max',
+    q: 80,
+    w: 1600,
+  });
+  const thumbUrl = withUnsplashParams(photo.urls.small, {
+    auto: 'format',
+    fit: 'crop',
+    q: 70,
+    w: 400,
+  });
+
+  return {
+    id: photo.id,
+    url: mainUrl,
+    thumbUrl,
+    source: 'unsplash',
+    attribution: `Photo by ${photo.user.name} on Unsplash`,
+    photographerName: photo.user.name,
+    unsplashLink: photo.links.html,
+    description: photo.alt_description || undefined,
+  };
+};
+
+const isValidRecentEntry = (value: unknown): value is RecentBackground => {
+  if (!value || typeof value !== 'object') return false;
+  const entry = value as Record<string, unknown>;
+  return (
+    typeof entry.id === 'string' &&
+    typeof entry.url === 'string' &&
+    typeof entry.thumbUrl === 'string' &&
+    typeof entry.source === 'string' &&
+    typeof entry.timestamp === 'number'
+  );
+};
+
 const useRecentBackgrounds = () => {
-  const [recents, setRecents] = useState<string[]>([]);
+  const [recents, setRecents] = useState<RecentBackground[]>([]);
 
   useEffect(() => {
     try {
-      const storedRecents = localStorage.getItem('recentBackgrounds');
-      if (storedRecents) {
-        setRecents(JSON.parse(storedRecents));
+      const stored = localStorage.getItem(RECENT_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          const normalized = parsed
+            .map((item) => {
+              if (isValidRecentEntry(item)) {
+                return item as RecentBackground;
+              }
+              if (typeof item === 'string') {
+                return {
+                  id: item,
+                  url: item,
+                  thumbUrl: item,
+                  source: 'custom' as BackgroundSource,
+                  timestamp: Date.now(),
+                } satisfies RecentBackground;
+              }
+              return null;
+            })
+            .filter((item): item is RecentBackground => Boolean(item));
+          setRecents(normalized.slice(0, 8));
+        }
       }
     } catch (error) {
-      console.error("Failed to parse recent backgrounds from localStorage", error);
+      console.error('Failed to parse recent backgrounds', error);
     }
   }, []);
 
-  const addRecent = (url: string) => {
-    if (!url) return;
-    setRecents(prev => {
-      const newRecents = [url, ...prev.filter(u => u !== url)].slice(0, 6);
-      localStorage.setItem('recentBackgrounds', JSON.stringify(newRecents));
-      return newRecents;
+  const addRecent = useCallback((selection: BackgroundSelection) => {
+    if (!selection.url) return;
+    setRecents((prev) => {
+      const next: RecentBackground[] = [
+        {
+          ...selection,
+          timestamp: Date.now(),
+        },
+        ...prev.filter((item) => item.url !== selection.url),
+      ].slice(0, 8);
+      try {
+        localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(next));
+      } catch (error) {
+        console.error('Failed to persist recent backgrounds', error);
+      }
+      return next;
     });
-  };
+  }, []);
 
   return { recents, addRecent };
 };
 
-const BackgroundModal: React.FC<BackgroundModalProps> = ({ isOpen, onClose, currentStyle, onApply }) => {
+const BottomSheetBackdrop: React.FC<{ children: React.ReactNode } & {
+  onDismiss: (event: React.MouseEvent<HTMLDivElement>) => void;
+  isVisible: boolean;
+}> = ({ children, onDismiss, isVisible }) => {
+  const [render, setRender] = useState(isVisible);
+  const [animateIn, setAnimateIn] = useState(false);
+
+  useEffect(() => {
+    if (isVisible) {
+      setRender(true);
+      const raf = requestAnimationFrame(() => setAnimateIn(true));
+      return () => cancelAnimationFrame(raf);
+    }
+    setAnimateIn(false);
+    const timeout = setTimeout(() => setRender(false), 250);
+    return () => clearTimeout(timeout);
+  }, [isVisible]);
+
+  if (!render) return null;
+
+  return (
+    <div
+      className={`fixed inset-0 z-50 flex items-end justify-center bg-black/60 transition-opacity duration-300 ${
+        animateIn ? 'opacity-100' : 'opacity-0'
+      }`}
+      onClick={onDismiss}
+      role="presentation"
+    >
+      {children}
+    </div>
+  );
+};
+
+const BackgroundModal: React.FC<BackgroundModalProps> = ({
+  isOpen,
+  onClose,
+  currentStyle,
+  onApply,
+}) => {
   const [modalRoot, setModalRoot] = useState<HTMLElement | null>(null);
-  const [activeTab, setActiveTab] = useState<Tab>('unsplash');
-  const [tempStyle, setTempStyle] = useState<TempStyle>({});
-  const [unsplashQuery, setUnsplashQuery] = useState('fitness');
-  const [unsplashResults, setUnsplashResults] = useState<UnsplashPhoto[]>([]);
-  const [unsplashLoading, setUnsplashLoading] = useState(false);
-  const [unsplashError, setUnsplashError] = useState<string | null>(null);
-  const [urlInput, setUrlInput] = useState('');
-  const [urlError, setUrlError] = useState<string | null>(null);
+  const [isSheetVisible, setIsSheetVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 400);
+  const [selectedCategory, setSelectedCategory] = useState<CategoryKey>('all');
+  const [gridItems, setGridItems] = useState<BackgroundSelection[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<BackgroundSelection | null>(
+    null,
+  );
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  
-  const { recents, addRecent } = useRecentBackgrounds();
-  const debouncedQuery = useDebounce(unsplashQuery, 500);
 
-  const imagePreviewRef = useRef<HTMLDivElement>(null);
-  const isPanning = useRef(false);
-  const panStart = useRef({ x: 0, y: 0 });
+  const { recents, addRecent } = useRecentBackgrounds();
+
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
+  const dragStartY = useRef<number | null>(null);
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const isSearchMode = debouncedSearch.trim().length > 0;
+
+  const currentQuery = useMemo(() => {
+    if (isSearchMode) {
+      return debouncedSearch.trim();
+    }
+    return CATEGORY_QUERIES[selectedCategory];
+  }, [debouncedSearch, isSearchMode, selectedCategory]);
 
   useEffect(() => {
     setModalRoot(document.getElementById('modal-root'));
   }, []);
 
   useEffect(() => {
-    if (isOpen) {
-      setTempStyle({
-        bgImage: currentStyle.bgImage,
-        bgFit: currentStyle.bgFit,
-        bgPosition: currentStyle.bgPosition,
-        overlayColor: currentStyle.overlayColor,
-        bgBlur: currentStyle.bgBlur,
-      });
-      document.body.style.overflow = 'hidden';
-    } else {
+    if (!isOpen) {
+      setIsSheetVisible(false);
+      setIsDragging(false);
+      setDragOffset(0);
+      setSearchQuery('');
+      setSelectedCategory('all');
+      setGridItems([]);
+      setPage(1);
+      setHasMore(true);
+      setError(null);
+      setSelectedImage(null);
       document.body.style.overflow = '';
+      return;
     }
-    return () => { document.body.style.overflow = ''; };
-  }, [isOpen, currentStyle]);
+
+    setIsSheetVisible(true);
+    const existing = currentStyle.bgImage;
+    if (existing) {
+      setSelectedImage({
+        id: `current-${existing}`,
+        url: existing,
+        thumbUrl: existing,
+        source: 'custom',
+        attribution: 'Current background',
+      });
+    }
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [currentStyle.bgImage, isOpen]);
+
+  const resetAndLoad = useCallback(async () => {
+    if (!isOpen || !currentQuery) {
+      setGridItems([]);
+      setHasMore(false);
+      return;
+    }
+    setLoadingMore(false);
+    setPage(1);
+    setHasMore(true);
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await searchUnsplashPhotos({
+        query: currentQuery,
+        page: 1,
+        perPage: 12,
+        orientation: 'portrait',
+        orderBy: isSearchMode ? 'relevant' : 'latest',
+      });
+      const mapped = response.results.map(mapUnsplashPhotoToSelection);
+      setGridItems(mapped);
+      setHasMore((response.total_pages ?? 1) > 1);
+    } catch (error) {
+      if (!navigator.onLine) {
+        setError('No internet connection. Please check your network and try again.');
+      } else {
+        setError(
+          error instanceof Error
+            ? error.message
+            : 'Failed to fetch images from Unsplash.',
+        );
+      }
+      setGridItems([]);
+      setHasMore(false);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentQuery, isOpen, isSearchMode]);
 
   useEffect(() => {
-    const fetchUnsplash = async () => {
-      if (!debouncedQuery) {
-        setUnsplashResults([]);
-        return;
+    if (isOpen) {
+      resetAndLoad();
+    }
+  }, [isOpen, resetAndLoad]);
+
+  const loadMore = useCallback(async () => {
+    if (!hasMore || loading || loadingMore || !currentQuery) return;
+    const nextPage = page + 1;
+    setLoadingMore(true);
+    try {
+      const response = await searchUnsplashPhotos({
+        query: currentQuery,
+        page: nextPage,
+        perPage: 12,
+        orientation: 'portrait',
+        orderBy: isSearchMode ? 'relevant' : 'latest',
+      });
+      const mapped = response.results.map(mapUnsplashPhotoToSelection);
+      setGridItems((prev) => {
+        const deduped = [...prev];
+        mapped.forEach((item) => {
+          if (!deduped.some((existing) => existing.id === item.id)) {
+            deduped.push(item);
+          }
+        });
+        return deduped;
+      });
+      setPage(nextPage);
+      setHasMore(nextPage < (response.total_pages ?? nextPage));
+    } catch (error) {
+      if (!navigator.onLine) {
+        setError('No internet connection. Please check your network and try again.');
+      } else {
+        setError(
+          error instanceof Error
+            ? error.message
+            : 'Failed to fetch additional images.',
+        );
       }
-      setUnsplashLoading(true);
-      setUnsplashError(null);
-      try {
-        const data = await searchUnsplashPhotos(debouncedQuery);
-        setUnsplashResults(data.results);
-      } catch (error) {
-        setUnsplashError(error.message || 'Failed to fetch images from Unsplash.');
-      } finally {
-        setUnsplashLoading(false);
-      }
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [currentQuery, hasMore, isSearchMode, loading, loadingMore, page]);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    const root = contentRef.current;
+    if (!sentinel || !root) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          loadMore();
+        }
+      },
+      {
+        root,
+        rootMargin: '200px 0px',
+      },
+    );
+
+    observer.observe(sentinel);
+
+    return () => {
+      observer.disconnect();
     };
-    fetchUnsplash();
-  }, [debouncedQuery]);
+  }, [loadMore]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    resetAndLoad();
+  }, [debouncedSearch, selectedCategory, resetAndLoad, isOpen]);
+
+  const handleSelect = (selection: BackgroundSelection) => {
+    setSelectedImage((prev) =>
+      prev?.url === selection.url ? prev : { ...selection },
+    );
+  };
+
+  const handleDeselect = () => {
+    setSelectedImage(null);
+  };
 
   const handleApply = () => {
-    addRecent(tempStyle.bgImage!);
-    onApply(tempStyle);
+    if (!selectedImage) return;
+    addRecent(selectedImage);
+    onApply({
+      bgImage: selectedImage.url,
+      bgFit: 'cover',
+      bgPosition: '50% 50%',
+    });
+    onClose();
   };
 
-  const handleClear = () => {
-    onApply({
-        bgImage: '',
-        bgFit: 'cover',
-        bgPosition: '50% 50%',
-        overlayColor: 'rgba(0,0,0,0)',
-        bgBlur: 0,
-    });
-  };
-  
-  const handleSelectImage = (url: string) => {
-    setTempStyle(prev => ({ ...prev, bgImage: url, bgPosition: '50% 50%' }));
+  const handleCancel = () => {
+    onClose();
   };
 
   const handleFileChange = async (files: FileList | null) => {
-    if (files && files[0]) {
-      const file = files[0];
-      if (!file.type.startsWith('image/')) {
-        setUploadError('Please select an image file.');
-        return;
-      }
-      if (file.size > 20 * 1024 * 1024) { // 20MB limit
-        setUploadError('File is too large. Please upload an image under 20MB.');
-        return;
-      }
+    if (!files || files.length === 0) return;
+    const file = files[0];
 
-      setIsUploading(true);
-      setUploadError(null);
-      try {
-        const downloadURL = await uploadImage(file);
-        handleSelectImage(downloadURL);
-      } catch (error) {
-        console.error(error);
-        setUploadError('Failed to upload image. Please try again.');
-      } finally {
-        setIsUploading(false);
-      }
-    }
-  };
-
-  const handleUrlLoad = () => {
-    setUrlError(null);
-    if (!urlInput.match(/\.(jpeg|jpg|gif|png|webp)$/)) {
-      setUrlError('Please enter a valid image URL (e.g., ending in .jpg, .png).');
+    if (!ACCEPTED_FORMATS.includes(file.type)) {
+      setUploadError('Please upload a JPG, PNG, or WebP image.');
       return;
     }
-    const img = new Image();
-    img.src = urlInput;
-    img.onload = () => handleSelectImage(urlInput);
-    img.onerror = () => setUrlError('Could not load image from this URL.');
-  };
-  
-  const handlePanStart = (e: React.MouseEvent) => {
-    if (!imagePreviewRef.current) return;
-    isPanning.current = true;
-    panStart.current = { x: e.clientX, y: e.clientY };
-    imagePreviewRef.current.style.cursor = 'grabbing';
-  };
 
-  const handlePanMove = useCallback((e: MouseEvent) => {
-    if (!isPanning.current || !imagePreviewRef.current) return;
-    const [bgX, bgY] = (tempStyle.bgPosition || '50% 50%').split(' ').map(v => parseFloat(v));
-    const dx = (e.clientX - panStart.current.x) / imagePreviewRef.current!.clientWidth * 100;
-    const dy = (e.clientY - panStart.current.y) / imagePreviewRef.current!.clientHeight * 100;
-
-    const newX = Math.max(0, Math.min(100, bgX + dx));
-    const newY = Math.max(0, Math.min(100, bgY + dy));
-
-    setTempStyle(prev => ({ ...prev, bgPosition: `${newX}% ${newY}%` }));
-    panStart.current = { x: e.clientX, y: e.clientY };
-  }, [tempStyle.bgPosition]);
-
-  const handlePanEnd = useCallback(() => {
-    isPanning.current = false;
-    if (imagePreviewRef.current) {
-        imagePreviewRef.current.style.cursor = 'grab';
+    if (file.size > MAX_UPLOAD_SIZE) {
+      setUploadError('File is too large. Please choose an image under 10MB.');
+      return;
     }
-  }, []);
 
-  useEffect(() => {
-    document.addEventListener('mousemove', handlePanMove);
-    document.addEventListener('mouseup', handlePanEnd);
-    return () => {
-      document.removeEventListener('mousemove', handlePanMove);
-      document.removeEventListener('mouseup', handlePanEnd);
-    };
-  }, [handlePanMove, handlePanEnd]);
+    setUploadError(null);
+    setIsUploading(true);
 
-  if (!isOpen || !modalRoot) return null;
+    try {
+      const downloadURL = await uploadImage(file);
+      const selection: BackgroundSelection = {
+        id: `upload-${Date.now()}`,
+        url: downloadURL,
+        thumbUrl: downloadURL,
+        source: 'upload',
+        attribution: 'Uploaded image',
+        description: file.name,
+      };
+      setSelectedImage(selection);
+      addRecent(selection);
+    } catch (error) {
+      console.error(error);
+      if ((error as Error)?.name === 'NotAllowedError') {
+        setUploadError('Permission to access photos was denied.');
+      } else {
+        setUploadError('Failed to upload image. Please try again.');
+      }
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
-  const modalContent = (
-    <div 
-        className="fixed inset-0 bg-slate-950/90 backdrop-blur-lg z-50 flex items-end md:items-center justify-center p-0 md:p-8" 
-        onClick={onClose}
+  const handleUploadClick = () => {
+    if (!uploadInputRef.current) return;
+    setUploadError(null);
+    uploadInputRef.current.value = '';
+    uploadInputRef.current.click();
+  };
+
+  const handleCategoryChange = (category: CategoryKey) => {
+    setSelectedCategory(category);
+  };
+
+  const handleHeaderPointerDown = (
+    event: React.PointerEvent<HTMLDivElement>,
+  ) => {
+    const target = event.target as HTMLElement;
+    if (
+      target.closest(
+        'input, button, textarea, select, [role="button"], [role="textbox"]',
+      )
+    ) {
+      return;
+    }
+    handleStartDrag(event);
+  };
+
+  const handleStartDrag = (event: React.PointerEvent) => {
+    dragStartY.current = event.clientY;
+    setIsDragging(true);
+    setDragOffset(0);
+    try {
+      sheetRef.current?.setPointerCapture(event.pointerId);
+    } catch (error) {
+      // Ignore pointer capture errors on unsupported devices.
+    }
+  };
+
+  const handleDragMove = (event: React.PointerEvent) => {
+    if (!isDragging || dragStartY.current == null) return;
+    const offset = Math.max(0, event.clientY - dragStartY.current);
+    setDragOffset(offset);
+  };
+
+  const handleDragEnd = (event: React.PointerEvent) => {
+    if (!isDragging) return;
+    if (sheetRef.current?.hasPointerCapture(event.pointerId)) {
+      sheetRef.current.releasePointerCapture(event.pointerId);
+    }
+    const shouldClose = dragOffset > 120;
+    setIsDragging(false);
+    setDragOffset(0);
+    if (shouldClose) {
+      onClose();
+    }
+  };
+
+  const handleBackdropClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (event.target === event.currentTarget) {
+      onClose();
+    }
+  };
+
+  const showPreview = Boolean(selectedImage);
+
+  const renderGridContent = () => {
+    if (loading) {
+      return (
+        <div className="grid grid-cols-2 gap-4">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div
+              key={`skeleton-${index}`}
+              className="aspect-[3/4] w-full animate-pulse rounded-2xl bg-white/5"
+            />
+          ))}
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-6 py-12 text-center text-sm text-white/70">
+          <p>{error}</p>
+          <button
+            type="button"
+            onClick={resetAndLoad}
+            className="rounded-full border border-white/20 px-4 py-2 text-sm font-semibold text-white hover:border-white/40"
+          >
+            Try again
+          </button>
+        </div>
+      );
+    }
+
+    if (!gridItems.length) {
+      return (
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-white/15 bg-white/5 px-6 py-12 text-center text-sm text-white/70">
+          <p>
+            {isSearchMode
+              ? 'No results found. Try a different search term.'
+              : 'No curated images found for this category.'}
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <>
+        <div className="grid grid-cols-2 gap-4">
+          {gridItems.map((item) => {
+            const isSelected = selectedImage?.url === item.url;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() =>
+                  isSelected ? handleDeselect() : handleSelect(item)
+                }
+                className={`group relative overflow-hidden rounded-2xl bg-white/5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+                  isSelected
+                    ? 'ring-2 ring-indigo-400 ring-offset-2 ring-offset-neutral-950'
+                    : 'hover:ring-1 hover:ring-white/30'
+                }`}
+                aria-pressed={isSelected}
+              >
+                <img
+                  src={item.thumbUrl}
+                  alt={item.description || item.attribution || 'Background option'}
+                  className={`h-full w-full object-cover transition duration-300 ${
+                    isSelected ? 'scale-[1.02]' : 'group-hover:scale-105'
+                  }`}
+                  loading="lazy"
+                />
+                {isSelected && (
+                  <div className="absolute inset-0 bg-indigo-500/20" />
+                )}
+                <div className="pointer-events-none absolute inset-0 flex items-start justify-end p-2">
+                  <div
+                    className={`flex h-7 w-7 items-center justify-center rounded-full border-2 ${
+                      isSelected
+                        ? 'border-white bg-indigo-500 text-white'
+                        : 'border-white/30 bg-black/40 text-transparent'
+                    } transition`}
+                  >
+                    ✓
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+        <div ref={sentinelRef} className="h-8 w-full" />
+        {loadingMore && (
+          <div className="flex items-center justify-center gap-2 py-6 text-sm text-white/70">
+            <span className="h-3 w-3 animate-ping rounded-full bg-white/60" />
+            Loading more backgrounds…
+          </div>
+        )}
+      </>
+    );
+  };
+
+  if (!modalRoot) {
+    return null;
+  }
+
+  return ReactDOM.createPortal(
+    <BottomSheetBackdrop
+      onDismiss={handleBackdropClick}
+      isVisible={isOpen && isSheetVisible}
+    >
+      <div
+        ref={sheetRef}
         role="dialog"
         aria-modal="true"
-    >
-      <div 
-        className="bg-slate-900 text-slate-100 w-full max-w-3xl md:max-w-6xl h-[92vh] md:h-[95vh] rounded-t-3xl md:rounded-3xl border border-white/10 shadow-[0_30px_80px_rgba(2,6,23,0.9)] flex flex-col overflow-hidden"
-        onClick={e => e.stopPropagation()}
+        aria-label="Select background image"
+        className="relative h-[72vh] w-full max-w-3xl rounded-t-3xl border border-white/10 bg-neutral-950/95 shadow-2xl transition-transform duration-300"
+        style={{
+          transform: isSheetVisible
+            ? `translateY(${dragOffset}px)`
+            : `translateY(calc(100% + ${dragOffset}px))`,
+        }}
+        onPointerMove={handleDragMove}
+        onPointerUp={handleDragEnd}
+        onPointerCancel={handleDragEnd}
       >
-        <div className="md:hidden flex justify-center pt-3">
-          <span className="w-12 h-1.5 rounded-full bg-white/30" />
-        </div>
-        <header className="shrink-0 flex items-center justify-between px-5 py-4 md:p-5 border-b border-white/10 bg-slate-900 sticky top-0 z-10">
-          <div>
-            <p className="text-xs uppercase tracking-[0.4em] text-indigo-200/70">Background</p>
-            <h2 className="text-2xl font-bold">Upload artwork</h2>
+        <div
+          className="flex flex-col h-full"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div
+            className="flex flex-col gap-3 border-b border-white/10 px-5 pb-4 pt-3"
+            onPointerDown={handleHeaderPointerDown}
+          >
+            <div
+              className="mx-auto h-1.5 w-12 rounded-full bg-white/20"
+              role="presentation"
+              onPointerDown={handleStartDrag}
+            />
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-white/40">
+                    🔍
+                  </span>
+                  <input
+                    type="search"
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder="Search backgrounds…"
+                    className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-white/40 focus:border-indigo-400 focus:outline-none"
+                    aria-label="Search Unsplash backgrounds"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleUploadClick}
+                  className="hidden min-h-[44px] items-center gap-2 rounded-xl border border-white/15 px-3 py-2 text-sm font-semibold text-indigo-300 transition hover:border-indigo-400 hover:text-indigo-200 sm:flex"
+                >
+                  <UploadIcon className="h-4 w-4" />
+                  Upload
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={handleUploadClick}
+                className="text-left text-xs font-semibold text-indigo-300 underline-offset-4 hover:underline sm:hidden"
+              >
+                Or upload your own
+              </button>
+              <input
+                ref={uploadInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={(event) => handleFileChange(event.target.files)}
+              />
+              {uploadError && (
+                <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+                  {uploadError}
+                </div>
+              )}
+              {isUploading && (
+                <div className="flex items-center gap-2 text-xs text-white/70">
+                  <span className="h-2 w-2 animate-ping rounded-full bg-indigo-300" />
+                  Uploading image…
+                </div>
+              )}
+            </div>
           </div>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-white/10" aria-label="Close modal">
-            <XIcon className="w-6 h-6"/>
-          </button>
-        </header>
 
-        <div className="flex-1 overflow-hidden min-h-0">
-          <div className="h-full flex flex-col gap-4 min-h-0 px-4 pb-4 pt-4 overflow-y-auto lg:overflow-hidden">
-            <div className="flex flex-col lg:flex-row gap-4 min-h-0">
-              {/* Preview */}
-              <div className="w-full lg:w-2/5 xl:w-1/3 flex justify-center">
-                <div className="w-full max-w-[220px] sm:max-w-[260px] lg:max-w-[280px] bg-slate-950/50 rounded-2xl p-4 border border-white/5 flex items-center justify-center">
-                  {!tempStyle.bgImage ? (
-                    <div className="text-center text-slate-500 text-sm">
-                      <p>Select an image to see a preview</p>
-                    </div>
-                  ) : (
-                    <div className="w-full aspect-[9/16] rounded-2xl overflow-hidden relative bg-slate-950 shadow-inner">
-                      <div
-                        ref={imagePreviewRef}
-                        className="w-full h-full"
-                        style={{
-                          backgroundImage: `url(${tempStyle.bgImage})`,
-                          backgroundSize: tempStyle.bgFit as 'cover' | 'contain',
-                          backgroundPosition: tempStyle.bgPosition,
-                          cursor: 'grab'
-                        }}
-                        onMouseDown={handlePanStart}
-                      />
-                      <div
-                        className="absolute inset-0 pointer-events-none"
-                        style={{
-                          backgroundColor: tempStyle.overlayColor || 'transparent',
-                          backdropFilter: `blur(${(tempStyle.bgBlur || 0)}px)`
-                        }}
-                      />
-                    </div>
+          {showPreview && selectedImage && (
+            <div className="px-5 pt-3">
+              <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3 shadow-lg shadow-black/30">
+                <img
+                  src={selectedImage.thumbUrl}
+                  alt={selectedImage.description || selectedImage.attribution || 'Selected background'}
+                  className="h-20 w-16 rounded-xl object-cover"
+                />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-white">
+                    {selectedImage.attribution || 'Selected background'}
+                  </p>
+                  {selectedImage.description && (
+                    <p className="text-xs text-white/60 truncate">
+                      {selectedImage.description}
+                    </p>
+                  )}
+                  {selectedImage.source === 'upload' && (
+                    <p className="text-xs text-white/50">Uploaded image</p>
                   )}
                 </div>
+                <button
+                  type="button"
+                  onClick={handleDeselect}
+                  className="inline-flex h-8 w-8 min-h-[32px] min-w-[32px] items-center justify-center rounded-full border border-white/20 text-white/70 transition hover:border-white/40 hover:text-white"
+                  aria-label="Remove selected background"
+                >
+                  <XIcon className="h-3.5 w-3.5" />
+                </button>
               </div>
+            </div>
+          )}
 
-              {/* Image Sources */}
-              <div className="w-full lg:flex-1 flex flex-col gap-4 min-h-0">
-                <div className="flex gap-2 p-1 bg-slate-950/40 rounded-2xl border border-white/5 overflow-x-auto">
-                  {(['upload', 'unsplash', 'url'] as Tab[]).map(tab => (
+          {recents.length > 0 && (
+            <div className="mt-4 space-y-3 px-5">
+              <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-white/50">
+                <span>Recently Used</span>
+              </div>
+              <div className="flex gap-3 overflow-x-auto pb-2">
+                {recents.map((item) => {
+                  const isSelected = selectedImage?.url === item.url;
+                  return (
                     <button
-                      key={tab}
-                      onClick={() => setActiveTab(tab)}
-                      className={`min-w-[110px] px-4 py-2 rounded-xl text-sm font-semibold transition ${
-                        activeTab === tab ? 'bg-white text-slate-900 shadow-lg' : 'text-slate-300 hover:bg-white/5'
+                      key={`${item.id}-${item.timestamp}`}
+                      type="button"
+                      onClick={() =>
+                        isSelected ? handleDeselect() : handleSelect(item)
+                      }
+                      className={`relative h-24 w-20 flex-shrink-0 overflow-hidden rounded-xl border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+                        isSelected
+                          ? 'border-indigo-400'
+                          : 'border-white/10 hover:border-white/30'
                       }`}
+                      aria-pressed={isSelected}
                     >
-                      {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="flex-1 bg-slate-950/30 rounded-2xl p-4 overflow-y-auto border border-white/5 min-h-[260px]">
-                  {activeTab === 'upload' && (
-                    <div
-                      className="w-full min-h-[220px] flex flex-col items-center justify-center border-2 border-dashed border-white/15 rounded-2xl p-6 text-slate-300 hover:bg-white/5 hover:border-white/40 transition-colors"
-                      onDragOver={e => e.preventDefault()}
-                      onDrop={e => {
-                        e.preventDefault();
-                        handleFileChange(e.dataTransfer.files);
-                      }}
-                    >
-                      {isUploading ? (
-                        <div className="text-center">
-                          <svg
-                            className="animate-spin h-10 w-10 text-white mx-auto mb-4"
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                          >
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path
-                              className="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                            ></path>
-                          </svg>
-                          <p className="font-semibold">Uploading...</p>
-                        </div>
-                      ) : (
-                        <>
-                          <UploadIcon className="w-14 h-14 mb-4" />
-                          <p className="font-semibold text-center">Tap to upload or drag & drop</p>
-                          <label className="mt-4 bg-gradient-to-r from-indigo-500 to-purple-500 text-white py-2 px-4 rounded-full cursor-pointer hover:brightness-110">
-                            Choose file
-                            <input type="file" className="hidden" accept="image/*" onChange={e => handleFileChange(e.target.files)} />
-                          </label>
-                          {uploadError && <p className="text-red-400 text-sm mt-4">{uploadError}</p>}
-                        </>
-                      )}
-                    </div>
-                  )}
-                  {activeTab === 'unsplash' && (
-                    <div className="flex flex-col h-full min-h-0">
-                      <input
-                        type="text"
-                        value={unsplashQuery}
-                        onChange={e => setUnsplashQuery(e.target.value)}
-                        placeholder="Search Unsplash for portrait photos..."
-                        className="w-full p-3 rounded-xl bg-slate-800 border border-white/10 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      <img
+                        src={item.thumbUrl}
+                        alt={item.attribution || 'Recent background'}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
                       />
-                      <div className="flex-grow mt-4 overflow-y-auto min-h-0">
-                        {unsplashLoading && <p>Loading...</p>}
-                        {unsplashError && <p className="text-red-400">{unsplashError}</p>}
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                          {unsplashResults.map(photo => (
-                            <button
-                              key={photo.id}
-                              onClick={() => handleSelectImage(photo.urls.regular)}
-                              className="aspect-[9/16] bg-gray-700 rounded-md overflow-hidden group relative"
-                            >
-                              <img
-                                src={`${photo.urls.small}&fit=crop&w=200&h=356`}
-                                alt={photo.alt_description || photo.user.name}
-                                loading="lazy"
-                                onLoad={e => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.style.opacity = '1';
-                                }}
-                                onError={e => {
-                                  const target = e.target as HTMLImageElement;
-                                  if (!target.src.includes('?fallback')) {
-                                    target.src = photo.urls.thumb + '?fallback=1';
-                                  } else {
-                                    target.style.display = 'none';
-                                    const parent = target.parentElement;
-                                    if (parent && !parent.querySelector('.fallback-text')) {
-                                      const div = document.createElement('div');
-                                      div.className = 'fallback-text flex items-center justify-center h-full text-xs text-gray-400';
-                                      div.textContent = 'Image unavailable';
-                                      parent.appendChild(div);
-                                    }
-                                  }
-                                }}
-                                style={{ opacity: 0, transition: 'opacity 0.3s' }}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                              />
-                            </button>
-                          ))}
-                        </div>
+                      {isSelected && (
+                        <div className="absolute inset-0 bg-indigo-500/20" />
+                      )}
+                      <div className="pointer-events-none absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white/80 bg-black/60 text-xs font-bold text-white">
+                        ✓
                       </div>
-                    </div>
-                  )}
-                  {activeTab === 'url' && (
-                    <div className="space-y-4">
-                      <label className="font-semibold">Image URL</label>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={urlInput}
-                          onChange={e => setUrlInput(e.target.value)}
-                          placeholder="https://..."
-                          className="flex-grow p-3 rounded-xl bg-slate-800 border border-white/10 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                        />
-                        <button onClick={handleUrlLoad} className="bg-indigo-600 text-white py-2 px-4 rounded-xl hover:bg-indigo-700">
-                          Load
-                        </button>
-                      </div>
-                      {urlError && <p className="text-red-400 text-sm">{urlError}</p>}
-                    </div>
-                  )}
-                </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
+          )}
+
+          <div className="mt-4 px-5">
+            <div className="flex gap-2 overflow-x-auto">
+              {(Object.keys(CATEGORY_LABELS) as CategoryKey[]).map((category) => {
+                const isSelected = category === selectedCategory;
+                return (
+                  <button
+                    key={category}
+                    type="button"
+                    onClick={() => handleCategoryChange(category)}
+                    className={`flex-shrink-0 rounded-full border px-4 py-1.5 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+                      isSelected
+                        ? 'border-indigo-400 bg-indigo-500/20 text-indigo-200'
+                        : 'border-white/15 text-white/70 hover:border-white/40'
+                    }`}
+                    aria-pressed={isSelected}
+                  >
+                    {CATEGORY_LABELS[category]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div
+            ref={contentRef}
+            className="mt-4 flex-1 overflow-y-auto px-5 pb-24"
+          >
+            {renderGridContent()}
+          </div>
+
+          <div className="pointer-events-none absolute inset-x-0 bottom-20 h-20 bg-gradient-to-t from-neutral-950 to-transparent" />
+
+          <div className="flex items-center gap-3 border-t border-white/10 bg-neutral-950/90 px-5 py-4">
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="min-h-[44px] flex-1 rounded-full border border-white/20 px-4 py-2 text-sm font-semibold text-white hover:border-white/40"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleApply}
+              disabled={!selectedImage}
+              className={`min-h-[44px] flex-1 rounded-full px-4 py-2 text-sm font-semibold transition ${
+                selectedImage
+                  ? 'bg-indigo-500 text-white hover:brightness-110'
+                  : 'cursor-not-allowed bg-white/10 text-white/40'
+              }`}
+            >
+              Apply
+            </button>
           </div>
         </div>
-
-        <footer className="shrink-0 flex flex-col gap-4 md:flex-row md:items-center md:justify-between p-4 border-t border-gray-700 bg-slate-900">
-            <div className="w-full md:w-auto">
-                 <h4 className="text-sm font-bold mb-2">Recent</h4>
-                 <div className="flex gap-2 overflow-x-auto pr-2">
-                    {recents.map(url => (
-                        <button
-                            key={url}
-                            onClick={() => handleSelectImage(url)}
-                            className="w-16 h-16 rounded-md bg-gray-700 overflow-hidden border-2 border-transparent hover:border-indigo-500 flex-shrink-0"
-                        >
-                             <img src={url} className="w-full h-full object-cover"/>
-                        </button>
-                    ))}
-                 </div>
-            </div>
-            <div className="w-full md:w-auto flex flex-col sm:flex-row gap-3">
-                <button onClick={handleClear} className="text-sm font-semibold text-gray-400 hover:text-white w-full sm:w-auto text-center">Clear Background</button>
-                <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-                  <button onClick={onClose} className="py-2 px-6 rounded-lg bg-gray-700 hover:bg-gray-600 font-semibold w-full sm:w-auto">Cancel</button>
-                  <button onClick={handleApply} className="py-2 px-6 rounded-lg bg-indigo-600 hover:bg-indigo-700 font-semibold w-full sm:w-auto">Apply</button>
-                </div>
-            </div>
-        </footer>
       </div>
-    </div>
+    </BottomSheetBackdrop>,
+    modalRoot,
   );
-
-  return ReactDOM.createPortal(modalContent, modalRoot);
 };
 
 export default BackgroundModal;
+
