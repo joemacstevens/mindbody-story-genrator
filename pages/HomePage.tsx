@@ -278,9 +278,11 @@ const HomePage: React.FC = () => {
             {/* Split View: Preview (60%) + Editor (40%) */}
             <div className={`flex-1 flex ${isEditorCollapsed ? 'flex-col' : 'flex-col lg:flex-row'} overflow-hidden`}>
               {/* Preview Area */}
-              <div className={`${isEditorCollapsed ? 'flex-1' : 'flex-1 lg:flex-[6]'} flex flex-col items-center justify-center p-4 bg-gray-50 dark:bg-gray-900`}>
+              <div
+                className={`${isEditorCollapsed ? 'flex-1' : 'flex-1 lg:flex-[6]'} flex flex-col items-center justify-start lg:justify-center px-3 py-3 sm:p-4 bg-gray-50 dark:bg-gray-900`}
+              >
                 {/* Action Bar */}
-                <div className="w-full max-w-lg flex items-center justify-between gap-2 mb-4 px-2">
+                <div className="w-full max-w-lg flex items-center justify-between gap-2 mb-3 sm:mb-4 px-2">
                   <div className="flex gap-2">
                     <button
                       onClick={handleUndo}
@@ -317,7 +319,7 @@ const HomePage: React.FC = () => {
                 </div>
 
                 {/* Story Preview - Larger on desktop */}
-                <div className="w-full max-w-sm lg:max-w-md aspect-[9/16] bg-slate-900/70 rounded-3xl p-3 shadow-[0_20px_60px_rgba(2,6,23,0.8)] border border-white/5">
+                <div className="w-full max-w-sm lg:max-w-md aspect-[9/16] bg-slate-900/70 rounded-3xl p-2 sm:p-3 shadow-[0_20px_60px_rgba(2,6,23,0.8)] border border-white/5">
                   <div
                     className="w-full h-full overflow-hidden rounded-2xl bg-slate-950 relative"
                     onClick={() => setSelectedElement(null)}
