@@ -16,12 +16,12 @@ import SimplifiedEditor from '../components/SimplifiedEditor';
 import StoryRenderer from '../components/StoryRenderer';
 import TemplateGallery from '../components/TemplateGallery';
 import { MOCK_SCHEDULE, DEFAULT_APP_SETTINGS } from '../constants';
-import ExternalLinkIcon from '../components/icons/ExternalLinkIcon';
 import SlidersIcon from '../components/icons/SlidersIcon';
 import GridIcon from '../components/icons/GridIcon';
 import EyeIcon from '../components/icons/EyeIcon';
 import UndoIcon from '../components/icons/UndoIcon';
 import RedoIcon from '../components/icons/RedoIcon';
+import ExternalLinkIcon from '../components/icons/ExternalLinkIcon';
 
 type TabType = 'templates' | 'preview' | 'editor';
 
@@ -285,7 +285,7 @@ const HomePage: React.FC = () => {
               {/* Preview Area */}
               <div className={`${isEditorCollapsed ? 'flex-1' : 'flex-1 lg:flex-[6]'} flex flex-col items-center justify-center p-4 bg-gray-50 dark:bg-gray-900`}>
                 {/* Action Bar */}
-                <div className="w-full max-w-lg flex justify-between items-center mb-4 px-2">
+                <div className="w-full max-w-lg flex items-center justify-between gap-2 mb-4 px-2">
                   <div className="flex gap-2">
                     <button
                       onClick={handleUndo}
@@ -304,12 +304,21 @@ const HomePage: React.FC = () => {
                       <RedoIcon className="w-5 h-5" />
                     </button>
                   </div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                  <p className="flex-1 text-center text-sm font-medium text-gray-600 dark:text-gray-400">
                     {settings.activeTemplateId
                       .split('-')
                       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
                       .join(' ')}
                   </p>
+                  <Link
+                    to={renderSlug ? `/render/${renderSlug}` : '/render'}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-slate-100/80 transition hover:border-white/40 hover:text-white"
+                    aria-label="View final render page"
+                  >
+                    <ExternalLinkIcon className="h-4 w-4" />
+                    <span className="hidden sm:inline">Open render</span>
+                    <span className="sm:hidden">Render</span>
+                  </Link>
                 </div>
 
                 {/* Story Preview - Larger on desktop */}
@@ -428,33 +437,6 @@ const HomePage: React.FC = () => {
 
   return (
     <div className="h-screen w-screen flex flex-col bg-slate-950 text-slate-100 overflow-hidden">
-      {/* Header */}
-      <header className="flex-shrink-0 bg-slate-900/80 backdrop-blur-xl border-b border-white/5 shadow-[0_10px_40px_rgba(15,23,42,0.6)] z-20">
-        <div className="max-w-screen-2xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.4em] text-indigo-200/70">Studio OS</p>
-            <h1 className="text-lg sm:text-xl font-bold tracking-tight">Studiogram</h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link
-              to="/gym-finder"
-              className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-sm font-semibold text-slate-100/80 hover:border-white/40 hover:text-white transition"
-            >
-              <span className="hidden sm:inline">Gym Finder</span>
-              <span className="sm:hidden">Gyms</span>
-            </Link>
-            <Link
-              to={renderSlug ? `/render/${renderSlug}` : '/render'}
-              className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 px-4 py-2 text-sm font-semibold text-white shadow-[0_15px_35px_rgba(99,102,241,0.4)] hover:brightness-110 transition"
-              aria-label="View final render page"
-            >
-              <ExternalLinkIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span className="hidden sm:inline">Preview</span>
-            </Link>
-          </div>
-        </div>
-      </header>
-
       {/* Main Content Area */}
       <main className="flex-grow overflow-hidden pb-20 lg:pb-0 bg-slate-950">
         {renderTabContent()}
