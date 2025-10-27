@@ -64,6 +64,14 @@ interface SimplifiedEditorProps {
   onToggleCollapse?: () => void;
   selectedElement?: SelectedElement | null;
   onSelectElement?: (element: SelectedElement | null) => void;
+  scheduleDate?: string;
+  onScheduleDateChange?: (date: string) => void;
+  onScheduleLoad?: (date: string) => void;
+  isScheduleLoading?: boolean;
+  scheduleLoadError?: string | null;
+  scheduleLoadSuccess?: string | null;
+  canLoadSchedule?: boolean;
+  scheduleLoadHint?: string | null;
 }
 
 const SimplifiedEditor: React.FC<SimplifiedEditorProps> = ({
@@ -75,6 +83,14 @@ const SimplifiedEditor: React.FC<SimplifiedEditorProps> = ({
   onToggleCollapse,
   selectedElement = null,
   onSelectElement,
+  scheduleDate,
+  onScheduleDateChange,
+  onScheduleLoad,
+  isScheduleLoading = false,
+  scheduleLoadError = null,
+  scheduleLoadSuccess = null,
+  canLoadSchedule = true,
+  scheduleLoadHint = null,
 }) => {
   const [activeTab, setActiveTab] = useState<EditorTab>('colors');
   const [isBackgroundModalOpen, setIsBackgroundModalOpen] = useState(false);
@@ -83,6 +99,7 @@ const SimplifiedEditor: React.FC<SimplifiedEditorProps> = ({
   const headingInputRef = useRef<HTMLInputElement>(null);
   const subtitleInputRef = useRef<HTMLInputElement>(null);
   const footerInputRef = useRef<HTMLInputElement>(null);
+  const [localScheduleDate, setLocalScheduleDate] = useState(scheduleDate ?? '');
   const overlayColor = useMemo(() => parseOverlayColor(currentStyle.overlayColor), [currentStyle.overlayColor]);
 
   useEffect(() => {
@@ -98,6 +115,10 @@ const SimplifiedEditor: React.FC<SimplifiedEditorProps> = ({
       footerInputRef.current?.focus();
     }
   }, [selectedElement]);
+
+  useEffect(() => {
+    setLocalScheduleDate(scheduleDate ?? '');
+  }, [scheduleDate]);
 
   const handleChange = (updates: Partial<Style>) => {
     onChange({ ...currentStyle, ...updates });
@@ -263,6 +284,8 @@ const SimplifiedEditor: React.FC<SimplifiedEditorProps> = ({
         const footerEnabled = currentStyle.showFooter !== false;
         const baseInputClasses =
           'w-full px-4 py-3 rounded-lg border-2 text-sm transition focus:outline-none bg-white text-slate-900 placeholder-slate-400 dark:bg-gray-800 dark:text-slate-100 dark:placeholder-slate-500';
+        const scheduleButtonDisabled =
+          isScheduleLoading || !localScheduleDate || !canLoadSchedule;
 
         return (
           <div className="space-y-6">
@@ -335,6 +358,51 @@ const SimplifiedEditor: React.FC<SimplifiedEditorProps> = ({
                       : 'border-gray-800 bg-gray-900 text-slate-500 placeholder-slate-500 dark:text-slate-500 dark:placeholder-slate-600 opacity-60 cursor-not-allowed'
                   } ${isElementSelected('footer') ? 'ring-2 ring-indigo-400/60 border-indigo-400' : ''}`}
                 />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold mb-3">Schedule Date</label>
+              <div className="space-y-3">
+                <input
+                  type="date"
+                  value={localScheduleDate}
+                  onChange={(event) => {
+                    const nextDate = event.target.value;
+                    setLocalScheduleDate(nextDate);
+                    onScheduleDateChange?.(nextDate);
+                  }}
+                  className={`${baseInputClasses} border-gray-200 dark:border-gray-700 focus:border-indigo-500`}
+                  disabled={isScheduleLoading}
+                />
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!localScheduleDate) {
+                        return;
+                      }
+                      onScheduleLoad?.(localScheduleDate);
+                    }}
+                    disabled={scheduleButtonDisabled}
+                    className={`inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+                      scheduleButtonDisabled
+                        ? 'cursor-not-allowed bg-gray-800 text-gray-500'
+                        : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                    }`}
+                  >
+                    {isScheduleLoading ? 'Loading…' : 'Load Schedule'}
+                  </button>
+                  {scheduleLoadHint && (
+                    <p className="text-xs text-slate-400 dark:text-slate-500">{scheduleLoadHint}</p>
+                  )}
+                </div>
+                {scheduleLoadError && (
+                  <p className="text-xs font-medium text-rose-400">{scheduleLoadError}</p>
+                )}
+                {scheduleLoadSuccess && !scheduleLoadError && (
+                  <p className="text-xs font-medium text-emerald-400">{scheduleLoadSuccess}</p>
+                )}
               </div>
             </div>
 
