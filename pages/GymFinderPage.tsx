@@ -6,14 +6,16 @@ import { saveSchedule } from '../services/api';
 import { slugifyLocation, humanizeDate } from '../utils/slugify';
 import SavedGymsDrawer from '../components/SavedGymsDrawer';
 import {
-  loadSavedGyms,
-  removeSavedGym,
-  saveGymRecord,
-  setDefaultGym,
-  touchSavedGym,
+  loadSavedGymsForUser,
+  saveGymRecordForUser,
+  removeSavedGymForUser,
+  setDefaultGymForUser,
+  touchSavedGymForUser,
 } from '../services/savedGyms';
 import type { SavedGym, SavedGymsState } from '../services/savedGyms';
 import { searchGymLocations } from '../services/gymLocations';
+import { useAuth } from '../contexts/AuthContext';
+import { ensureUserDocument } from '../services/userData';
 
 const PREVIEW_TEMPLATE_ID = DEFAULT_APP_SETTINGS.activeTemplateId;
 const PREVIEW_STYLE = DEFAULT_APP_SETTINGS.configs[PREVIEW_TEMPLATE_ID];
@@ -36,6 +38,7 @@ const buildMockSchedule = (isoDate: string): Schedule => ({
 
 const GymFinderPage: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const today = new Date().toISOString().split('T')[0];
 
   const [gymName, setGymName] = useState('');
@@ -54,12 +57,32 @@ const GymFinderPage: React.FC = () => {
   const [applyHint, setApplyHint] = useState<string | null>(null);
   const [showSavePrompt, setShowSavePrompt] = useState(false);
   const [gymSaveMessage, setGymSaveMessage] = useState<string | null>(null);
-  const [savedGymsState, setSavedGymsState] = useState<SavedGymsState>(() => loadSavedGyms());
+  const [savedGymsState, setSavedGymsState] = useState<SavedGymsState>({ gyms: [], defaultGymSlug: null });
   const [hasLoadedDefault, setHasLoadedDefault] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [gymSuggestions, setGymSuggestions] = useState<GymLocation[]>([]);
   const [isSearchingGyms, setIsSearchingGyms] = useState(false);
   const [gymSearchError, setGymSearchError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user?.uid) {
+      return;
+    }
+    const bootstrap = async () => {
+      try {
+        await ensureUserDocument(user.uid, {
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+        });
+        const remoteState = await loadSavedGymsForUser(user.uid);
+        setSavedGymsState(remoteState);
+      } catch (error) {
+        console.error('Failed to load saved gyms from Firestore:', error);
+      }
+    };
+    void bootstrap();
+  }, [user]);
 
   const slug = useMemo(() => customSlug ?? slugifyLocation(gymName), [customSlug, gymName]);
   const scheduleEndpoint =
@@ -154,11 +177,14 @@ const GymFinderPage: React.FC = () => {
           });
         }
 
-        const currentState = loadSavedGyms();
+        if (!user?.uid) {
+          throw new Error('You must be signed in to fetch schedules.');
+        }
+        const currentState = await loadSavedGymsForUser(user.uid);
         const alreadySaved = currentState.gyms.some((gym) => gym.slug === finalSlug);
 
         if (alreadySaved) {
-          const updatedState = touchSavedGym(finalSlug);
+          const updatedState = await touchSavedGymForUser(user.uid, finalSlug);
           setSavedGymsState(updatedState);
           setShowSavePrompt(false);
         } else {
@@ -178,7 +204,7 @@ const GymFinderPage: React.FC = () => {
         );
       }
     },
-    [scheduleEndpoint],
+    [scheduleEndpoint, user],
   );
 
   const handleSelectGymSuggestion = (location: GymLocation) => {
@@ -274,7 +300,11 @@ const GymFinderPage: React.FC = () => {
       setApplyHint('Generate a Mindbody slug before applying the schedule.');
       return;
     }
-    const resolvedSlug = await saveSchedule(schedule, slug);
+    if (!user?.uid) {
+      setApplyHint('Sign in to save this schedule.');
+      return;
+    }
+    const resolvedSlug = await saveSchedule(schedule, slug, user.uid);
     setApplyHint(
       destination === 'editor'
         ? 'Schedule applied to the editor.'
@@ -287,19 +317,24 @@ const GymFinderPage: React.FC = () => {
     }
   };
 
-  const handleSaveGym = () => {
+  const handleSaveGym = useCallback(async () => {
     if (!slug) return;
+    if (!user?.uid) {
+      setGymSaveMessage('Sign in to save gyms.');
+      return;
+    }
     const trimmedGymName = gymName.trim();
     if (!trimmedGymName) return;
     const radiusValue = Number(radius) || 1;
-    const updatedState = saveGymRecord(
+    const updatedState = await saveGymRecordForUser(
+      user.uid,
       { name: trimmedGymName, slug, radius: radiusValue },
       { setAsDefault: true },
     );
     setSavedGymsState(updatedState);
     setShowSavePrompt(false);
-    setGymSaveMessage(`${trimmedGymName} saved as your default gym. We\'ll load it automatically next time.`);
-  };
+    setGymSaveMessage(`${trimmedGymName} saved as your default gym. We'll load it automatically next time.`);
+  }, [gymName, radius, slug, user]);
 
   const handleDismissSavePrompt = () => {
     setShowSavePrompt(false);
@@ -325,20 +360,28 @@ const GymFinderPage: React.FC = () => {
     });
   };
 
-  const handleSetDefaultGym = (gym: SavedGym) => {
-    const updatedState = setDefaultGym(gym.slug);
+  const handleSetDefaultGym = useCallback(async (gym: SavedGym) => {
+    if (!user?.uid) {
+      setGymSaveMessage('Sign in to choose a default gym.');
+      return;
+    }
+    const updatedState = await setDefaultGymForUser(user.uid, gym.slug);
     setSavedGymsState(updatedState);
     setGymSaveMessage(`${gym.name} is now your default gym.`);
-  };
+  }, [user]);
 
-  const handleRemoveGym = (gym: SavedGym) => {
-    const updatedState = removeSavedGym(gym.slug);
+  const handleRemoveGym = useCallback(async (gym: SavedGym) => {
+    if (!user?.uid) {
+      setGymSaveMessage('Sign in to manage saved gyms.');
+      return;
+    }
+    const updatedState = await removeSavedGymForUser(user.uid, gym.slug);
     setSavedGymsState(updatedState);
     setGymSaveMessage(`${gym.name} was removed from your saved gyms.`);
     if (updatedState.gyms.length === 0) {
       setHasLoadedDefault(true);
     }
-  };
+  }, [user]);
 
   const statusLabel: Record<FetchState, string> = {
     idle: 'Awaiting search',

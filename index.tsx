@@ -1,8 +1,8 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { ClerkProvider } from '@clerk/clerk-react';
 import App from './App';
+import { AuthProvider } from './contexts/AuthContext';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -11,18 +11,10 @@ if (!rootElement) {
 
 const root = ReactDOM.createRoot(rootElement);
 
-const clerkPublishableKey = import.meta.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
-
-if (!clerkPublishableKey) {
-  throw new Error(
-    'Missing Clerk publishable key. Please set NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY in your environment.'
-  );
-}
-
 root.render(
   <React.StrictMode>
-    <ClerkProvider publishableKey={clerkPublishableKey}>
+    <AuthProvider>
       <App />
-    </ClerkProvider>
+    </AuthProvider>
   </React.StrictMode>
 );

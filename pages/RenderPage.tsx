@@ -3,17 +3,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { toPng } from 'html-to-image';
 import StoryRenderer from '../components/StoryRenderer';
-import { FALLBACK_SCHEDULE } from '../constants';
+import { FALLBACK_SCHEDULE, DEFAULT_APP_SETTINGS } from '../constants';
 import { buildFontEmbedCss } from '../utils/fontEmbedder';
-import {
-  getAppSettings,
-  getSchedule,
-  CONFIG_UPDATED_EVENT,
-  SCHEDULE_UPDATED_EVENT,
-  fetchLatestSchedule,
-  cacheScheduleLocally,
-} from '../services/api';
+import { getAppSettings, getUserSchedule } from '../services/api';
 import type { AppSettings, Schedule, TemplateId } from '../types';
+import { useAuth } from '../contexts/AuthContext';
+import { ensureUserDocument } from '../services/userData';
 
 const isColorDark = (hexColor: string): boolean => {
   if (!hexColor) return false;
@@ -26,6 +21,7 @@ const isColorDark = (hexColor: string): boolean => {
 };
 
 const RenderPage: React.FC = () => {
+  const { user } = useAuth();
   const { slug: slugFromPath } = useParams<{ slug?: string }>();
   const getSearchParams = () => {
     const hash = window.location.hash;
@@ -39,9 +35,7 @@ const RenderPage: React.FC = () => {
   const activeSlug = normalizedSlugFromPath || normalizedSlugFromQuery || null;
 
   const [settings, setSettings] = useState<AppSettings | null>(null);
-  const [schedule, setSchedule] = useState<Schedule>(() =>
-    activeSlug ? getSchedule(activeSlug) : FALLBACK_SCHEDULE,
-  );
+  const [schedule, setSchedule] = useState<Schedule>(FALLBACK_SCHEDULE);
   const [key, setKey] = useState(Date.now());
   const [scale, setScale] = useState(1);
   const [isExporting, setIsExporting] = useState(false);
@@ -51,61 +45,61 @@ const RenderPage: React.FC = () => {
   const fontEmbedCssRef = useRef<string | null>(null);
 
   useEffect(() => {
-    let isMounted = true;
-    const loadSettings = async () => {
-      const newSettings = await getAppSettings();
-      if (isMounted) {
-        setSettings(newSettings);
-        setKey(Date.now());
-      }
-    };
-
-    loadSettings();
-    window.addEventListener(CONFIG_UPDATED_EVENT, loadSettings);
-
-    return () => {
-      isMounted = false;
-      window.removeEventListener(CONFIG_UPDATED_EVENT, loadSettings);
-    };
-  }, []);
+    if (!user?.uid) {
+      return;
+    }
+    void ensureUserDocument(user.uid, {
+      email: user.email,
+      displayName: user.displayName,
+      photoURL: user.photoURL,
+    });
+  }, [user]);
 
   useEffect(() => {
-    if (!activeSlug) return;
-
-    const updateFromCache = () => {
-      setSchedule(getSchedule(activeSlug));
-      setKey(Date.now());
-    };
-
-    updateFromCache();
-
-    const handleScheduleUpdate = (event: Event) => {
-      const eventSlug = (event as CustomEvent<{ slug?: string }>).detail?.slug;
-      if (eventSlug && eventSlug !== activeSlug) {
-        return;
-      }
-      updateFromCache();
-    };
-
-    window.addEventListener(SCHEDULE_UPDATED_EVENT, handleScheduleUpdate);
-
+    if (!user?.uid) {
+      setSettings(DEFAULT_APP_SETTINGS);
+      return;
+    }
+    let isMounted = true;
+    getAppSettings(user.uid)
+      .then((newSettings) => {
+        if (isMounted) {
+          setSettings(newSettings);
+          setKey(Date.now());
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to load user settings for render page', error);
+      });
     return () => {
-      window.removeEventListener(SCHEDULE_UPDATED_EVENT, handleScheduleUpdate);
+      isMounted = false;
     };
-  }, [activeSlug]);
+  }, [user]);
 
-  if (!activeSlug) {
-    return (
-      <div className="w-screen h-screen flex flex-col items-center justify-center bg-gray-950 text-slate-100 px-6 text-center space-y-4">
-        <h1 className="text-2xl font-semibold">Choose a gym to render</h1>
-        <p className="text-sm text-slate-300 max-w-md">
-          Open Gym Finder, search for your gym, and choose “Open render” or navigate directly to
-          <span className="mx-1 rounded-md bg-white/10 px-2 py-0.5 font-mono text-xs">/#/render/&lt;slug&gt;</span>
-          to load a specific location.
-        </p>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!activeSlug) {
+      setSchedule(FALLBACK_SCHEDULE);
+      return;
+    }
+    if (!user?.uid) {
+      setSchedule(FALLBACK_SCHEDULE);
+      return;
+    }
+    let isMounted = true;
+    getUserSchedule(activeSlug, user.uid)
+      .then((userSchedule) => {
+        if (isMounted && userSchedule) {
+          setSchedule(userSchedule);
+          setKey(Date.now());
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to load schedule for render page', error);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [activeSlug, user]);
 
   useEffect(() => {
     const calculateScale = () => {
@@ -130,27 +124,50 @@ const RenderPage: React.FC = () => {
     };
   }, []);
 
-  useEffect(() => {
-    if (!activeSlug) return;
-    let isMounted = true;
-    const syncSchedule = async () => {
-      const remote = await fetchLatestSchedule(activeSlug);
-      if (remote && isMounted) {
-        cacheScheduleLocally(remote, activeSlug);
-        setSchedule(remote);
-        setKey(Date.now());
-      }
-    };
-    syncSchedule();
-    return () => {
-      isMounted = false;
-    };
-  }, [activeSlug]);
-  
   const templateIdOverride = searchParams.get('templateId') as TemplateId | null;
   const finalTemplateId = templateIdOverride || settings?.activeTemplateId;
-  
   const style = finalTemplateId ? settings?.configs[finalTemplateId] : null;
+
+  useEffect(() => {
+    if (!finalTemplateId) {
+      return;
+    }
+    const bgColor = style
+      ? isColorDark(style.backgroundColor)
+        ? '#1F2937'
+        : '#F9FAFB'
+      : finalTemplateId.includes('dark')
+        ? '#1F2937'
+        : '#F9FAFB';
+    document.body.style.backgroundColor = bgColor;
+    return () => {
+      document.body.style.backgroundColor = '';
+    };
+  }, [style, finalTemplateId]);
+
+  if (!activeSlug) {
+    return (
+      <div className="w-screen h-screen flex flex-col items-center justify-center bg-gray-950 text-slate-100 px-6 text-center space-y-4">
+        <h1 className="text-2xl font-semibold">Choose a gym to render</h1>
+        <p className="text-sm text-slate-300 max-w-md">
+          Open Gym Finder, search for your gym, and choose “Open render” or navigate directly to
+          <span className="mx-1 rounded-md bg-white/10 px-2 py-0.5 font-mono text-xs">/#/render/&lt;slug&gt;</span>
+          to load a specific location.
+        </p>
+      </div>
+    );
+  }
+
+  if (!user?.uid) {
+    return (
+      <div className="w-screen h-screen flex flex-col items-center justify-center bg-gray-950 text-slate-100 px-6 text-center space-y-4">
+        <h1 className="text-2xl font-semibold">Sign in to view renders</h1>
+        <p className="text-sm text-slate-300 max-w-md">
+          This render is tied to your account. Please sign in through the main Studiogram app and reopen this link.
+        </p>
+      </div>
+    );
+  }
 
   const convertDataUrlToBlob = (dataUrl: string): Blob => {
     const [header, base64Data] = dataUrl.split(',');
@@ -270,15 +287,6 @@ const RenderPage: React.FC = () => {
       setForceInlineBackground(false);
     }
   };
-  
-  useEffect(() => {
-    const isDark = style ? isColorDark(style.backgroundColor) : finalTemplateId?.includes('dark');
-    const pageBgColor = isDark ? '#1F2937' : '#F9FAFB'; 
-    document.body.style.backgroundColor = pageBgColor;
-    return () => {
-      document.body.style.backgroundColor = '';
-    };
-  }, [style, finalTemplateId]);
   
   if (!settings || !finalTemplateId || !style) {
      const isDarkGuess = (searchParams.get('templateId') as TemplateId | null)?.includes('dark');

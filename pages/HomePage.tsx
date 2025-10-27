@@ -1,17 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import type { AppSettings, TemplateId, Style, Schedule, SelectedElement } from '../types';
-import {
-  getAppSettings,
-  saveAppSettings,
-  CONFIG_UPDATED_EVENT,
-  getSchedule,
-  SCHEDULE_UPDATED_EVENT,
-  fetchLatestSchedule,
-  cacheScheduleLocally,
-  saveSchedule,
-  getLastUsedScheduleSlug,
-} from '../services/api';
+import { getAppSettings, saveAppSettings, saveSchedule, getUserSchedule, fetchUserRoot } from '../services/api';
 import SimplifiedEditor from '../components/SimplifiedEditor';
 import StoryRenderer from '../components/StoryRenderer';
 import TemplateGallery from '../components/TemplateGallery';
@@ -22,10 +12,13 @@ import EyeIcon from '../components/icons/EyeIcon';
 import UndoIcon from '../components/icons/UndoIcon';
 import RedoIcon from '../components/icons/RedoIcon';
 import ExternalLinkIcon from '../components/icons/ExternalLinkIcon';
+import { useAuth } from '../contexts/AuthContext';
+import { ensureUserDocument } from '../services/userData';
 
 type TabType = 'templates' | 'preview' | 'editor';
 
 const HomePage: React.FC = () => {
+  const { user } = useAuth();
   const [history, setHistory] = useState<(AppSettings | null)[]>([null]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [schedule, setSchedule] = useState<Schedule>(MOCK_SCHEDULE);
@@ -33,11 +26,22 @@ const HomePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('preview');
   const [isEditorCollapsed, setEditorCollapsed] = useState(false);
   const [previewScale, setPreviewScale] = useState(0.3);
-  const [renderSlug, setRenderSlug] = useState<string | null>(() => getLastUsedScheduleSlug());
+  const [renderSlug, setRenderSlug] = useState<string | null>(null);
   const [scheduleDateInput, setScheduleDateInput] = useState(() => new Date().toISOString().split('T')[0]);
   const [isScheduleLoading, setIsScheduleLoading] = useState(false);
   const [scheduleLoadError, setScheduleLoadError] = useState<string | null>(null);
   const [scheduleLoadSuccess, setScheduleLoadSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user?.uid) {
+      return;
+    }
+    void ensureUserDocument(user.uid, {
+      email: user.email,
+      displayName: user.displayName,
+      photoURL: user.photoURL,
+    });
+  }, [user]);
 
   const scheduleEndpoint =
     (import.meta.env.VITE_SCHEDULE_ENDPOINT as string | undefined) || '/api/schedule';
@@ -59,54 +63,37 @@ const HomePage: React.FC = () => {
   }, [history, currentIndex]);
 
   const fetchInitialData = useCallback(async () => {
-    const initialSettings = await getAppSettings();
+    if (!user?.uid) {
+      setHistory([DEFAULT_APP_SETTINGS]);
+      setCurrentIndex(0);
+      setSchedule(MOCK_SCHEDULE);
+      setRenderSlug(null);
+      return;
+    }
+
+    const [initialSettings, userRoot] = await Promise.all([
+      getAppSettings(user.uid),
+      fetchUserRoot(user.uid),
+    ]);
     setHistory([initialSettings]);
     setCurrentIndex(0);
 
-    const lastSlug = getLastUsedScheduleSlug() ?? undefined;
-    setRenderSlug(lastSlug ?? null);
-    const sessionSchedule = getSchedule(lastSlug);
+    const lastSlug = userRoot?.lastScheduleSlug ?? null;
+    setRenderSlug(lastSlug);
 
-    if (sessionSchedule.items.length > 1 || sessionSchedule.date !== 'Preview Mode') {
-      setSchedule(sessionSchedule);
-    } else {
-      setSchedule(MOCK_SCHEDULE);
+    if (lastSlug) {
+      const existing = await getUserSchedule(lastSlug, user.uid);
+      if (existing) {
+        setSchedule(existing);
+        return;
+      }
     }
 
-    const remoteSchedule = await fetchLatestSchedule(lastSlug);
-    if (remoteSchedule) {
-      cacheScheduleLocally(remoteSchedule, lastSlug, false);
-      setSchedule(remoteSchedule);
-    }
-  }, []);
+    setSchedule(MOCK_SCHEDULE);
+  }, [user]);
 
   useEffect(() => {
     fetchInitialData();
-
-    const handleConfigUpdate = async () => {
-      const newSettings = await getAppSettings();
-      setHistory([newSettings]);
-      setCurrentIndex(0);
-    };
-
-    const handleScheduleUpdate = (event: Event) => {
-      const eventSlug = (event as CustomEvent<{ slug?: string }>).detail?.slug;
-      const lastSlug = getLastUsedScheduleSlug();
-      if (eventSlug && lastSlug && eventSlug !== lastSlug) {
-        return;
-      }
-      const targetSlug = lastSlug ?? eventSlug ?? undefined;
-      setSchedule(getSchedule(targetSlug));
-      setRenderSlug(targetSlug ?? null);
-    };
-
-    window.addEventListener(CONFIG_UPDATED_EVENT, handleConfigUpdate);
-    window.addEventListener(SCHEDULE_UPDATED_EVENT, handleScheduleUpdate);
-    
-    return () => {
-      window.removeEventListener(CONFIG_UPDATED_EVENT, handleConfigUpdate);
-      window.removeEventListener(SCHEDULE_UPDATED_EVENT, handleScheduleUpdate);
-    };
   }, [fetchInitialData]);
 
   const handleUndo = useCallback(() => {
@@ -204,6 +191,11 @@ const HomePage: React.FC = () => {
         return;
       }
 
+      if (!user?.uid) {
+        setScheduleLoadError('You need to be signed in to load schedules.');
+        return;
+      }
+
       setIsScheduleLoading(true);
       setScheduleLoadError(null);
       setScheduleLoadSuccess(null);
@@ -232,8 +224,9 @@ const HomePage: React.FC = () => {
 
         const responseSlug = typeof data?.slug === 'string' && data.slug ? data.slug : renderSlug;
 
-        setSchedule(nextSchedule);
-        const savedSlug = await saveSchedule(nextSchedule, responseSlug);
+        const savedSlug = await saveSchedule(nextSchedule, responseSlug, user.uid);
+        const refreshed = await getUserSchedule(savedSlug, user.uid);
+        setSchedule(refreshed ?? nextSchedule);
         setRenderSlug(savedSlug);
         setScheduleDateInput(targetDate);
         setScheduleLoadSuccess(`Loaded schedule for ${nextSchedule.date}.`);
@@ -244,12 +237,14 @@ const HomePage: React.FC = () => {
         setIsScheduleLoading(false);
       }
     },
-    [renderSlug, scheduleEndpoint],
+    [renderSlug, scheduleEndpoint, user?.uid],
   );
 
   const handleStyleSave = async () => {
-    if (!settings) return;
-    await saveAppSettings(settings);
+    if (!settings || !user?.uid) {
+      return;
+    }
+    await saveAppSettings(settings, user.uid);
   };
 
   if (!settings) {

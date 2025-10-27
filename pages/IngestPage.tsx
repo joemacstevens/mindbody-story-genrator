@@ -1,9 +1,13 @@
 import React, { useEffect } from 'react';
 import { getAppSettings, saveAppSettings, saveSchedule } from '../services/api';
-import type { Schedule, Style, TemplateId } from '../types';
+import type { Schedule, Style } from '../types';
 import { isSchedule, isStyle } from '../types';
+import { useAuth } from '../contexts/AuthContext';
+import { ensureUserDocument } from '../services/userData';
 
 const IngestPage: React.FC = () => {
+  const { user } = useAuth();
+
   useEffect(() => {
     const getSearchParams = () => {
       const hash = window.location.hash;
@@ -17,6 +21,13 @@ const IngestPage: React.FC = () => {
     let resolvedSlug = normalizedSlug;
 
     const processData = async () => {
+      if (user?.uid) {
+        await ensureUserDocument(user.uid, {
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+        });
+      }
       try {
         let scheduleData: Schedule | null = null;
         let styleData: Style | null = null;
@@ -68,15 +79,21 @@ const IngestPage: React.FC = () => {
         }
 
         // Step 3: Save data
-        if (scheduleData) {
-          const savedSlug = await saveSchedule(scheduleData, normalizedSlug ?? undefined);
+        if (scheduleData && user?.uid) {
+          const savedSlug = await saveSchedule(
+            scheduleData,
+            normalizedSlug ?? 'global',
+            user.uid,
+          );
           resolvedSlug = savedSlug;
+        } else if (scheduleData) {
+          console.warn('Skipping schedule ingestion because no user session is available.');
         } else {
           console.error("No valid schedule data provided via 'schedule' or 'scheduleUrl' parameter.");
         }
-        
-        if (styleData) {
-          const currentSettings = await getAppSettings();
+
+        if (styleData && user?.uid) {
+          const currentSettings = await getAppSettings(user.uid);
           const activeTemplateId = currentSettings.activeTemplateId;
           
           // FIX: Merge the incoming partial style with the existing one to prevent
@@ -88,7 +105,9 @@ const IngestPage: React.FC = () => {
             ...currentSettings.configs,
             [activeTemplateId]: mergedStyle,
           };
-          await saveAppSettings({ ...currentSettings, configs: newConfigs });
+          await saveAppSettings({ ...currentSettings, configs: newConfigs }, user.uid);
+        } else if (styleData) {
+          console.warn('Skipping style ingestion because no user session is available.');
         }
 
       } catch (error) {
@@ -100,7 +119,7 @@ const IngestPage: React.FC = () => {
     };
 
     processData();
-  }, []);
+  }, [user]);
 
   return (
     <div className="w-screen h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">

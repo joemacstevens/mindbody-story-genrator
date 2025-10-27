@@ -5,6 +5,7 @@ import { initializeApp, getApps } from 'firebase/app';
 import * as rtdb from 'firebase/database';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import { getAuth, setPersistence, browserLocalPersistence, connectAuthEmulator } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: "AIzaSyA_6IDekd7114N5PgymClDRvrx5k-lUTFY",
@@ -24,3 +25,17 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0
 export const db = rtdb.getDatabase(app);
 export const firestore = getFirestore(app);
 export const storage = getStorage(app);
+export const auth = getAuth(app);
+
+auth.useDeviceLanguage();
+setPersistence(auth, browserLocalPersistence).catch((error) => {
+  console.error('Failed to set Firebase Auth persistence', error);
+});
+
+if (import.meta.env.DEV && import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true') {
+  try {
+    connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
+  } catch (error) {
+    console.warn('Auth emulator not available:', error);
+  }
+}
