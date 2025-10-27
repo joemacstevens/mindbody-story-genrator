@@ -150,6 +150,38 @@ const RenderPage: React.FC = () => {
   
   const style = finalTemplateId ? settings?.configs[finalTemplateId] : null;
 
+  const convertDataUrlToBlob = async (dataUrl: string): Promise<Blob> => {
+    const response = await fetch(dataUrl);
+    return response.blob();
+  };
+
+  const tryShareImage = async (blob: Blob, fileName: string) => {
+    if (!navigator.canShare) {
+      return false;
+    }
+    const file = new File([blob], fileName, { type: 'image/png' });
+    if (!navigator.canShare({ files: [file] })) {
+      return false;
+    }
+    await navigator.share({
+      files: [file],
+      title: 'Studiogram Export',
+      text: 'Exported with Studiogram',
+    });
+    return true;
+  };
+
+  const downloadBlob = (blob: Blob, fileName: string) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const handleExport = async () => {
     if (!storyContainerRef.current) {
       setExportError('Renderer not ready yet. Please try again in a moment.');
@@ -168,12 +200,15 @@ const RenderPage: React.FC = () => {
         height: 1920,
         backgroundColor: style?.backgroundColor ?? '#000000',
       });
-      const downloadLink = document.createElement('a');
       const slugSegment = activeSlug?.replace(/[^a-z0-9-]/gi, '-') || 'schedule';
       const templateSegment = finalTemplateId?.replace(/[^a-z0-9-]/gi, '-') || 'template';
-      downloadLink.download = `${slugSegment}-${templateSegment}.png`;
-      downloadLink.href = dataUrl;
-      downloadLink.click();
+      const fileName = `${slugSegment}-${templateSegment}.png`;
+      const blob = await convertDataUrlToBlob(dataUrl);
+
+      const shared = await tryShareImage(blob, fileName);
+      if (!shared) {
+        downloadBlob(blob, fileName);
+      }
     } catch (error) {
       console.error('Export failed:', error);
       setExportError('Could not export the image. Please retry.');

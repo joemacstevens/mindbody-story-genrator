@@ -420,6 +420,48 @@ const SimplifiedEditor: React.FC<SimplifiedEditorProps> = ({
             )}
 
             <div className="space-y-3">
+              <label className="block text-sm font-semibold">Image Fit</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleChange({ bgFit: 'contain' })}
+                  className={`py-2 rounded-lg font-semibold border ${
+                    currentStyle.bgFit === 'contain'
+                      ? 'bg-indigo-600 text-white border-indigo-600'
+                      : 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200'
+                  }`}
+                >
+                  Fit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleChange({ bgFit: 'cover' })}
+                  className={`py-2 rounded-lg font-semibold border ${
+                    currentStyle.bgFit !== 'contain'
+                      ? 'bg-indigo-600 text-white border-indigo-600'
+                      : 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200'
+                  }`}
+                >
+                  Fill
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold mb-2">
+                Background Blur: {currentStyle.bgBlur || 0}px
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="20"
+                value={currentStyle.bgBlur || 0}
+                onChange={(event) => handleChange({ bgBlur: parseInt(event.target.value, 10) })}
+                className="w-full"
+              />
+            </div>
+
+            <div className="space-y-3">
               <label className="block text-sm font-semibold">Overlay Color</label>
               <input
                 type="color"

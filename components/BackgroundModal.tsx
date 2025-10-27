@@ -228,168 +228,168 @@ const BackgroundModal: React.FC<BackgroundModalProps> = ({ isOpen, onClose, curr
           </button>
         </header>
 
-        <div className="flex-1 overflow-hidden">
-          <div className="h-full flex flex-col lg:flex-row p-4 gap-4 overflow-y-auto lg:overflow-hidden">
-            {/* Main Content Area */}
-            <div className="w-full lg:w-1/2 flex items-center justify-center bg-slate-950/50 rounded-2xl p-4 border border-white/5 min-h-[260px]">
-              {!tempStyle.bgImage ? (
-                  <div className="text-center text-slate-500">
+        <div className="flex-1 overflow-hidden min-h-0">
+          <div className="h-full flex flex-col gap-4 min-h-0 px-4 pb-4 pt-4 overflow-y-auto lg:overflow-hidden">
+            <div className="flex flex-col lg:flex-row gap-4 min-h-0">
+              {/* Preview */}
+              <div className="w-full lg:w-2/5 xl:w-1/3 flex justify-center">
+                <div className="w-full max-w-[220px] sm:max-w-[260px] lg:max-w-[280px] bg-slate-950/50 rounded-2xl p-4 border border-white/5 flex items-center justify-center">
+                  {!tempStyle.bgImage ? (
+                    <div className="text-center text-slate-500 text-sm">
                       <p>Select an image to see a preview</p>
-                  </div>
-              ) : (
-                  <div className="w-full max-w-[320px] aspect-[9/16] rounded-2xl overflow-hidden relative bg-slate-950">
-                      <div 
-                          ref={imagePreviewRef}
-                          className="w-full h-full"
-                          style={{ 
-                              backgroundImage: `url(${tempStyle.bgImage})`,
-                              backgroundSize: tempStyle.bgFit as 'cover' | 'contain',
-                              backgroundPosition: tempStyle.bgPosition,
-                              cursor: 'grab'
-                          }}
-                          onMouseDown={handlePanStart}
+                    </div>
+                  ) : (
+                    <div className="w-full aspect-[9/16] rounded-2xl overflow-hidden relative bg-slate-950 shadow-inner">
+                      <div
+                        ref={imagePreviewRef}
+                        className="w-full h-full"
+                        style={{
+                          backgroundImage: `url(${tempStyle.bgImage})`,
+                          backgroundSize: tempStyle.bgFit as 'cover' | 'contain',
+                          backgroundPosition: tempStyle.bgPosition,
+                          cursor: 'grab'
+                        }}
+                        onMouseDown={handlePanStart}
                       />
-                      <div className="absolute inset-0 pointer-events-none" style={{
+                      <div
+                        className="absolute inset-0 pointer-events-none"
+                        style={{
                           backgroundColor: tempStyle.overlayColor || 'transparent',
                           backdropFilter: `blur(${(tempStyle.bgBlur || 0)}px)`
-                      }}/>
-                  </div>
-              )}
-            </div>
-
-            {/* Controls */}
-            <div className="w-full lg:w-1/2 flex flex-col gap-4">
-              {/* Tabs */}
-              <div className="flex gap-2 p-1 bg-slate-950/40 rounded-2xl border border-white/5 overflow-x-auto">
-                  {(['upload', 'unsplash', 'url'] as Tab[]).map(tab => (
-                      <button key={tab} onClick={() => setActiveTab(tab)} className={`w-full py-2 px-4 rounded-xl text-sm font-semibold transition ${
-                        activeTab === tab ? 'bg-white text-slate-900 shadow-lg' : 'text-slate-300 hover:bg-white/5'
-                      }`}>
-                          {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                      </button>
-                  ))}
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Tab Content */}
-              <div className="flex-grow bg-slate-950/30 rounded-2xl p-4 overflow-y-auto border border-white/5">
-                {activeTab === 'upload' && (
-                    <div 
-                        className="w-full h-full flex flex-col items-center justify-center border-2 border-dashed border-white/15 rounded-2xl p-8 text-slate-300 hover:bg-white/5 hover:border-white/40 transition-colors"
-                        onDragOver={e => e.preventDefault()}
-                        onDrop={e => { e.preventDefault(); handleFileChange(e.dataTransfer.files); }}
+              {/* Image Sources */}
+              <div className="w-full lg:flex-1 flex flex-col gap-4 min-h-0">
+                <div className="flex gap-2 p-1 bg-slate-950/40 rounded-2xl border border-white/5 overflow-x-auto">
+                  {(['upload', 'unsplash', 'url'] as Tab[]).map(tab => (
+                    <button
+                      key={tab}
+                      onClick={() => setActiveTab(tab)}
+                      className={`min-w-[110px] px-4 py-2 rounded-xl text-sm font-semibold transition ${
+                        activeTab === tab ? 'bg-white text-slate-900 shadow-lg' : 'text-slate-300 hover:bg-white/5'
+                      }`}
+                    >
+                      {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex-1 bg-slate-950/30 rounded-2xl p-4 overflow-y-auto border border-white/5 min-h-[260px]">
+                  {activeTab === 'upload' && (
+                    <div
+                      className="w-full min-h-[220px] flex flex-col items-center justify-center border-2 border-dashed border-white/15 rounded-2xl p-6 text-slate-300 hover:bg-white/5 hover:border-white/40 transition-colors"
+                      onDragOver={e => e.preventDefault()}
+                      onDrop={e => {
+                        e.preventDefault();
+                        handleFileChange(e.dataTransfer.files);
+                      }}
                     >
                       {isUploading ? (
-                          <div className="text-center">
-                            <svg className="animate-spin h-12 w-12 text-white mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            <p className="font-semibold">Uploading...</p>
-                          </div>
+                        <div className="text-center">
+                          <svg
+                            className="animate-spin h-10 w-10 text-white mx-auto mb-4"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                          </svg>
+                          <p className="font-semibold">Uploading...</p>
+                        </div>
                       ) : (
                         <>
-                          <UploadIcon className="w-16 h-16 mb-4"/>
-                          <p className="font-semibold">Drag & drop an image</p>
-                          <p className="text-sm my-2">or</p>
-                          <label className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white py-2 px-4 rounded-full cursor-pointer hover:brightness-110">
-                              Choose file
-                              <input type="file" className="hidden" accept="image/*" onChange={e => handleFileChange(e.target.files)}/>
+                          <UploadIcon className="w-14 h-14 mb-4" />
+                          <p className="font-semibold text-center">Tap to upload or drag & drop</p>
+                          <label className="mt-4 bg-gradient-to-r from-indigo-500 to-purple-500 text-white py-2 px-4 rounded-full cursor-pointer hover:brightness-110">
+                            Choose file
+                            <input type="file" className="hidden" accept="image/*" onChange={e => handleFileChange(e.target.files)} />
                           </label>
                           {uploadError && <p className="text-red-400 text-sm mt-4">{uploadError}</p>}
                         </>
                       )}
                     </div>
-                )}
-                {activeTab === 'unsplash' && (
-                    <div className="flex flex-col h-full">
-                        <input
-                            type="text"
-                            value={unsplashQuery}
-                            onChange={e => setUnsplashQuery(e.target.value)}
-                            placeholder="Search Unsplash for portrait photos..."
-                            className="w-full p-3 rounded-xl bg-slate-800 border border-white/10 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                        />
-                        <div className="flex-grow mt-4 overflow-y-auto">
-                            {unsplashLoading && <p>Loading...</p>}
-                            {unsplashError && <p className="text-red-400">{unsplashError}</p>}
-                            <div className="grid grid-cols-3 gap-2">
-                                {unsplashResults.map(photo => (
-                                    <button
-                                        key={photo.id}
-                                        onClick={() => handleSelectImage(photo.urls.regular)}
-                                        className="aspect-[9/16] bg-gray-700 rounded-md overflow-hidden group relative"
-                                    >
-                                        <img
-                                            src={`${photo.urls.small}&fit=crop&w=200&h=356`}
-                                            alt={photo.alt_description || photo.user.name}
-                                            loading="lazy"
-                                            onLoad={(e) => {
-                                                const target = e.target as HTMLImageElement;
-                                                target.style.opacity = '1';
-                                            }}
-                                            onError={(e) => {
-                                                const target = e.target as HTMLImageElement;
-                                                // Try the raw URL as fallback
-                                                if (!target.src.includes('?fallback')) {
-                                                    target.src = photo.urls.thumb + '?fallback=1';
-                                                } else {
-                                                    target.style.display = 'none';
-                                                    const parent = target.parentElement;
-                                                    if (parent && !parent.querySelector('.fallback-text')) {
-                                                        const div = document.createElement('div');
-                                                        div.className = 'fallback-text flex items-center justify-center h-full text-xs text-gray-400';
-                                                        div.textContent = 'Image unavailable';
-                                                        parent.appendChild(div);
-                                                    }
-                                                }
-                                            }}
-                                            style={{ opacity: 0, transition: 'opacity 0.3s' }}
-                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                                        />
-                                    </button>
-                                ))}
-                            </div>
+                  )}
+                  {activeTab === 'unsplash' && (
+                    <div className="flex flex-col h-full min-h-0">
+                      <input
+                        type="text"
+                        value={unsplashQuery}
+                        onChange={e => setUnsplashQuery(e.target.value)}
+                        placeholder="Search Unsplash for portrait photos..."
+                        className="w-full p-3 rounded-xl bg-slate-800 border border-white/10 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      />
+                      <div className="flex-grow mt-4 overflow-y-auto min-h-0">
+                        {unsplashLoading && <p>Loading...</p>}
+                        {unsplashError && <p className="text-red-400">{unsplashError}</p>}
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                          {unsplashResults.map(photo => (
+                            <button
+                              key={photo.id}
+                              onClick={() => handleSelectImage(photo.urls.regular)}
+                              className="aspect-[9/16] bg-gray-700 rounded-md overflow-hidden group relative"
+                            >
+                              <img
+                                src={`${photo.urls.small}&fit=crop&w=200&h=356`}
+                                alt={photo.alt_description || photo.user.name}
+                                loading="lazy"
+                                onLoad={e => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.opacity = '1';
+                                }}
+                                onError={e => {
+                                  const target = e.target as HTMLImageElement;
+                                  if (!target.src.includes('?fallback')) {
+                                    target.src = photo.urls.thumb + '?fallback=1';
+                                  } else {
+                                    target.style.display = 'none';
+                                    const parent = target.parentElement;
+                                    if (parent && !parent.querySelector('.fallback-text')) {
+                                      const div = document.createElement('div');
+                                      div.className = 'fallback-text flex items-center justify-center h-full text-xs text-gray-400';
+                                      div.textContent = 'Image unavailable';
+                                      parent.appendChild(div);
+                                    }
+                                  }
+                                }}
+                                style={{ opacity: 0, transition: 'opacity 0.3s' }}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                              />
+                            </button>
+                          ))}
                         </div>
+                      </div>
                     </div>
-                )}
-                 {activeTab === 'url' && (
+                  )}
+                  {activeTab === 'url' && (
                     <div className="space-y-4">
-                        <label className="font-semibold">Image URL</label>
-                        <div className="flex gap-2">
-                           <input type="text" value={urlInput} onChange={e => setUrlInput(e.target.value)} placeholder="https://..." className="flex-grow p-2 rounded-md bg-gray-700 border border-gray-600"/>
-                           <button onClick={handleUrlLoad} className="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700">Load</button>
-                        </div>
-                        {urlError && <p className="text-red-400 text-sm">{urlError}</p>}
+                      <label className="font-semibold">Image URL</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={urlInput}
+                          onChange={e => setUrlInput(e.target.value)}
+                          placeholder="https://..."
+                          className="flex-grow p-3 rounded-xl bg-slate-800 border border-white/10 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        />
+                        <button onClick={handleUrlLoad} className="bg-indigo-600 text-white py-2 px-4 rounded-xl hover:bg-indigo-700">
+                          Load
+                        </button>
+                      </div>
+                      {urlError && <p className="text-red-400 text-sm">{urlError}</p>}
                     </div>
-                )}
-            </div>
-
-            {/* Adjustments */}
-            <div className="bg-gray-900/50 rounded-lg p-4 space-y-4">
-                <h3 className="font-bold text-lg">Adjustments</h3>
-                 <div>
-                    <label className="block text-sm font-medium">Fit / Fill</label>
-                    <div className="flex gap-2 mt-1">
-                        <button onClick={() => setTempStyle(p => ({...p, bgFit: 'contain'}))} className={`w-full py-1 rounded-md text-sm ${tempStyle.bgFit === 'contain' ? 'bg-indigo-600' : 'bg-gray-700'}`}>Fit</button>
-                        <button onClick={() => setTempStyle(p => ({...p, bgFit: 'cover'}))} className={`w-full py-1 rounded-md text-sm ${tempStyle.bgFit === 'cover' ? 'bg-indigo-600' : 'bg-gray-700'}`}>Fill</button>
-                    </div>
-                 </div>
-                 <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium">Overlay</label>
-                        <input type="color" value={(tempStyle.overlayColor || 'rgba(0,0,0,0)').split(',').length > 3 ? `rgb(${tempStyle.overlayColor?.split(',').slice(0,3).join(',').replace('rgba(', '')})` : '#000000'} onChange={e => {
-                            const newAlpha = tempStyle.overlayColor?.split(',')[3]?.replace(')', '') || '0.5';
-                            const r = parseInt(e.target.value.slice(1,3), 16);
-                            const g = parseInt(e.target.value.slice(3,5), 16);
-                            const b = parseInt(e.target.value.slice(5,7), 16);
-                            setTempStyle(p => ({...p, overlayColor: `rgba(${r},${g},${b},${newAlpha})`}));
-                        }} className="w-full h-8 p-1 border-gray-600 rounded-md" />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium">Blur: {tempStyle.bgBlur || 0}px</label>
-                        <input type="range" min="0" max="20" step="1" value={tempStyle.bgBlur || 0} onChange={e => setTempStyle(p => ({...p, bgBlur: parseInt(e.target.value, 10)}))} className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer" />
-                    </div>
-                 </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
