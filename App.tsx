@@ -1,5 +1,5 @@
 import React from 'react';
-import { HashRouter, Routes, Route, Outlet } from 'react-router-dom';
+import { HashRouter, Routes, Route, Outlet, Link } from 'react-router-dom';
 import { SignedIn, SignedOut, SignIn, SignUp, UserButton, RedirectToSignIn } from '@clerk/clerk-react';
 import HomePage from './pages/HomePage';
 import RenderPage from './pages/RenderPage';
@@ -9,9 +9,22 @@ import GymFinderPage from './pages/GymFinderPage';
 const AuthenticatedLayout: React.FC = () => {
   return (
     <div className="flex min-h-screen flex-col bg-neutral-900 text-white">
-      <header className="flex items-center justify-between border-b border-neutral-800 bg-neutral-950/80 px-6 py-4">
-        <h1 className="text-lg font-semibold tracking-tight">Studiogram</h1>
-        <UserButton afterSignOutUrl="/sign-in" appearance={{ elements: { avatarBox: 'h-10 w-10' } }} />
+      <header className="border-b border-neutral-800 bg-neutral-950/80 px-4 py-3 sm:px-6">
+        <div className="mx-auto flex w-full max-w-screen-2xl items-center justify-between gap-3">
+          <Link to="/" className="text-lg font-semibold tracking-tight text-white hover:text-white/80 transition">
+            Studiogram
+          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/gym-finder"
+              className="inline-flex items-center gap-2 rounded-full border border-white/15 px-3 py-1.5 text-sm font-semibold text-white/80 transition hover:border-white/40 hover:text-white"
+            >
+              <span className="hidden sm:inline">Gym Finder</span>
+              <span className="sm:hidden">Gyms</span>
+            </Link>
+            <UserButton afterSignOutUrl="/sign-in" appearance={{ elements: { avatarBox: 'h-9 w-9' } }} />
+          </div>
+        </div>
       </header>
       <main className="flex-1">
         <Outlet />
