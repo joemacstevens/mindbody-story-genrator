@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { Style, LogoPosition, SelectedElement } from '../types';
 import { COLOR_PALETTES } from '../constants';
 import { uploadImage } from '../services/storage';
@@ -72,6 +73,7 @@ interface SimplifiedEditorProps {
   scheduleLoadSuccess?: string | null;
   canLoadSchedule?: boolean;
   scheduleLoadHint?: string | null;
+  renderSlug?: string | null;
 }
 
 const SimplifiedEditor: React.FC<SimplifiedEditorProps> = ({
@@ -91,6 +93,7 @@ const SimplifiedEditor: React.FC<SimplifiedEditorProps> = ({
   scheduleLoadSuccess = null,
   canLoadSchedule = true,
   scheduleLoadHint = null,
+  renderSlug = null,
 }) => {
   const [activeTab, setActiveTab] = useState<EditorTab>('colors');
   const [isBackgroundModalOpen, setIsBackgroundModalOpen] = useState(false);
@@ -780,18 +783,36 @@ const SimplifiedEditor: React.FC<SimplifiedEditorProps> = ({
       </div>
 
       {/* Footer Actions */}
-      <div className="flex-shrink-0 px-4 py-3 border-t border-white/10 flex gap-3">
+      <div className="flex-shrink-0 px-4 py-3 border-t border-white/10 flex gap-3 flex-wrap">
         <button
           type="button"
           onClick={handleResetClick}
-          className="flex-1 py-3 px-4 border border-white/20 font-semibold rounded-full text-slate-100 hover:border-white/60"
+          className="flex-1 min-w-[150px] py-3 px-4 border border-white/20 font-semibold rounded-full text-slate-100 hover:border-white/60"
         >
           Reset
         </button>
+        <Link
+          to={renderSlug ? `/render/${renderSlug}` : '/render'}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-disabled={!renderSlug}
+          title={
+            renderSlug
+              ? 'Open the full render preview in a new tab'
+              : 'Choose a gym in Gym Finder to enable the render preview'
+          }
+          className={`flex-1 min-w-[150px] py-3 px-4 font-semibold rounded-full text-center transition border border-white/10 ${
+            renderSlug
+              ? 'bg-slate-800 text-white hover:bg-slate-700'
+              : 'bg-slate-800/40 text-slate-400 pointer-events-none cursor-not-allowed'
+          }`}
+        >
+          Preview Render
+        </Link>
         <button
           type="button"
           onClick={handleSave}
-          className="flex-1 py-3 px-4 bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold rounded-full shadow-lg hover:brightness-110 transition"
+          className="flex-1 min-w-[150px] py-3 px-4 bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold rounded-full shadow-lg hover:brightness-110 transition"
         >
           Save
         </button>

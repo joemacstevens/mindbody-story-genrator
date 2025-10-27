@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom';
 import { toPng } from 'html-to-image';
 import StoryRenderer from '../components/StoryRenderer';
 import { FALLBACK_SCHEDULE } from '../constants';
+import { buildFontEmbedCss } from '../utils/fontEmbedder';
 import {
   getAppSettings,
   getSchedule,
@@ -47,6 +48,7 @@ const RenderPage: React.FC = () => {
   const [exportError, setExportError] = useState<string | null>(null);
   const storyContainerRef = useRef<HTMLDivElement | null>(null);
   const [forceInlineBackground, setForceInlineBackground] = useState(false);
+  const fontEmbedCssRef = useRef<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -169,8 +171,19 @@ const RenderPage: React.FC = () => {
     return new Blob([bytes], { type: mimeType });
   };
 
+  const isIosShareTarget = () => {
+    if (typeof navigator === 'undefined') {
+      return false;
+    }
+    const ua = navigator.userAgent || '';
+    const uaData = (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData;
+    const platform = (navigator.platform || uaData?.platform || '').toLowerCase();
+    const isTouchMac = platform.includes('mac') && navigator.maxTouchPoints > 1;
+    return /ipad|iphone|ipod/.test(ua.toLowerCase()) || isTouchMac;
+  };
+
   const tryShareImage = async (blob: Blob, fileName: string) => {
-    if (!navigator.share) {
+    if (!navigator.share || !isIosShareTarget()) {
       return false;
     }
 
@@ -219,6 +232,17 @@ const RenderPage: React.FC = () => {
     setForceInlineBackground(true);
     await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
     try {
+      let fontEmbedCSS = fontEmbedCssRef.current;
+      if (fontEmbedCSS === null) {
+        try {
+          fontEmbedCSS = await buildFontEmbedCss();
+        } catch (error) {
+          console.error('Could not build font embed CSS for export', error);
+          fontEmbedCSS = '';
+        }
+        fontEmbedCssRef.current = fontEmbedCSS;
+      }
+
       const dataUrl = await toPng(storyContainerRef.current, {
         cacheBust: true,
         quality: 1,
@@ -226,6 +250,8 @@ const RenderPage: React.FC = () => {
         width: 1080,
         height: 1920,
         backgroundColor: style?.backgroundColor ?? '#000000',
+        skipFonts: true,
+        fontEmbedCSS: fontEmbedCSS || undefined,
       });
       const slugSegment = activeSlug?.replace(/[^a-z0-9-]/gi, '-') || 'schedule';
       const templateSegment = finalTemplateId?.replace(/[^a-z0-9-]/gi, '-') || 'template';
@@ -273,7 +299,7 @@ const RenderPage: React.FC = () => {
     <div
       className={`relative w-screen h-screen flex items-center justify-center overflow-hidden ${pageBgClass}`}
     >
-      <div className="absolute top-6 right-6 flex flex-col items-end gap-2">
+      <div className="absolute top-6 right-6 flex flex-col items-end gap-2 z-50">
         <button
           type="button"
           onClick={handleExport}

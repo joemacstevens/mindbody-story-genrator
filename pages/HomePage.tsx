@@ -380,6 +380,7 @@ const HomePage: React.FC = () => {
                         ? 'Loads the latest classes from Mindbody for the selected day.'
                         : 'Choose a gym in Gym Finder first to load a schedule.'
                     }
+                    renderSlug={renderSlug}
                   />
                 </div>
               )}
@@ -425,6 +426,7 @@ const HomePage: React.FC = () => {
                     ? 'Loads the latest classes from Mindbody for the selected day.'
                     : 'Choose a gym in Gym Finder first to load a schedule.'
                 }
+                renderSlug={renderSlug}
               />
             )}
           </div>
