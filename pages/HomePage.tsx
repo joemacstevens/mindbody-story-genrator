@@ -9,6 +9,7 @@ import {
   SCHEDULE_UPDATED_EVENT,
   fetchLatestSchedule,
   cacheScheduleLocally,
+  saveSchedule,
   getLastUsedScheduleSlug,
 } from '../services/api';
 import SimplifiedEditor from '../components/SimplifiedEditor';
@@ -33,6 +34,13 @@ const HomePage: React.FC = () => {
   const [isEditorCollapsed, setEditorCollapsed] = useState(false);
   const [previewScale, setPreviewScale] = useState(0.3);
   const [renderSlug, setRenderSlug] = useState<string | null>(() => getLastUsedScheduleSlug());
+  const [scheduleDateInput, setScheduleDateInput] = useState(() => new Date().toISOString().split('T')[0]);
+  const [isScheduleLoading, setIsScheduleLoading] = useState(false);
+  const [scheduleLoadError, setScheduleLoadError] = useState<string | null>(null);
+  const [scheduleLoadSuccess, setScheduleLoadSuccess] = useState<string | null>(null);
+
+  const scheduleEndpoint =
+    (import.meta.env.VITE_SCHEDULE_ENDPOINT as string | undefined) || '/api/schedule';
 
   const settings = history[currentIndex];
 
@@ -180,6 +188,65 @@ const HomePage: React.FC = () => {
       handleStyleChange({ ...activeStyle, ...update });
   };
 
+  const handleScheduleDateChange = useCallback((nextDate: string) => {
+    setScheduleDateInput(nextDate);
+    setScheduleLoadError(null);
+    setScheduleLoadSuccess(null);
+  }, []);
+
+  const handleScheduleLoad = useCallback(
+    async (targetDate: string) => {
+      if (!targetDate) {
+        return;
+      }
+      if (!renderSlug) {
+        setScheduleLoadError('Choose a gym in Gym Finder first to load schedules.');
+        return;
+      }
+
+      setIsScheduleLoading(true);
+      setScheduleLoadError(null);
+      setScheduleLoadSuccess(null);
+
+      try {
+        const response = await fetch(scheduleEndpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            locationSlug: renderSlug,
+            date: targetDate,
+            radius: 5,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Request failed with status ${response.status}`);
+        }
+
+        const data = await response.json();
+        const nextSchedule: Schedule | null = data?.schedule ?? null;
+
+        if (!nextSchedule) {
+          throw new Error('Schedule payload missing from response.');
+        }
+
+        const responseSlug = typeof data?.slug === 'string' && data.slug ? data.slug : renderSlug;
+
+        setSchedule(nextSchedule);
+        const savedSlug = await saveSchedule(nextSchedule, responseSlug);
+        setRenderSlug(savedSlug);
+        setScheduleDateInput(targetDate);
+        setScheduleLoadSuccess(`Loaded schedule for ${nextSchedule.date}.`);
+      } catch (error) {
+        console.error('Failed to load schedule for date:', error);
+        setScheduleLoadError('Could not load the schedule for that date. Please try again.');
+      } finally {
+        setIsScheduleLoading(false);
+      }
+    },
+    [renderSlug, scheduleEndpoint],
+  );
+
   const handleStyleSave = async () => {
     if (!settings) return;
     await saveAppSettings(settings);
@@ -292,6 +359,18 @@ const HomePage: React.FC = () => {
                     onToggleCollapse={() => setEditorCollapsed(!isEditorCollapsed)}
                     selectedElement={selectedElement}
                     onSelectElement={handleSelectElement}
+                    scheduleDate={scheduleDateInput}
+                    onScheduleDateChange={handleScheduleDateChange}
+                    onScheduleLoad={handleScheduleLoad}
+                    isScheduleLoading={isScheduleLoading}
+                    scheduleLoadError={scheduleLoadError}
+                    scheduleLoadSuccess={scheduleLoadSuccess}
+                    canLoadSchedule={Boolean(renderSlug)}
+                    scheduleLoadHint={
+                      renderSlug
+                        ? 'Loads the latest classes from Mindbody for the selected day.'
+                        : 'Choose a gym in Gym Finder first to load a schedule.'
+                    }
                   />
                 </div>
               )}
@@ -325,6 +404,18 @@ const HomePage: React.FC = () => {
                 }}
                 selectedElement={selectedElement}
                 onSelectElement={handleSelectElement}
+                scheduleDate={scheduleDateInput}
+                onScheduleDateChange={handleScheduleDateChange}
+                onScheduleLoad={handleScheduleLoad}
+                isScheduleLoading={isScheduleLoading}
+                scheduleLoadError={scheduleLoadError}
+                scheduleLoadSuccess={scheduleLoadSuccess}
+                canLoadSchedule={Boolean(renderSlug)}
+                scheduleLoadHint={
+                  renderSlug
+                    ? 'Loads the latest classes from Mindbody for the selected day.'
+                    : 'Choose a gym in Gym Finder first to load a schedule.'
+                }
               />
             )}
           </div>
