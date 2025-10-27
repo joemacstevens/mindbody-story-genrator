@@ -286,7 +286,7 @@ const SimplifiedEditor: React.FC<SimplifiedEditorProps> = ({
         const scheduleEnabled = currentStyle.showSchedule !== false;
         const footerEnabled = currentStyle.showFooter !== false;
         const baseInputClasses =
-          'w-full px-4 py-3 rounded-lg border-2 text-sm transition focus:outline-none bg-white text-slate-900 placeholder-slate-400 dark:bg-gray-800 dark:text-slate-100 dark:placeholder-slate-500';
+          'w-full min-w-0 max-w-full px-4 py-3 rounded-lg border-2 text-sm transition focus:outline-none bg-white text-slate-900 placeholder-slate-400 dark:bg-gray-800 dark:text-slate-100 dark:placeholder-slate-500';
         const scheduleButtonDisabled =
           isScheduleLoading || !localScheduleDate || !canLoadSchedule;
 
