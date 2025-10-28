@@ -11,6 +11,7 @@ interface StoryRendererProps {
   forceInlineBackground?: boolean;
   selectedElement?: SelectedElement | null;
   onSelectElement?: (element: SelectedElement | null) => void;
+  inlineLogoSrc?: string | null;
 }
 
 const StoryRenderer: React.FC<StoryRendererProps> = (props) => {

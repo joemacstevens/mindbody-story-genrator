@@ -286,7 +286,7 @@ const SimplifiedEditor: React.FC<SimplifiedEditorProps> = ({
         const scheduleEnabled = currentStyle.showSchedule !== false;
         const footerEnabled = currentStyle.showFooter !== false;
         const baseInputClasses =
-          'w-full min-w-0 max-w-full px-4 py-3 rounded-lg border-2 text-sm transition focus:outline-none bg-white text-slate-900 placeholder-slate-400 dark:bg-gray-800 dark:text-slate-100 dark:placeholder-slate-500';
+          'block w-full min-w-0 max-w-full px-4 py-3 rounded-lg border-2 text-sm transition focus:outline-none bg-white text-slate-900 placeholder-slate-400 dark:bg-gray-800 dark:text-slate-100 dark:placeholder-slate-500';
         const scheduleButtonDisabled =
           isScheduleLoading || !localScheduleDate || !canLoadSchedule;
 
@@ -375,7 +375,7 @@ const SimplifiedEditor: React.FC<SimplifiedEditorProps> = ({
                     setLocalScheduleDate(nextDate);
                     onScheduleDateChange?.(nextDate);
                   }}
-                  className={`${baseInputClasses} border-gray-200 dark:border-gray-700 focus:border-indigo-500`}
+                  className={`${baseInputClasses} appearance-none border-gray-200 dark:border-gray-700 focus:border-indigo-500`}
                   disabled={isScheduleLoading}
                 />
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">

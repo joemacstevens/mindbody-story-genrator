@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Studiogram Editor - Redesign Mockup</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #0F172A;
+            color: #F8FAFC;
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .header {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: 600;
+            color: #F8FAFC;
+        }
+
+        .header-right {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .gym-name {
+            font-size: 14px;
+            color: #94A3B8;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+        }
+
+        .profile-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #8B7BD8 0%, #6B5BB8 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .profile-btn:hover {
+            transform: scale(1.05);
+        }
+
+        /* Tab Navigation */
+        .tab-nav {
+            display: flex;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 6px;
+            border-radius: 12px;
+            margin: 20px 20px 0;
+            gap: 4px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px 20px;
+            background: transparent;
+            border: none;
+            color: #94A3B8;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s ease-out;
+            position: relative;
+        }
+
+        .tab-btn:hover {
+            color: #F8FAFC;
+        }
+
+        .tab-btn.active {
+            background: rgba(255, 255, 255, 0.1);
+            color: #F8FAFC;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Main Content */
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 20px;
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Preview Section */
+        .preview-section {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 600px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .preview-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(139, 123, 216, 0.5), transparent);
+        }
+
+        .preview-label {
+            color: #64748B;
+            font-size: 13px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 20px;
+        }
+
+        .preview-frame {
+            width: 100%;
+            max-width: 500px;
+            aspect-ratio: 9/16;
+            background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+            border-radius: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            padding: 24px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+            animation: previewFloat 6s ease-in-out infinite;
+            position: relative;
+        }
+
+        @keyframes previewFloat {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .preview-content {
+            background: url('data:image/svg+xml,<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="30" fill="%238B7BD8" opacity="0.1" rx="4"/><rect y="40" width="80" height="20" fill="%2364748B" opacity="0.1" rx="4"/><rect y="70" width="60" height="20" fill="%2364748B" opacity="0.1" rx="4"/></svg>');
+            background-size: 100% auto;
+            background-repeat: repeat-y;
+            height: 100%;
+            border-radius: 12px;
+            opacity: 0.3;
+        }
+
+        .preview-controls {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        /* Editor Panel */
+        .editor-panel {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 24px;
+            max-height: calc(100vh - 140px);
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .editor-panel::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .editor-panel::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+
+        .editor-panel::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+
+        .editor-panel::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        /* Tab Content */
+        .tab-content {
+            display: none;
+            animation: fadeSlideIn 0.3s ease-out;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Section */
+        .section {
+            margin-bottom: 32px;
+        }
+
+        .section-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #94A3B8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 16px;
+        }
+
+        /* Color Palettes */
+        .palette-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .palette-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease-out;
+        }
+
+        .palette-card:hover {
+            border-color: rgba(139, 123, 216, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .palette-card.selected {
+            border-color: #8B7BD8;
+            background: rgba(139, 123, 216, 0.1);
+        }
+
+        .palette-name {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .palette-colors {
+            display: flex;
+            gap: 6px;
+        }
+
+        .palette-color {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        /* Content Elements */
+        .element-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .element-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: move;
+            transition: all 0.2s ease-out;
+        }
+
+        .element-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .element-item.dragging {
+            opacity: 0.5;
+            transform: scale(0.98);
+        }
+
+        .drag-handle {
+            color: #64748B;
+            font-size: 18px;
+            cursor: grab;
+        }
+
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+
+        .element-label {
+            flex: 1;
+            font-size: 15px;
+        }
+
+        .element-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .icon-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            border: none;
+            color: #94A3B8;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            font-size: 16px;
+        }
+
+        .icon-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #F8FAFC;
+        }
+
+        .toggle-switch {
+            width: 48px;
+            height: 28px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 14px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .toggle-switch.active {
+            background: #8B7BD8;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            background: white;
+            border-radius: 50%;
+            top: 3px;
+            left: 3px;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .toggle-switch.active::after {
+            transform: translateX(20px);
+        }
+
+        /* Layout Controls */
+        .control-group {
+            margin-bottom: 24px;
+        }
+
+        .control-label {
+            font-size: 14px;
+            color: #CBD5E1;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .control-value {
+            color: #8B7BD8;
+            font-weight: 500;
+        }
+
+        .slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #8B7BD8;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(139, 123, 216, 0.4);
+            transition: all 0.2s;
+        }
+
+        .slider::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+        }
+
+        .radio-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 8px;
+        }
+
+        .radio-option {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        .radio-option:hover {
+            border-color: rgba(139, 123, 216, 0.5);
+        }
+
+        .radio-option.selected {
+            border-color: #8B7BD8;
+            background: rgba(139, 123, 216, 0.1);
+        }
+
+        /* Image Upload */
+        .image-upload-area {
+            background: rgba(255, 255, 255, 0.03);
+            border: 2px dashed rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 32px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 16px;
+        }
+
+        .image-upload-area:hover {
+            border-color: #8B7BD8;
+            background: rgba(139, 123, 216, 0.05);
+        }
+
+        .upload-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+            opacity: 0.5;
+        }
+
+        .upload-text {
+            font-size: 14px;
+            color: #94A3B8;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 12px 24px;
+            border-radius: 10px;
+            border: none;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease-out;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #8B7BD8 0%, #6B5BB8 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(139, 123, 216, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(139, 123, 216, 0.4);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #F8FAFC;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Bottom Actions */
+        .bottom-actions {
+            position: sticky;
+            bottom: 0;
+            background: linear-gradient(to top, #0F172A 80%, transparent);
+            padding: 24px 20px;
+            display: flex;
+            gap: 12px;
+            margin-top: auto;
+        }
+
+        /* Hidden Elements Section */
+        .hidden-elements {
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .hidden-label {
+            font-size: 12px;
+            color: #64748B;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .element-item.hidden {
+            opacity: 0.5;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+
+            .preview-section {
+                min-height: 400px;
+            }
+
+            .preview-frame {
+                max-width: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="logo">Studiogram</div>
+        <div class="header-right">
+            <div class="gym-name">Humble Yoga</div>
+            <div class="profile-btn">J</div>
+        </div>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="tab-nav">
+        <button class="tab-btn active" data-tab="style">Style</button>
+        <button class="tab-btn" data-tab="content">Content</button>
+        <button class="tab-btn" data-tab="layout">Layout</button>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Preview Section -->
+        <div class="preview-section">
+            <div class="preview-label">Live Preview</div>
+            <div class="preview-frame">
+                <div class="preview-content"></div>
+            </div>
+            <div class="preview-controls">
+                <button class="btn btn-secondary">↻ Refresh</button>
+                <button class="btn btn-secondary">📱 Full Screen</button>
+            </div>
+        </div>
+
+        <!-- Editor Panel -->
+        <div class="editor-panel">
+            <!-- Style Tab -->
+            <div class="tab-content active" data-content="style">
+                <!-- Color Palettes -->
+                <div class="section">
+                    <div class="section-title">Color Theme</div>
+                    <div class="palette-grid">
+                        <div class="palette-card selected">
+                            <div class="palette-name">Studio Slate</div>
+                            <div class="palette-colors">
+                                <div class="palette-color" style="background: #334155;"></div>
+                                <div class="palette-color" style="background: #F8FAFC;"></div>
+                                <div class="palette-color" style="background: #FF6B6B;"></div>
+                            </div>
+                        </div>
+                        <div class="palette-card">
+                            <div class="palette-name">Serene Studio</div>
+                            <div class="palette-colors">
+                                <div class="palette-color" style="background: #475569;"></div>
+                                <div class="palette-color" style="background: #FFF8F0;"></div>
+                                <div class="palette-color" style="background: #84A98C;"></div>
+                            </div>
+                        </div>
+                        <div class="palette-card">
+                            <div class="palette-name">Modern Wellness</div>
+                            <div class="palette-colors">
+                                <div class="palette-color" style="background: #2D3748;"></div>
+                                <div class="palette-color" style="background: #E8DCC8;"></div>
+                                <div class="palette-color" style="background: #2F4F4F;"></div>
+                            </div>
+                        </div>
+                        <div class="palette-card">
+                            <div class="palette-name">Sunset Minimal</div>
+                            <div class="palette-colors">
+                                <div class="palette-color" style="background: #4A3F5C;"></div>
+                                <div class="palette-color" style="background: #FFF5E1;"></div>
+                                <div class="palette-color" style="background: #C8A882;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-secondary" style="width: 100%;">🎨 Customize Colors</button>
+                </div>
+
+                <!-- Background -->
+                <div class="section">
+                    <div class="section-title">Background</div>
+                    <div class="image-upload-area">
+                        <div class="upload-icon">🖼️</div>
+                        <div class="upload-text">Tap to upload image<br><span style="font-size: 12px; opacity: 0.7;">or use solid color</span></div>
+                    </div>
+                    <button class="btn btn-secondary" style="width: 100%;">🗑️ Remove Background</button>
+                </div>
+
+                <!-- Logo -->
+                <div class="section">
+                    <div class="section-title">Logo</div>
+                    <div class="image-upload-area">
+                        <div class="upload-icon">📌</div>
+                        <div class="upload-text">Upload your logo</div>
+                    </div>
+                    <div class="control-group">
+                        <div class="control-label">Position</div>
+                        <div class="radio-group">
+                            <div class="radio-option selected">Top</div>
+                            <div class="radio-option">Center</div>
+                            <div class="radio-option">Bottom</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content Tab -->
+            <div class="tab-content" data-content="content">
+                <div class="section">
+                    <div class="section-title">Schedule Elements</div>
+                    <div class="element-list">
+                        <div class="element-item">
+                            <div class="drag-handle">☰</div>
+                            <div class="element-label">Class Name</div>
+                            <div class="element-actions">
+                                <button class="icon-btn" title="Font settings">Aa</button>
+                                <button class="icon-btn" title="Color">🎨</button>
+                                <div class="toggle-switch active"></div>
+                            </div>
+                        </div>
+                        <div class="element-item">
+                            <div class="drag-handle">☰</div>
+                            <div class="element-label">Instructor</div>
+                            <div class="element-actions">
+                                <button class="icon-btn" title="Font settings">Aa</button>
+                                <button class="icon-btn" title="Color">🎨</button>
+                                <div class="toggle-switch active"></div>
+                            </div>
+                        </div>
+                        <div class="element-item">
+                            <div class="drag-handle">☰</div>
+                            <div class="element-label">Time</div>
+                            <div class="element-actions">
+                                <button class="icon-btn" title="Font settings">Aa</button>
+                                <button class="icon-btn" title="Color">🎨</button>
+                                <div class="toggle-switch active"></div>
+                            </div>
+                        </div>
+                        <div class="element-item">
+                            <div class="drag-handle">☰</div>
+                            <div class="element-label">Room/Location</div>
+                            <div class="element-actions">
+                                <button class="icon-btn" title="Font settings">Aa</button>
+                                <button class="icon-btn" title="Color">🎨</button>
+                                <div class="toggle-switch active"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="hidden-elements">
+                        <div class="hidden-label">Hidden Elements</div>
+                        <div class="element-list">
+                            <div class="element-item hidden">
+                                <div class="drag-handle">☰</div>
+                                <div class="element-label">Duration</div>
+                                <div class="element-actions">
+                                    <button class="icon-btn" title="Font settings">Aa</button>
+                                    <button class="icon-btn" title="Color">🎨</button>
+                                    <div class="toggle-switch"></div>
+                                </div>
+                            </div>
+                            <div class="element-item hidden">
+                                <div class="drag-handle">☰</div>
+                                <div class="element-label">Description</div>
+                                <div class="element-actions">
+                                    <button class="icon-btn" title="Font settings">Aa</button>
+                                    <button class="icon-btn" title="Color">🎨</button>
+                                    <div class="toggle-switch"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Layout Tab -->
+            <div class="tab-content" data-content="layout">
+                <div class="section">
+                    <div class="control-group">
+                        <div class="control-label">
+                            <span>Corner Radius</span>
+                            <span class="control-value">24px</span>
+                        </div>
+                        <input type="range" class="slider" min="0" max="40" value="24">
+                    </div>
+
+                    <div class="control-group">
+                        <div class="control-label">
+                            <span>Spacing & Density</span>
+                            <span class="control-value">Comfortable</span>
+                        </div>
+                        <div class="radio-group">
+                            <div class="radio-option">Compact</div>
+                            <div class="radio-option selected">Comfortable</div>
+                            <div class="radio-option">Spacious</div>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <div class="control-label">
+                            <span>Layout Style</span>
+                        </div>
+                        <div class="radio-group">
+                            <div class="radio-option selected">Grid</div>
+                            <div class="radio-option">List</div>
+                            <div class="radio-option">Card</div>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <div class="control-label">
+                            <span>Divider Style</span>
+                        </div>
+                        <div class="radio-group">
+                            <div class="radio-option">None</div>
+                            <div class="radio-option selected">Thin</div>
+                            <div class="radio-option">Thick</div>
+                            <div class="radio-option">Dotted</div>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <div class="control-label">
+                            <span>Accent Lines</span>
+                        </div>
+                        <div class="toggle-switch active"></div>
+                    </div>
+
+                    <div class="control-group">
+                        <div class="control-label">
+                            <span>Footer Bar</span>
+                        </div>
+                        <div class="toggle-switch"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Actions -->
+            <div class="bottom-actions">
+                <button class="btn btn-secondary" style="flex: 1;">Reset</button>
+                <button class="btn btn-primary" style="flex: 2;">💾 Save Template</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tab switching
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tabName = btn.dataset.tab;
+                
+                // Update active states
+                tabBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                tabContents.forEach(content => {
+                    if (content.dataset.content === tabName) {
+                        content.classList.add('active');
+                    } else {
+                        content.classList.remove('active');
+                    }
+                });
+            });
+        });
+
+        // Toggle switches
+        const toggles = document.querySelectorAll('.toggle-switch');
+        toggles.forEach(toggle => {
+            toggle.addEventListener('click', () => {
+                toggle.classList.toggle('active');
+            });
+        });
+
+        // Palette selection
+        const paletteCards = document.querySelectorAll('.palette-card');
+        paletteCards.forEach(card => {
+            card.addEventListener('click', () => {
+                paletteCards.forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+            });
+        });
+
+        // Radio options
+        document.querySelectorAll('.radio-option').forEach(option => {
+            option.addEventListener('click', () => {
+                const group = option.parentElement;
+                group.querySelectorAll('.radio-option').forEach(opt => {
+                    opt.classList.remove('selected');
+                });
+                option.classList.add('selected');
+            });
+        });
+
+        // Slider value update
+        document.querySelectorAll('.slider').forEach(slider => {
+            slider.addEventListener('input', (e) => {
+                const label = e.target.closest('.control-group').querySelector('.control-value');
+                if (label) {
+                    label.textContent = e.target.value + 'px';
+                }
+            });
+        });
+
+        // Drag and drop for elements (visual feedback only)
+        let draggedElement = null;
+
+        document.querySelectorAll('.element-item').forEach(item => {
+            item.draggable = true;
+
+            item.addEventListener('dragstart', (e) => {
+                draggedElement = item;
+                item.classList.add('dragging');
+            });
+
+            item.addEventListener('dragend', (e) => {
+                item.classList.remove('dragging');
+            });
+
+            item.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const afterElement = getDragAfterElement(item.parentElement, e.clientY);
+                if (afterElement == null) {
+                    item.parentElement.appendChild(draggedElement);
+                } else {
+                    item.parentElement.insertBefore(draggedElement, afterElement);
+                }
+            });
+        });
+
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.element-item:not(.dragging)')];
+
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        // Save button animation
+        document.querySelector('.btn-primary').addEventListener('click', function() {
+            const btn = this;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '✓ Saved!';
+            btn.style.background = 'linear-gradient(135deg, #10B981 0%, #059669 100%)';
+            
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.style.background = '';
+            }, 2000);
+        });
+    </script>
+</body>
+</html>

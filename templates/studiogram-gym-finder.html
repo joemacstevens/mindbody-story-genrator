@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Studiogram - Find Your Gym</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+            color: #F8FAFC;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Background Effects */
+        .bg-gradient-1 {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(139, 123, 216, 0.15) 0%, transparent 70%);
+            top: -200px;
+            right: -200px;
+            animation: pulse 8s ease-in-out infinite;
+        }
+
+        .bg-gradient-2 {
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.1) 0%, transparent 70%);
+            bottom: -150px;
+            left: -150px;
+            animation: pulse 10s ease-in-out infinite reverse;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1) translate(0, 0); opacity: 0.5; }
+            50% { transform: scale(1.1) translate(20px, 20px); opacity: 0.8; }
+        }
+
+        /* Header */
+        .header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 24px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 600;
+            color: #F8FAFC;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #8B7BD8 0%, #6B5BB8 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .profile-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #8B7BD8;
+        }
+
+        .profile-btn:hover {
+            background: rgba(139, 123, 216, 0.2);
+            border-color: #8B7BD8;
+            transform: scale(1.05);
+        }
+
+        /* Main Container */
+        .container {
+            width: 100%;
+            max-width: 540px;
+            position: relative;
+            z-index: 1;
+            animation: slideUp 0.6s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Hero Section */
+        .hero {
+            text-align: center;
+            margin-bottom: 48px;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(139, 123, 216, 0.15);
+            border: 1px solid rgba(139, 123, 216, 0.3);
+            border-radius: 20px;
+            font-size: 13px;
+            color: #A78BFA;
+            font-weight: 500;
+            margin-bottom: 20px;
+            animation: fadeIn 0.6s ease-out 0.2s backwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .hero-title {
+            font-size: 42px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            line-height: 1.2;
+            background: linear-gradient(135deg, #F8FAFC 0%, #CBD5E1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: fadeIn 0.6s ease-out 0.3s backwards;
+        }
+
+        .hero-subtitle {
+            font-size: 17px;
+            color: #94A3B8;
+            line-height: 1.6;
+            max-width: 460px;
+            margin: 0 auto;
+            animation: fadeIn 0.6s ease-out 0.4s backwards;
+        }
+
+        /* Card */
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: fadeIn 0.6s ease-out 0.5s backwards;
+        }
+
+        /* Search Section */
+        .search-section {
+            margin-bottom: 32px;
+        }
+
+        .search-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #CBD5E1;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .search-input-wrapper {
+            position: relative;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 20px;
+            color: #64748B;
+            pointer-events: none;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 16px 20px 16px 52px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            font-size: 16px;
+            color: #F8FAFC;
+            outline: none;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        .search-input::placeholder {
+            color: #64748B;
+        }
+
+        .search-input:focus {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: #8B7BD8;
+            box-shadow: 0 0 0 4px rgba(139, 123, 216, 0.1);
+        }
+
+        .search-input:not(:placeholder-shown) {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(139, 123, 216, 0.5);
+        }
+
+        /* Search Help */
+        .search-help {
+            margin-top: 12px;
+            font-size: 13px;
+            color: #64748B;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .help-icon {
+            width: 16px;
+            height: 16px;
+            background: rgba(100, 116, 139, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        /* Divider */
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin: 32px 0;
+        }
+
+        .divider-line {
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.1), transparent);
+        }
+
+        .divider-text {
+            font-size: 13px;
+            color: #64748B;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Saved Gyms */
+        .saved-gyms-section {
+            margin-bottom: 24px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #CBD5E1;
+        }
+
+        .view-all-btn {
+            font-size: 13px;
+            color: #8B7BD8;
+            background: none;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+
+        .view-all-btn:hover {
+            background: rgba(139, 123, 216, 0.1);
+            color: #A78BFA;
+        }
+
+        .gym-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .gym-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .gym-item:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(139, 123, 216, 0.3);
+            transform: translateX(4px);
+        }
+
+        .gym-item:active {
+            transform: translateX(4px) scale(0.98);
+        }
+
+        .gym-icon {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, rgba(139, 123, 216, 0.2) 0%, rgba(99, 102, 241, 0.2) 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .gym-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .gym-name {
+            font-size: 15px;
+            font-weight: 500;
+            color: #F8FAFC;
+            margin-bottom: 3px;
+        }
+
+        .gym-meta {
+            font-size: 13px;
+            color: #64748B;
+        }
+
+        .gym-arrow {
+            color: #475569;
+            font-size: 18px;
+            transition: all 0.2s;
+        }
+
+        .gym-item:hover .gym-arrow {
+            color: #8B7BD8;
+            transform: translateX(4px);
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 32px 20px;
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            opacity: 0.3;
+            margin-bottom: 12px;
+        }
+
+        .empty-text {
+            font-size: 14px;
+            color: #64748B;
+            line-height: 1.5;
+        }
+
+        /* Continue Button */
+        .continue-btn {
+            width: 100%;
+            padding: 16px 24px;
+            background: linear-gradient(135deg, #8B7BD8 0%, #6B5BB8 100%);
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 16px rgba(139, 123, 216, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .continue-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(139, 123, 216, 0.4);
+        }
+
+        .continue-btn:active {
+            transform: translateY(0);
+        }
+
+        .continue-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Loading State */
+        .loading-spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Results Dropdown */
+        .search-results {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            right: 0;
+            background: rgba(15, 23, 42, 0.98);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+            max-height: 320px;
+            overflow-y: auto;
+            z-index: 10;
+            display: none;
+        }
+
+        .search-results.show {
+            display: block;
+            animation: dropDown 0.3s ease-out;
+        }
+
+        @keyframes dropDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .search-results::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .search-results::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+
+        .search-results::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 4px;
+        }
+
+        .result-item {
+            padding: 14px 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        .result-item:hover {
+            background: rgba(139, 123, 216, 0.1);
+        }
+
+        .result-name {
+            font-size: 15px;
+            font-weight: 500;
+            color: #F8FAFC;
+            margin-bottom: 4px;
+        }
+
+        .result-location {
+            font-size: 13px;
+            color: #64748B;
+        }
+
+        .result-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background: rgba(16, 185, 129, 0.15);
+            border-radius: 4px;
+            font-size: 11px;
+            color: #34D399;
+            margin-top: 6px;
+        }
+
+        /* Mobile Adjustments */
+        @media (max-width: 640px) {
+            .header {
+                padding: 20px 20px;
+            }
+
+            .logo {
+                font-size: 20px;
+            }
+
+            .hero-title {
+                font-size: 32px;
+            }
+
+            .hero-subtitle {
+                font-size: 15px;
+            }
+
+            .card {
+                padding: 28px 24px;
+            }
+
+            .continue-btn {
+                padding: 14px 20px;
+                font-size: 15px;
+            }
+        }
+
+        /* Success Animation */
+        @keyframes successPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .success-check {
+            animation: successPulse 0.5s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-gradient-1"></div>
+    <div class="bg-gradient-2"></div>
+
+    <!-- Header -->
+    <div class="header">
+        <div class="logo">
+            <div class="logo-icon">📅</div>
+            Studiogram
+        </div>
+        <div class="profile-btn">J</div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Hero -->
+        <div class="hero">
+            <div class="hero-badge">
+                <span>⚡</span>
+                <span>Quick Setup</span>
+            </div>
+            <h1 class="hero-title">Find Your Gym</h1>
+            <p class="hero-subtitle">
+                Connect to your Mindbody studio to automatically sync your class schedule
+            </p>
+        </div>
+
+        <!-- Card -->
+        <div class="card">
+            <!-- Search Section -->
+            <div class="search-section">
+                <label class="search-label">Search for your gym</label>
+                <div class="search-input-wrapper">
+                    <span class="search-icon">🔍</span>
+                    <input 
+                        type="text" 
+                        class="search-input" 
+                        id="gymSearch"
+                        placeholder="Enter gym name..."
+                        autocomplete="off"
+                    >
+                    <div class="search-results" id="searchResults"></div>
+                </div>
+                <div class="search-help">
+                    <span class="help-icon">?</span>
+                    <span>Use the official name from Mindbody</span>
+                </div>
+            </div>
+
+            <!-- Divider -->
+            <div class="divider">
+                <div class="divider-line"></div>
+                <span class="divider-text">or choose from saved</span>
+                <div class="divider-line"></div>
+            </div>
+
+            <!-- Saved Gyms -->
+            <div class="saved-gyms-section">
+                <div class="section-header">
+                    <span class="section-title">Recent Gyms</span>
+                    <button class="view-all-btn">View All</button>
+                </div>
+                <div class="gym-list" id="gymList">
+                    <div class="gym-item" data-gym="humble-yoga">
+                        <div class="gym-icon">🧘</div>
+                        <div class="gym-info">
+                            <div class="gym-name">Humble Yoga</div>
+                            <div class="gym-meta">Last used 2 days ago</div>
+                        </div>
+                        <div class="gym-arrow">→</div>
+                    </div>
+                    <div class="gym-item" data-gym="crossfit-downtown">
+                        <div class="gym-icon">💪</div>
+                        <div class="gym-info">
+                            <div class="gym-name">CrossFit Downtown</div>
+                            <div class="gym-meta">Last used 1 week ago</div>
+                        </div>
+                        <div class="gym-arrow">→</div>
+                    </div>
+                    <div class="gym-item" data-gym="core-pilates">
+                        <div class="gym-icon">🤸</div>
+                        <div class="gym-info">
+                            <div class="gym-name">Core Pilates Studio</div>
+                            <div class="gym-meta">Last used 2 weeks ago</div>
+                        </div>
+                        <div class="gym-arrow">→</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Empty State (hidden by default) -->
+            <div class="empty-state" id="emptyState" style="display: none;">
+                <div class="empty-icon">📍</div>
+                <div class="empty-text">
+                    No saved gyms yet.<br>
+                    Search above to get started.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mock gym data
+        const mockGyms = [
+            { name: "Humble Yoga", location: "San Francisco, CA", verified: true },
+            { name: "Humble Fitness Center", location: "Portland, OR", verified: false },
+            { name: "Power Yoga Studio", location: "Austin, TX", verified: true },
+            { name: "Zen Yoga Collective", location: "Seattle, WA", verified: true },
+            { name: "CorePower Yoga", location: "Denver, CO", verified: true },
+            { name: "Pure Barre", location: "Los Angeles, CA", verified: true },
+            { name: "SoulCycle", location: "New York, NY", verified: true },
+            { name: "Barry's Bootcamp", location: "Miami, FL", verified: true },
+        ];
+
+        // Search functionality
+        const searchInput = document.getElementById('gymSearch');
+        const searchResults = document.getElementById('searchResults');
+
+        let searchTimeout;
+
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.trim().toLowerCase();
+            
+            clearTimeout(searchTimeout);
+
+            if (query.length < 2) {
+                searchResults.classList.remove('show');
+                return;
+            }
+
+            // Simulate search delay
+            searchTimeout = setTimeout(() => {
+                const filtered = mockGyms.filter(gym => 
+                    gym.name.toLowerCase().includes(query)
+                );
+
+                if (filtered.length > 0) {
+                    displayResults(filtered);
+                } else {
+                    displayNoResults();
+                }
+            }, 300);
+        });
+
+        function displayResults(gyms) {
+            searchResults.innerHTML = gyms.map(gym => `
+                <div class="result-item" data-gym="${gym.name.toLowerCase().replace(/\s+/g, '-')}">
+                    <div class="result-name">${gym.name}</div>
+                    <div class="result-location">${gym.location}</div>
+                    ${gym.verified ? '<span class="result-badge">✓ Verified</span>' : ''}
+                </div>
+            `).join('');
+
+            searchResults.classList.add('show');
+
+            // Add click handlers
+            searchResults.querySelectorAll('.result-item').forEach(item => {
+                item.addEventListener('click', () => selectGym(item));
+            });
+        }
+
+        function displayNoResults() {
+            searchResults.innerHTML = `
+                <div class="result-item" style="text-align: center; color: #64748B; cursor: default;">
+                    No gyms found. Try a different name.
+                </div>
+            `;
+            searchResults.classList.add('show');
+        }
+
+        // Gym selection
+        function selectGym(element) {
+            const gymName = element.querySelector('.result-name')?.textContent || 
+                           element.querySelector('.gym-name').textContent;
+            
+            // Visual feedback
+            element.style.background = 'rgba(139, 123, 216, 0.2)';
+            
+            // Simulate loading and navigation
+            setTimeout(() => {
+                // Show success state
+                searchInput.value = gymName;
+                searchResults.classList.remove('show');
+                
+                // Navigate to editor (in real app)
+                setTimeout(() => {
+                    window.location.href = 'studiogram-editor-desktop.html';
+                }, 300);
+            }, 400);
+        }
+
+        // Saved gym clicks
+        document.querySelectorAll('.gym-item').forEach(item => {
+            item.addEventListener('click', () => selectGym(item));
+        });
+
+        // Close results on outside click
+        document.addEventListener('click', (e) => {
+            if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+                searchResults.classList.remove('show');
+            }
+        });
+
+        // Focus animation
+        searchInput.addEventListener('focus', () => {
+            searchInput.parentElement.style.transform = 'scale(1.01)';
+        });
+
+        searchInput.addEventListener('blur', () => {
+            searchInput.parentElement.style.transform = 'scale(1)';
+        });
+    </script>
+</body>
+</html>

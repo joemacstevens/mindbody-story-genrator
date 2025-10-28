@@ -42,7 +42,9 @@ const RenderPage: React.FC = () => {
   const [exportError, setExportError] = useState<string | null>(null);
   const storyContainerRef = useRef<HTMLDivElement | null>(null);
   const [forceInlineBackground, setForceInlineBackground] = useState(false);
+  const [inlineLogoSrc, setInlineLogoSrc] = useState<string | null>(null);
   const fontEmbedCssRef = useRef<string | null>(null);
+  const inlineImageCacheRef = useRef<Map<string, string>>(new Map());
 
   useEffect(() => {
     if (!user?.uid) {
@@ -239,6 +241,34 @@ const RenderPage: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
+  const inlineRemoteImage = async (url: string | null | undefined): Promise<string | null> => {
+    if (!url) {
+      return null;
+    }
+    const cache = inlineImageCacheRef.current;
+    if (cache.has(url)) {
+      return cache.get(url) ?? null;
+    }
+    try {
+      const response = await fetch(url, { mode: 'cors' });
+      if (!response.ok) {
+        return null;
+      }
+      const blob = await response.blob();
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
+      });
+      cache.set(url, dataUrl);
+      return dataUrl;
+    } catch (error) {
+      console.error('Failed to inline remote image for export', error);
+      return null;
+    }
+  };
+
   const handleExport = async () => {
     if (!storyContainerRef.current) {
       setExportError('Renderer not ready yet. Please try again in a moment.');
@@ -246,6 +276,14 @@ const RenderPage: React.FC = () => {
     }
     setIsExporting(true);
     setExportError(null);
+    let shouldResetInlineLogo = false;
+    if (style?.logoUrl) {
+      const inlined = await inlineRemoteImage(style.logoUrl);
+      if (inlined) {
+        setInlineLogoSrc(inlined);
+        shouldResetInlineLogo = true;
+      }
+    }
     setForceInlineBackground(true);
     await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
     try {
@@ -285,6 +323,9 @@ const RenderPage: React.FC = () => {
     } finally {
       setIsExporting(false);
       setForceInlineBackground(false);
+      if (shouldResetInlineLogo) {
+        setInlineLogoSrc(null);
+      }
     }
   };
   
@@ -331,6 +372,7 @@ const RenderPage: React.FC = () => {
             schedule={schedule}
             isFullSize={true}
             forceInlineBackground={forceInlineBackground}
+            inlineLogoSrc={inlineLogoSrc}
           />
         </div>
       </div>

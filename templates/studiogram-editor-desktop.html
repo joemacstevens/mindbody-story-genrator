@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Studiogram Editor - Desktop Layout</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #0F172A;
+            color: #F8FAFC;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 72px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .logo {
+            font-size: 22px;
+            font-weight: 600;
+            color: #F8FAFC;
+        }
+
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #64748B;
+        }
+
+        .breadcrumb-separator {
+            color: #334155;
+        }
+
+        .breadcrumb-current {
+            color: #94A3B8;
+            font-weight: 500;
+        }
+
+        .header-center {
+            display: flex;
+            gap: 12px;
+        }
+
+        .header-right {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .action-btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .action-btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            color: #CBD5E1;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .action-btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .action-btn-primary {
+            background: linear-gradient(135deg, #8B7BD8 0%, #6B5BB8 100%);
+            color: white;
+            padding: 10px 24px;
+        }
+
+        .action-btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(139, 123, 216, 0.4);
+        }
+
+        .gym-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            font-size: 14px;
+            color: #CBD5E1;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .gym-selector:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .profile-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #8B7BD8 0%, #6B5BB8 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .profile-btn:hover {
+            transform: scale(1.05);
+        }
+
+        /* Main Layout */
+        .main-layout {
+            display: flex;
+            height: calc(100vh - 72px);
+            overflow: hidden;
+        }
+
+        /* Canvas Area (Left) */
+        .canvas-area {
+            flex: 1;
+            background: #0F172A;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 48px;
+            position: relative;
+            overflow: auto;
+        }
+
+        .canvas-background {
+            position: absolute;
+            inset: 0;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(139, 123, 216, 0.03) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(139, 123, 216, 0.03) 0%, transparent 50%);
+        }
+
+        .canvas-grid {
+            position: absolute;
+            inset: 0;
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+            background-size: 40px 40px;
+            opacity: 0.5;
+        }
+
+        .preview-wrapper {
+            position: relative;
+            z-index: 1;
+        }
+
+        .preview-controls-top {
+            position: absolute;
+            top: -60px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .zoom-controls {
+            display: flex;
+            gap: 8px;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 8px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .zoom-btn {
+            width: 32px;
+            height: 32px;
+            background: rgba(255, 255, 255, 0.05);
+            border: none;
+            border-radius: 6px;
+            color: #94A3B8;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 16px;
+        }
+
+        .zoom-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #F8FAFC;
+        }
+
+        .zoom-level {
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            font-size: 13px;
+            color: #94A3B8;
+        }
+
+        .device-toggle {
+            display: flex;
+            gap: 4px;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 4px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .device-btn {
+            padding: 8px 16px;
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            color: #94A3B8;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 13px;
+        }
+
+        .device-btn:hover {
+            color: #F8FAFC;
+        }
+
+        .device-btn.active {
+            background: rgba(139, 123, 216, 0.2);
+            color: #8B7BD8;
+        }
+
+        .preview-frame {
+            width: 375px;
+            height: 667px;
+            background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+            border-radius: 24px;
+            border: 3px solid rgba(255, 255, 255, 0.15);
+            padding: 32px 24px;
+            box-shadow: 
+                0 30px 90px rgba(0, 0, 0, 0.5),
+                0 0 0 1px rgba(255, 255, 255, 0.05);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .preview-frame.tablet {
+            width: 768px;
+            height: 1024px;
+        }
+
+        .preview-frame.desktop {
+            width: 1200px;
+            height: 800px;
+            border-radius: 12px;
+        }
+
+        .preview-content {
+            height: 100%;
+            border-radius: 12px;
+            background: 
+                linear-gradient(to bottom, 
+                    rgba(139, 123, 216, 0.1) 0%, 
+                    transparent 10%,
+                    transparent 90%,
+                    rgba(139, 123, 216, 0.05) 100%
+                );
+            position: relative;
+            overflow: hidden;
+        }
+
+        .preview-schedule-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            animation: slideInUp 0.5s ease-out forwards;
+            opacity: 0;
+        }
+
+        .preview-schedule-item:nth-child(1) { animation-delay: 0.1s; }
+        .preview-schedule-item:nth-child(2) { animation-delay: 0.2s; }
+        .preview-schedule-item:nth-child(3) { animation-delay: 0.3s; }
+
+        @keyframes slideInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+        }
+
+        .schedule-time {
+            font-size: 14px;
+            color: #8B7BD8;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .schedule-class {
+            font-size: 16px;
+            color: #F8FAFC;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .schedule-instructor {
+            font-size: 13px;
+            color: #94A3B8;
+        }
+
+        /* Right Panel */
+        .right-panel {
+            width: 420px;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(20px);
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Tab Navigation */
+        .tab-nav {
+            display: flex;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 6px;
+            margin: 20px 20px 0;
+            border-radius: 10px;
+            gap: 4px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px 16px;
+            background: transparent;
+            border: none;
+            color: #64748B;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: 7px;
+            transition: all 0.2s ease-out;
+        }
+
+        .tab-btn:hover {
+            color: #94A3B8;
+        }
+
+        .tab-btn.active {
+            background: rgba(139, 123, 216, 0.15);
+            color: #8B7BD8;
+        }
+
+        /* Panel Content */
+        .panel-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+        }
+
+        .panel-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .panel-content::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .panel-content::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        .panel-content::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        /* Tab Content */
+        .tab-content {
+            display: none;
+            animation: fadeSlideIn 0.25s ease-out;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Section */
+        .section {
+            margin-bottom: 28px;
+        }
+
+        .section-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748B;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 14px;
+        }
+
+        /* Color Palettes */
+        .palette-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .palette-card {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1.5px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease-out;
+        }
+
+        .palette-card:hover {
+            border-color: rgba(139, 123, 216, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .palette-card.selected {
+            border-color: #8B7BD8;
+            background: rgba(139, 123, 216, 0.08);
+            box-shadow: 0 0 0 3px rgba(139, 123, 216, 0.1);
+        }
+
+        .palette-name {
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: #CBD5E1;
+        }
+
+        .palette-colors {
+            display: flex;
+            gap: 5px;
+        }
+
+        .palette-color {
+            width: 28px;
+            height: 28px;
+            border-radius: 5px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        /* Element List */
+        .element-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .element-item {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 12px 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: move;
+            transition: all 0.2s ease-out;
+        }
+
+        .element-item:hover {
+            background: rgba(255, 255, 255, 0.07);
+            border-color: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .drag-handle {
+            color: #475569;
+            font-size: 16px;
+            cursor: grab;
+        }
+
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+
+        .element-label {
+            flex: 1;
+            font-size: 14px;
+            color: #CBD5E1;
+        }
+
+        .element-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .icon-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.05);
+            border: none;
+            color: #64748B;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        .icon-btn:hover {
+            background: rgba(139, 123, 216, 0.2);
+            color: #8B7BD8;
+        }
+
+        .toggle-switch {
+            width: 42px;
+            height: 24px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .toggle-switch.active {
+            background: #8B7BD8;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            background: white;
+            border-radius: 50%;
+            top: 3px;
+            left: 3px;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .toggle-switch.active::after {
+            transform: translateX(18px);
+        }
+
+        /* Control Groups */
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-label {
+            font-size: 13px;
+            color: #94A3B8;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .control-value {
+            color: #8B7BD8;
+            font-weight: 500;
+        }
+
+        .slider {
+            width: 100%;
+            height: 5px;
+            border-radius: 2.5px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #8B7BD8;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(139, 123, 216, 0.4);
+            transition: all 0.2s;
+        }
+
+        .slider::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+            box-shadow: 0 3px 10px rgba(139, 123, 216, 0.5);
+        }
+
+        .radio-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 6px;
+        }
+
+        .radio-option {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1.5px solid rgba(255, 255, 255, 0.1);
+            border-radius: 7px;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 13px;
+            color: #94A3B8;
+        }
+
+        .radio-option:hover {
+            border-color: rgba(139, 123, 216, 0.4);
+            color: #CBD5E1;
+        }
+
+        .radio-option.selected {
+            border-color: #8B7BD8;
+            background: rgba(139, 123, 216, 0.15);
+            color: #8B7BD8;
+        }
+
+        /* Image Upload */
+        .image-upload-area {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1.5px dashed rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 28px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 12px;
+        }
+
+        .image-upload-area:hover {
+            border-color: #8B7BD8;
+            background: rgba(139, 123, 216, 0.05);
+        }
+
+        .upload-icon {
+            font-size: 28px;
+            margin-bottom: 8px;
+            opacity: 0.5;
+        }
+
+        .upload-text {
+            font-size: 13px;
+            color: #64748B;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease-out;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            width: 100%;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #CBD5E1;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Hidden Elements */
+        .hidden-elements {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .hidden-label {
+            font-size: 11px;
+            color: #475569;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .element-item.hidden {
+            opacity: 0.5;
+        }
+
+        /* Resize Handle */
+        .resize-handle {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: transparent;
+            cursor: ew-resize;
+            transition: background 0.2s;
+        }
+
+        .resize-handle:hover,
+        .resize-handle.dragging {
+            background: #8B7BD8;
+        }
+
+        /* Info Badge */
+        .info-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            background: rgba(139, 123, 216, 0.15);
+            border-radius: 12px;
+            font-size: 11px;
+            color: #8B7BD8;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-left">
+            <div class="logo">Studiogram</div>
+            <div class="breadcrumb">
+                <span>Templates</span>
+                <span class="breadcrumb-separator">/</span>
+                <span class="breadcrumb-current">Schedule Editor</span>
+            </div>
+        </div>
+        
+        <div class="header-center">
+            <div class="gym-selector">
+                <span>📍</span>
+                <span>Humble Yoga</span>
+                <span style="opacity: 0.5;">▾</span>
+            </div>
+        </div>
+
+        <div class="header-right">
+            <button class="action-btn action-btn-secondary">
+                <span>↻</span>
+                <span>Reset</span>
+            </button>
+            <button class="action-btn action-btn-primary">
+                <span>💾</span>
+                <span>Save Template</span>
+            </button>
+            <div class="profile-btn">J</div>
+        </div>
+    </div>
+
+    <!-- Main Layout -->
+    <div class="main-layout">
+        <!-- Canvas Area -->
+        <div class="canvas-area">
+            <div class="canvas-background"></div>
+            <div class="canvas-grid"></div>
+            
+            <div class="preview-wrapper">
+                <div class="preview-controls-top">
+                    <div class="zoom-controls">
+                        <button class="zoom-btn">−</button>
+                        <span class="zoom-level">100%</span>
+                        <button class="zoom-btn">+</button>
+                        <button class="zoom-btn" title="Fit to screen">⊡</button>
+                    </div>
+                    <div class="device-toggle">
+                        <button class="device-btn active" data-device="mobile">📱 Mobile</button>
+                        <button class="device-btn" data-device="tablet">📱 Tablet</button>
+                        <button class="device-btn" data-device="desktop">🖥️ Desktop</button>
+                    </div>
+                </div>
+
+                <div class="preview-frame" id="previewFrame">
+                    <div class="preview-content">
+                        <div class="preview-schedule-item">
+                            <div class="schedule-time">9:00 AM</div>
+                            <div class="schedule-class">Vinyasa Flow</div>
+                            <div class="schedule-instructor">with Sarah Chen</div>
+                        </div>
+                        <div class="preview-schedule-item">
+                            <div class="schedule-time">10:30 AM</div>
+                            <div class="schedule-class">Power Yoga</div>
+                            <div class="schedule-instructor">with Michael Torres</div>
+                        </div>
+                        <div class="preview-schedule-item">
+                            <div class="schedule-time">12:00 PM</div>
+                            <div class="schedule-class">Gentle Restorative</div>
+                            <div class="schedule-instructor">with Emma Williams</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="right-panel">
+            <div class="resize-handle"></div>
+            
+            <!-- Tab Navigation -->
+            <div class="tab-nav">
+                <button class="tab-btn active" data-tab="style">Style</button>
+                <button class="tab-btn" data-tab="content">Content</button>
+                <button class="tab-btn" data-tab="layout">Layout</button>
+            </div>
+
+            <!-- Panel Content -->
+            <div class="panel-content">
+                <!-- Style Tab -->
+                <div class="tab-content active" data-content="style">
+                    <!-- Color Palettes -->
+                    <div class="section">
+                        <div class="section-title">Color Theme</div>
+                        <div class="palette-grid">
+                            <div class="palette-card selected">
+                                <div class="palette-name">Studio Slate</div>
+                                <div class="palette-colors">
+                                    <div class="palette-color" style="background: #334155;"></div>
+                                    <div class="palette-color" style="background: #F8FAFC;"></div>
+                                    <div class="palette-color" style="background: #FF6B6B;"></div>
+                                </div>
+                            </div>
+                            <div class="palette-card">
+                                <div class="palette-name">Serene Studio</div>
+                                <div class="palette-colors">
+                                    <div class="palette-color" style="background: #475569;"></div>
+                                    <div class="palette-color" style="background: #FFF8F0;"></div>
+                                    <div class="palette-color" style="background: #84A98C;"></div>
+                                </div>
+                            </div>
+                            <div class="palette-card">
+                                <div class="palette-name">Modern Wellness</div>
+                                <div class="palette-colors">
+                                    <div class="palette-color" style="background: #2D3748;"></div>
+                                    <div class="palette-color" style="background: #E8DCC8;"></div>
+                                    <div class="palette-color" style="background: #2F4F4F;"></div>
+                                </div>
+                            </div>
+                            <div class="palette-card">
+                                <div class="palette-name">Sunset Minimal</div>
+                                <div class="palette-colors">
+                                    <div class="palette-color" style="background: #4A3F5C;"></div>
+                                    <div class="palette-color" style="background: #FFF5E1;"></div>
+                                    <div class="palette-color" style="background: #C8A882;"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="btn btn-secondary">🎨 Customize Colors</button>
+                    </div>
+
+                    <!-- Background -->
+                    <div class="section">
+                        <div class="section-title">Background</div>
+                        <div class="image-upload-area">
+                            <div class="upload-icon">🖼️</div>
+                            <div class="upload-text">Tap to upload image<br><span style="font-size: 11px; opacity: 0.7;">or use solid color</span></div>
+                        </div>
+                        <button class="btn btn-secondary">🗑️ Remove Background</button>
+                    </div>
+
+                    <!-- Logo -->
+                    <div class="section">
+                        <div class="section-title">Logo</div>
+                        <div class="image-upload-area">
+                            <div class="upload-icon">📌</div>
+                            <div class="upload-text">Upload your logo</div>
+                        </div>
+                        <div class="control-group">
+                            <div class="control-label">Position</div>
+                            <div class="radio-group">
+                                <div class="radio-option selected">Top</div>
+                                <div class="radio-option">Center</div>
+                                <div class="radio-option">Bottom</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Content Tab -->
+                <div class="tab-content" data-content="content">
+                    <div class="section">
+                        <div class="section-title">
+                            Schedule Elements
+                            <span class="info-badge">💡 Drag to reorder</span>
+                        </div>
+                        <div class="element-list">
+                            <div class="element-item">
+                                <div class="drag-handle">☰</div>
+                                <div class="element-label">Class Name</div>
+                                <div class="element-actions">
+                                    <button class="icon-btn" title="Font settings">Aa</button>
+                                    <button class="icon-btn" title="Color">🎨</button>
+                                    <div class="toggle-switch active"></div>
+                                </div>
+                            </div>
+                            <div class="element-item">
+                                <div class="drag-handle">☰</div>
+                                <div class="element-label">Instructor</div>
+                                <div class="element-actions">
+                                    <button class="icon-btn" title="Font settings">Aa</button>
+                                    <button class="icon-btn" title="Color">🎨</button>
+                                    <div class="toggle-switch active"></div>
+                                </div>
+                            </div>
+                            <div class="element-item">
+                                <div class="drag-handle">☰</div>
+                                <div class="element-label">Time</div>
+                                <div class="element-actions">
+                                    <button class="icon-btn" title="Font settings">Aa</button>
+                                    <button class="icon-btn" title="Color">🎨</button>
+                                    <div class="toggle-switch active"></div>
+                                </div>
+                            </div>
+                            <div class="element-item">
+                                <div class="drag-handle">☰</div>
+                                <div class="element-label">Room/Location</div>
+                                <div class="element-actions">
+                                    <button class="icon-btn" title="Font settings">Aa</button>
+                                    <button class="icon-btn" title="Color">🎨</button>
+                                    <div class="toggle-switch active"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="hidden-elements">
+                            <div class="hidden-label">Hidden Elements</div>
+                            <div class="element-list">
+                                <div class="element-item hidden">
+                                    <div class="drag-handle">☰</div>
+                                    <div class="element-label">Duration</div>
+                                    <div class="element-actions">
+                                        <button class="icon-btn" title="Font settings">Aa</button>
+                                        <button class="icon-btn" title="Color">🎨</button>
+                                        <div class="toggle-switch"></div>
+                                    </div>
+                                </div>
+                                <div class="element-item hidden">
+                                    <div class="drag-handle">☰</div>
+                                    <div class="element-label">Description</div>
+                                    <div class="element-actions">
+                                        <button class="icon-btn" title="Font settings">Aa</button>
+                                        <button class="icon-btn" title="Color">🎨</button>
+                                        <div class="toggle-switch"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Layout Tab -->
+                <div class="tab-content" data-content="layout">
+                    <div class="section">
+                        <div class="control-group">
+                            <div class="control-label">
+                                <span>Corner Radius</span>
+                                <span class="control-value">24px</span>
+                            </div>
+                            <input type="range" class="slider" min="0" max="40" value="24">
+                        </div>
+
+                        <div class="control-group">
+                            <div class="control-label">
+                                <span>Spacing & Density</span>
+                                <span class="control-value">Comfortable</span>
+                            </div>
+                            <div class="radio-group">
+                                <div class="radio-option">Compact</div>
+                                <div class="radio-option selected">Comfortable</div>
+                                <div class="radio-option">Spacious</div>
+                            </div>
+                        </div>
+
+                        <div class="control-group">
+                            <div class="control-label">
+                                <span>Layout Style</span>
+                            </div>
+                            <div class="radio-group">
+                                <div class="radio-option selected">Grid</div>
+                                <div class="radio-option">List</div>
+                                <div class="radio-option">Card</div>
+                            </div>
+                        </div>
+
+                        <div class="control-group">
+                            <div class="control-label">
+                                <span>Divider Style</span>
+                            </div>
+                            <div class="radio-group">
+                                <div class="radio-option">None</div>
+                                <div class="radio-option selected">Thin</div>
+                                <div class="radio-option">Thick</div>
+                                <div class="radio-option">Dotted</div>
+                            </div>
+                        </div>
+
+                        <div class="control-group">
+                            <div class="control-label">
+                                <span>Accent Lines</span>
+                            </div>
+                            <div class="toggle-switch active"></div>
+                        </div>
+
+                        <div class="control-group">
+                            <div class="control-label">
+                                <span>Footer Bar</span>
+                            </div>
+                            <div class="toggle-switch"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tab switching
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tabName = btn.dataset.tab;
+                
+                tabBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                tabContents.forEach(content => {
+                    if (content.dataset.content === tabName) {
+                        content.classList.add('active');
+                    } else {
+                        content.classList.remove('active');
+                    }
+                });
+            });
+        });
+
+        // Toggle switches
+        const toggles = document.querySelectorAll('.toggle-switch');
+        toggles.forEach(toggle => {
+            toggle.addEventListener('click', () => {
+                toggle.classList.toggle('active');
+            });
+        });
+
+        // Palette selection
+        const paletteCards = document.querySelectorAll('.palette-card');
+        paletteCards.forEach(card => {
+            card.addEventListener('click', () => {
+                paletteCards.forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+            });
+        });
+
+        // Radio options
+        document.querySelectorAll('.radio-option').forEach(option => {
+            option.addEventListener('click', () => {
+                const group = option.parentElement;
+                group.querySelectorAll('.radio-option').forEach(opt => {
+                    opt.classList.remove('selected');
+                });
+                option.classList.add('selected');
+            });
+        });
+
+        // Slider value update
+        document.querySelectorAll('.slider').forEach(slider => {
+            slider.addEventListener('input', (e) => {
+                const label = e.target.closest('.control-group').querySelector('.control-value');
+                if (label) {
+                    label.textContent = e.target.value + 'px';
+                }
+            });
+        });
+
+        // Device toggle
+        const deviceBtns = document.querySelectorAll('.device-btn');
+        const previewFrame = document.getElementById('previewFrame');
+
+        deviceBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const device = btn.dataset.device;
+                
+                deviceBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                previewFrame.classList.remove('tablet', 'desktop');
+                if (device !== 'mobile') {
+                    previewFrame.classList.add(device);
+                }
+            });
+        });
+
+        // Panel resize
+        const resizeHandle = document.querySelector('.resize-handle');
+        const rightPanel = document.querySelector('.right-panel');
+        let isResizing = false;
+
+        resizeHandle.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            resizeHandle.classList.add('dragging');
+            document.body.style.cursor = 'ew-resize';
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            
+            const newWidth = window.innerWidth - e.clientX;
+            if (newWidth >= 320 && newWidth <= 600) {
+                rightPanel.style.width = newWidth + 'px';
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isResizing) {
+                isResizing = false;
+                resizeHandle.classList.remove('dragging');
+                document.body.style.cursor = '';
+            }
+        });
+
+        // Drag and drop for elements
+        let draggedElement = null;
+
+        document.querySelectorAll('.element-item').forEach(item => {
+            item.draggable = true;
+
+            item.addEventListener('dragstart', (e) => {
+                draggedElement = item;
+                setTimeout(() => item.style.opacity = '0.4', 0);
+            });
+
+            item.addEventListener('dragend', (e) => {
+                item.style.opacity = '';
+            });
+
+            item.addEventListener('dragover', (e) => {
+                e.preventDefault();
+            });
+
+            item.addEventListener('drop', (e) => {
+                e.preventDefault();
+                if (draggedElement !== item) {
+                    const list = item.parentElement;
+                    const allItems = [...list.querySelectorAll('.element-item')];
+                    const draggedIndex = allItems.indexOf(draggedElement);
+                    const targetIndex = allItems.indexOf(item);
+                    
+                    if (draggedIndex < targetIndex) {
+                        item.after(draggedElement);
+                    } else {
+                        item.before(draggedElement);
+                    }
+                }
+            });
+        });
+
+        // Save button animation
+        document.querySelector('.action-btn-primary').addEventListener('click', function() {
+            const btn = this;
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<span>✓</span><span>Saved!</span>';
+            btn.style.background = 'linear-gradient(135deg, #10B981 0%, #059669 100%)';
+            
+            setTimeout(() => {
+                btn.innerHTML = originalHTML;
+                btn.style.background = '';
+            }, 2000);
+        });
+    </script>
+</body>
+</html>

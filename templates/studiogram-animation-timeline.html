@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Studiogram - Onboarding Animation Timeline</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #0F172A;
+            color: #F8FAFC;
+            padding: 40px 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+            padding-bottom: 40px;
+            border-bottom: 2px solid rgba(139, 123, 216, 0.2);
+        }
+
+        .title {
+            font-size: 48px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #8B7BD8 0%, #A78BFA 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 16px;
+        }
+
+        .subtitle {
+            font-size: 20px;
+            color: #94A3B8;
+        }
+
+        /* Timeline */
+        .timeline {
+            position: relative;
+            padding-left: 60px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 20px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(to bottom, 
+                #8B7BD8 0%,
+                rgba(139, 123, 216, 0.5) 50%,
+                rgba(139, 123, 216, 0.2) 100%
+            );
+        }
+
+        /* Phase */
+        .phase {
+            margin-bottom: 60px;
+            position: relative;
+        }
+
+        .phase-marker {
+            position: absolute;
+            left: -48px;
+            top: 8px;
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #8B7BD8 0%, #6B5BB8 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            box-shadow: 0 4px 12px rgba(139, 123, 216, 0.4);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 4px 12px rgba(139, 123, 216, 0.4); }
+            50% { transform: scale(1.05); box-shadow: 0 6px 20px rgba(139, 123, 216, 0.6); }
+        }
+
+        .phase-header {
+            background: rgba(139, 123, 216, 0.1);
+            border: 1px solid rgba(139, 123, 216, 0.3);
+            border-radius: 16px;
+            padding: 24px 28px;
+            margin-bottom: 24px;
+        }
+
+        .phase-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #A78BFA;
+            margin-bottom: 8px;
+        }
+
+        .phase-desc {
+            font-size: 16px;
+            color: #94A3B8;
+        }
+
+        .phase-duration {
+            display: inline-block;
+            margin-top: 12px;
+            padding: 6px 12px;
+            background: rgba(139, 123, 216, 0.15);
+            border-radius: 8px;
+            font-size: 13px;
+            color: #8B7BD8;
+            font-weight: 600;
+        }
+
+        /* Steps */
+        .steps {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .step {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px 24px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .step:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(139, 123, 216, 0.3);
+            transform: translateX(4px);
+        }
+
+        .step-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 12px;
+        }
+
+        .step-number {
+            flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+            background: rgba(139, 123, 216, 0.2);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: #8B7BD8;
+            font-size: 14px;
+        }
+
+        .step-title {
+            flex: 1;
+            font-size: 18px;
+            font-weight: 600;
+            color: #CBD5E1;
+        }
+
+        .step-timing {
+            font-size: 13px;
+            color: #64748B;
+            font-weight: 500;
+        }
+
+        .step-content {
+            padding-left: 48px;
+        }
+
+        .step-desc {
+            font-size: 15px;
+            color: #94A3B8;
+            margin-bottom: 16px;
+        }
+
+        .animation-details {
+            background: rgba(0, 0, 0, 0.2);
+            border-left: 3px solid #8B7BD8;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 12px;
+        }
+
+        .animation-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #8B7BD8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+        }
+
+        .animation-list {
+            list-style: none;
+            font-size: 14px;
+            color: #94A3B8;
+        }
+
+        .animation-list li {
+            padding: 6px 0;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .animation-list li::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: #64748B;
+        }
+
+        /* Code Block */
+        .code-block {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 12px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            color: #94A3B8;
+            overflow-x: auto;
+        }
+
+        .code-comment {
+            color: #64748B;
+        }
+
+        .code-value {
+            color: #A78BFA;
+        }
+
+        /* Summary Section */
+        .summary {
+            background: linear-gradient(135deg, rgba(139, 123, 216, 0.1) 0%, rgba(99, 102, 241, 0.05) 100%);
+            border: 2px solid rgba(139, 123, 216, 0.3);
+            border-radius: 20px;
+            padding: 40px;
+            margin-top: 60px;
+        }
+
+        .summary-title {
+            font-size: 32px;
+            font-weight: 700;
+            color: #A78BFA;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 24px;
+        }
+
+        .summary-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 24px;
+            text-align: center;
+        }
+
+        .summary-value {
+            font-size: 48px;
+            font-weight: 700;
+            color: #8B7BD8;
+            margin-bottom: 8px;
+        }
+
+        .summary-label {
+            font-size: 14px;
+            color: #94A3B8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Best Practices */
+        .best-practices {
+            margin-top: 60px;
+        }
+
+        .bp-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #CBD5E1;
+            margin-bottom: 24px;
+        }
+
+        .bp-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .bp-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 24px;
+        }
+
+        .bp-icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+        }
+
+        .bp-card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #CBD5E1;
+            margin-bottom: 8px;
+        }
+
+        .bp-card-text {
+            font-size: 14px;
+            color: #94A3B8;
+            line-height: 1.6;
+        }
+
+        /* Mobile */
+        @media (max-width: 768px) {
+            .title {
+                font-size: 36px;
+            }
+
+            .timeline {
+                padding-left: 40px;
+            }
+
+            .phase-marker {
+                left: -38px;
+                width: 32px;
+                height: 32px;
+                font-size: 16px;
+            }
+
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1 class="title">Studiogram Onboarding</h1>
+            <p class="subtitle">Complete Animation Timeline & Interaction Specifications</p>
+        </div>
+
+        <!-- Timeline -->
+        <div class="timeline">
+            <!-- Phase 1: Landing -->
+            <div class="phase">
+                <div class="phase-marker">🚀</div>
+                <div class="phase-header">
+                    <h2 class="phase-title">Phase 1: Initial Landing</h2>
+                    <p class="phase-desc">User first arrives at the gym finder screen</p>
+                    <span class="phase-duration">⏱️ ~1.5s total</span>
+                </div>
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-header">
+                            <div class="step-number">1</div>
+                            <div class="step-title">Background Gradients Fade In</div>
+                            <div class="step-timing">0-400ms</div>
+                        </div>
+                        <div class="step-content">
+                            <p class="step-desc">
+                                Two gradient orbs fade in and begin their slow pulse animation
+                            </p>
+                            <div class="animation-details">
+                                <div class="animation-title">Animation Specs</div>
+                                <ul class="animation-list">
+                                    <li>Opacity: 0 → 0.5 over 400ms</li>
+                                    <li>Continuous pulse: scale(1) ↔ scale(1.1) every 8-10s</li>
+                                    <li>Easing: ease-in-out</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-header">
+                            <div class="step-number">2</div>
+                            <div class="step-title">Hero Section Slides Up</div>
+                            <div class="step-timing">200-800ms</div>
+                        </div>
+                        <div class="step-content">
+                            <p class="step-desc">
+                                Badge, title, and subtitle animate in sequentially with stagger
+                            </p>
+                            <div class="animation-details">
+                                <div class="animation-title">Animation Specs</div>
+                                <ul class="animation-list">
+                                    <li>Badge: translateY(30px) → 0, opacity 0 → 1, 200-500ms</li>
+                                    <li>Title: same animation, 300-600ms (100ms delay)</li>
+                                    <li>Subtitle: same animation, 400-700ms (200ms delay)</li>
+                                    <li>Easing: ease-out cubic-bezier(0.25, 0.46, 0.45, 0.94)</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-header">
+                            <div class="step-number">3</div>
+                            <div class="step-title">Card Fades In</div>
+                            <div class="step-timing">500-1100ms</div>
+                        </div>
+                        <div class="step-content">
+                            <p class="step-desc">
+                                Main card container slides up and fades in with backdrop blur
+                            </p>
+                            <div class="animation-details">
+                                <div class="animation-title">Animation Specs</div>
+                                <ul class="animation-list">
+                                    <li>Transform: translateY(30px) → 0</li>
+                                    <li>Opacity: 0 → 1</li>
+                                    <li>Duration: 600ms</li>
+                                    <li>Easing: ease-out</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-header">
+                            <div class="step-number">4</div>
+                            <div class="step-title">Content Reveal</div>
+                            <div class="step-timing">1100-1500ms</div>
+                        </div>
+                        <div class="step-content">
+                            <p class="step-desc">
+                                Search input, saved gyms list, and all interactive elements become visible
+                            </p>
+                            <div class="animation-details">
+                                <div class="animation-title">Animation Specs</div>
+                                <ul class="animation-list">
+                                    <li>Each element fades in with 50ms stagger</li>
+                                    <li>Slight upward movement (10px)</li>
+                                    <li>Duration: 300ms per element</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase 2: Search Interaction -->
+            <div class="phase">
+                <div class="phase-marker">🔍</div>
+                <div class="phase-header">
+                    <h2 class="phase-title">Phase 2: Search Interaction</h2>
+                    <p class="phase-desc">User begins typing in the search field</p>
+                    <span class="phase-duration">⏱️ Real-time</span>
+                </div>
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-header">
+                            <div class="step-number">1</div>
+                            <div class="step-title">Focus State</div>
+                            <div class="step-timing">Instant</div>
+                        </div>
+                        <div class="step-content">
+                            <p class="step-desc">
+                                Input field scales slightly and border color transitions
+                            </p>
+                            <div class="code-block">
+<span class="code-comment">// Focus animation</span>
+transform: <span class="code-value">scale(1.01)</span>;
+border-color: <span class="code-value">#8B7BD8</span>;
+box-shadow: <span class="code-value">0 0 0 4px rgba(139, 123, 216, 0.1)</span>;
+transition: <span class="code-value">all 300ms ease</span>;
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-header">
+                            <div class="step-number">2</div>
+                            <div class="step-title">Typing Debounce</div>
+                            <div class="step-timing">300ms after last keystroke</div>
+                        </div>
+                        <div class="step-content">
+                            <p class="step-desc">
+                                Wait for user to stop typing before triggering search
+                            </p>
+                            <div class="animation-details">
+                                <div class="animation-title">Behavior</div>
+                                <ul class="animation-list">
+                                    <li>Clear previous timeout on each keystroke</li>
+                                    <li>Start new 300ms timer</li>
+                                    <li>Only search if query length ≥ 2 characters</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-header">
+                            <div class="step-number">3</div>
+                            <div class="step-title">Results Dropdown Appears</div>
+                            <div class="step-timing">300ms slide-down</div>
+                        </div>
+                        <div class="step-content">
+                            <p class="step-desc">
+                                Results container drops down below search field
+                            </p>
+                            <div class="code-block">
+<span class="code-comment">// Dropdown animation</span>
+transform: <span class="code-value">translateY(-10px) → translateY(0)</span>;
+opacity: <span class="code-value">0 → 1</span>;
+duration: <span class="code-value">300ms</span>;
+easing: <span class="code-value">ease-out</span>;
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-header">
+                            <div class="step-number">4</div>
+                            <div class="step-title">Results Hover States</div>
+                            <div class="step-timing">200ms transitions</div>
+                        </div>
+                        <div class="step-content">
+                            <p class="step-desc">
+                                Each result item responds to hover with background color change
+                            </p>
+                            <div class="animation-details">
+                                <div class="animation-title">Hover Effects</div>
+                                <ul class="animation-list">
+                                    <li>Background: transparent → rgba(139, 123, 216, 0.1)</li>
+                                    <li>Cursor changes to pointer</li>
+                                    <li>Smooth 200ms transition</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase 3: Selection -->
+            <div class="phase">
+                <div class="phase-marker">✓</div>
+                <div class="phase-header">
+                    <h2 class="phase-title">Phase 3: Gym Selection</h2>
+                    <p class="phase-desc">User clicks a gym from search or saved list</p>
+                    <span class="phase-duration">⏱️ ~1.2s total</span>
+                </div>
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-header">
+                            <div class="step-number">1</div>
+                            <div class="step-title">Click Feedback</div>
+                            <div class="step-timing">0-200ms</div>
+                        </div>
+                        <div class="step-content">
+                            <p class="step-desc">
+                                Selected item immediately shows visual feedback
+                            </p>
+                            <div class="code-block">
+<span class="code-comment">// Active state</span>
+background: <span class="code-value">rgba(139, 123, 216, 0.2)</span>;
+transform: <span class="code-value">scale(0.98)</span>;
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-header">
+                            <div class="step-number">2</div>
+                            <div class="step-title">Search Results Close</div>
+                            <div class="step-timing">200-500ms</div>
+                        </div>
+                        <div class="step-content">
+                            <p class="step-desc">
+                                Dropdown fades out and collapses
+                            </p>
+                            <div class="animation-details">
+                                <div class="animation-title">Exit Animation</div>
+                                <ul class="animation-list">
+                                    <li>Opacity: 1 → 0 over 200ms</li>
+                                    <li>Transform: translateY(0) → translateY(-10px)</li>
+                                    <li>Then display: none</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-header">
+                            <div class="step-number">3</div>
+                            <div class="step-title">Input Updates</div>
+                            <div class="step-timing">500-700ms</div>
+                        </div>
+                        <div class="step-content">
+                            <p class="step-desc">
+                                Search input value updates with selected gym name
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-header">
+                            <div class="step-number">4</div>
+                            <div class="step-title">Page Transition</div>
+                            <div class="step-timing">700-1200ms</div>
+                        </div>
+                        <div class="step-content">
+                            <p class="step-desc">
+                                Current view fades out while next view begins loading
+                            </p>
+                            <div class="code-block">
+<span class="code-comment">// Page exit</span>
+opacity: <span class="code-value">1 → 0</span>;
+transform: <span class="code-value">scale(1) → scale(0.95)</span>;
+duration: <span class="code-value">500ms</span>;
+easing: <span class="code-value">ease-in</span>;
+                            </code>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase 4: Editor Entry -->
+            <div class="phase">
+                <div class="phase-marker">🎨</div>
+                <div class="phase-header">
+                    <h2 class="phase-title">Phase 4: Editor Entrance</h2>
+                    <p class="phase-desc">User arrives at the template editor</p>
+                    <span class="phase-duration">⏱️ ~2s total</span>
+                </div>
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-header">
+                            <div class="step-number">1</div>
+                            <div class="step-title">Layout Structure Renders</div>
+                            <div class="step-timing">0-300ms</div>
+                        </div>
+                        <div class="step-content">
+                            <p class="step-desc">
+                                Header, canvas, and right panel skeleton appear instantly
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-header">
+                            <div class="step-number">2</div>
+                            <div class="step-title">Header Slides Down</div>
+                            <div class="step-timing">300-600ms</div>
+                        </div>
+                        <div class="step-content">
+                            <p class="step-desc">
+                                Top navigation bar slides down from top of screen
+                            </p>
+                            <div class="code-block">
+<span class="code-comment">// Header entrance</span>
+transform: <span class="code-value">translateY(-100%) → translateY(0)</span>;
+opacity: <span class="code-value">0 → 1</span>;
+duration: <span class="code-value">400ms</span>;
+easing: <span class="code-value">cubic-bezier(0.34, 1.56, 0.64, 1)</span>; <span class="code-comment">// Bouncy</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-header">
+                            <div class="step-number">3</div>
+                            <div class="step-title">Canvas Preview Fades In</div>
+                            <div class="step-timing">600-1200ms</div>
+                        </div>
+                        <div class="step-content">
+                            <p class="step-desc">
+                                Phone preview frame and schedule content animate in
+                            </p>
+                            <div class="animation-details">
+                                <div class="animation-title">Multi-Layer Animation</div>
+                                <ul class="animation-list">
+                                    <li>Frame: opacity 0 → 1, scale 0.9 → 1 (600ms)</li>
+                                    <li>Schedule items: slide up with 100ms stagger</li>
+                                    <li>Begins continuous float animation</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-header">
+                            <div class="step-number">4</div>
+                            <div class="step-title">Right Panel Slides In</div>
+                            <div class="step-timing">900-1400ms</div>
+                        </div>
+                        <div class="step-content">
+                            <p class="step-desc">
+                                Editor panel slides in from right edge with tabs and controls
+                            </p>
+                            <div class="code-block">
+<span class="code-comment">// Panel entrance</span>
+transform: <span class="code-value">translateX(100%) → translateX(0)</span>;
+opacity: <span class="code-value">0.5 → 1</span>;
+duration: <span class="code-value">500ms</span>;
+easing: <span class="code-value">cubic-bezier(0.16, 1, 0.3, 1)</span>; <span class="code-comment">// Smooth deceleration</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-header">
+                            <div class="step-number">5</div>
+                            <div class="step-title">Content Stagger</div>
+                            <div class="step-timing">1400-2000ms</div>
+                        </div>
+                        <div class="step-content">
+                            <p class="step-desc">
+                                Panel content (palettes, controls, elements) fade in sequentially
+                            </p>
+                            <div class="animation-details">
+                                <div class="animation-title">Stagger Pattern</div>
+                                <ul class="animation-list">
+                                    <li>Color palettes: first, 50ms apart</li>
+                                    <li>Background section: 100ms delay</li>
+                                    <li>Logo section: 150ms delay</li>
+                                    <li>Each animates: opacity 0 → 1, translateY(10px) → 0</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase 5: Ongoing Interactions -->
+            <div class="phase">
+                <div class="phase-marker">⚡</div>
+                <div class="phase-header">
+                    <h2 class="phase-title">Phase 5: Continuous Interactions</h2>
+                    <p class="phase-desc">User interacts with editor controls</p>
+                    <span class="phase-duration">⏱️ Ongoing</span>
+                </div>
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-header">
+                            <div class="step-number">1</div>
+                            <div class="step-title">Tab Switching</div>
+                            <div class="step-timing">250ms transition</div>
+                        </div>
+                        <div class="step-content">
+                            <p class="step-desc">
+                                Content cross-fades when switching between Style/Content/Layout
+                            </p>
+                            <div class="code-block">
+<span class="code-comment">// Tab content transition</span>
+<span class="code-comment">// Exit: </span>opacity: <span class="code-value">1 → 0</span>, translateY: <span class="code-value">0 → 10px</span>, <span class="code-value">150ms</span>
+<span class="code-comment">// Enter: </span>opacity: <span class="code-value">0 → 1</span>, translateY: <span class="code-value">10px → 0</span>, <span class="code-value">250ms</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-header">
+                            <div class="step-number">2</div>
+                            <div class="step-title">Toggle Switches</div>
+                            <div class="step-timing">300ms spring</div>
+                        </div>
+                        <div class="step-content">
+                            <p class="step-desc">
+                                Smooth spring animation with haptic-like feel
+                            </p>
+                            <div class="code-block">
+<span class="code-comment">// Toggle animation</span>
+background: <span class="code-value">rgba(255,255,255,0.1) → #8B7BD8</span>;
+transform: <span class="code-value">translateX(0) → translateX(18px)</span>;
+duration: <span class="code-value">300ms</span>;
+easing: <span class="code-value">cubic-bezier(0.4, 0, 0.2, 1)</span>;
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-header">
+                            <div class="step-number">3</div>
+                            <div class="step-title">Slider Drag</div>
+                            <div class="step-timing">Real-time</div>
+                        </div>
+                        <div class="step-content">
+                            <p class="step-desc">
+                                Thumb scales up on hover, live preview updates instantly
+                            </p>
+                            <div class="animation-details">
+                                <div class="animation-title">Interaction States</div>
+                                <ul class="animation-list">
+                                    <li>Hover: scale(1) → scale(1.15) in 200ms</li>
+                                    <li>Active: additional glow shadow</li>
+                                    <li>Value label updates in real-time</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-header">
+                            <div class="step-number">4</div>
+                            <div class="step-title">Element Drag & Drop</div>
+                            <div class="step-timing">Variable</div>
+                        </div>
+                        <div class="step-content">
+                            <p class="step-desc">
+                                Content elements can be reordered with smooth transitions
+                            </p>
+                            <div class="code-block">
+<span class="code-comment">// Drag states</span>
+dragstart: <span class="code-value">opacity: 0.4</span>
+dragging: <span class="code-value">cursor: grabbing</span>
+drop: <span class="code-value">smooth reorder with 300ms transition</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-header">
+                            <div class="step-number">5</div>
+                            <div class="step-title">Save Button Success</div>
+                            <div class="step-timing">2s animation</div>
+                        </div>
+                        <div class="step-content">
+                            <p class="step-desc">
+                                Button morphs to success state with checkmark
+                            </p>
+                            <div class="animation-details">
+                                <div class="animation-title">Success Sequence</div>
+                                <ul class="animation-list">
+                                    <li>0-200ms: Button pulses scale(1) → scale(1.03)</li>
+                                    <li>200-400ms: Background changes to green gradient</li>
+                                    <li>400-600ms: Text changes to "✓ Saved!"</li>
+                                    <li>2000ms: Reverts to original state</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="summary">
+            <h2 class="summary-title">Timeline Summary</h2>
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <div class="summary-value">~5s</div>
+                    <div class="summary-label">Total Onboarding Time</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-value">25+</div>
+                    <div class="summary-label">Unique Animations</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-value">200-600ms</div>
+                    <div class="summary-label">Average Transition</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-value">60fps</div>
+                    <div class="summary-label">Target Frame Rate</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Best Practices -->
+        <div class="best-practices">
+            <h2 class="bp-title">Animation Best Practices</h2>
+            <div class="bp-grid">
+                <div class="bp-card">
+                    <div class="bp-icon">⚡</div>
+                    <div class="bp-card-title">Performance First</div>
+                    <div class="bp-card-text">
+                        Use transform and opacity for animations (GPU-accelerated). Avoid animating width, height, or position properties.
+                    </div>
+                </div>
+                <div class="bp-card">
+                    <div class="bp-icon">🎯</div>
+                    <div class="bp-card-title">Purpose-Driven</div>
+                    <div class="bp-card-text">
+                        Every animation should serve a purpose: draw attention, provide feedback, or establish hierarchy. Never animate just for show.
+                    </div>
+                </div>
+                <div class="bp-card">
+                    <div class="bp-icon">⏱️</div>
+                    <div class="bp-card-title">Timing Matters</div>
+                    <div class="bp-card-text">
+                        Fast micro-interactions (200ms), moderate transitions (300-400ms), entrance animations (500-600ms). Never exceed 1 second.
+                    </div>
+                </div>
+                <div class="bp-card">
+                    <div class="bp-icon">🔄</div>
+                    <div class="bp-card-title">Respect Motion Preferences</div>
+                    <div class="bp-card-text">
+                        Always respect prefers-reduced-motion. Provide static alternatives for users with motion sensitivity.
+                    </div>
+                </div>
+                <div class="bp-card">
+                    <div class="bp-icon">🎨</div>
+                    <div class="bp-card-title">Easing is Everything</div>
+                    <div class="bp-card-text">
+                        Use ease-out for entrances, ease-in for exits, and ease-in-out for loops. Custom cubic-bezier curves add personality.
+                    </div>
+                </div>
+                <div class="bp-card">
+                    <div class="bp-icon">📐</div>
+                    <div class="bp-card-title">Consistent System</div>
+                    <div class="bp-card-text">
+                        Define a duration scale (200ms, 300ms, 600ms) and reuse across the app. Consistency builds familiarity and feels polished.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

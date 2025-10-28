@@ -12,6 +12,7 @@ interface StoryRendererProps {
   forceInlineBackground?: boolean;
   selectedElement?: SelectedElement | null;
   onSelectElement?: (element: SelectedElement | null) => void;
+  inlineLogoSrc?: string | null;
 }
 
 const positionClasses: Record<LogoPosition, string> = {
@@ -39,6 +40,7 @@ const DefaultStoryRenderer: React.FC<StoryRendererProps> = ({
   forceInlineBackground = false,
   selectedElement = null,
   onSelectElement,
+  inlineLogoSrc = null,
 }) => {
   const [editingField, setEditingField] = useState<EditableField | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -159,6 +161,7 @@ const DefaultStoryRenderer: React.FC<StoryRendererProps> = ({
     maxHeight: `${120 * logoSizeMultiplier}px`,
     maxWidth: `${300 * logoSizeMultiplier}px`,
   };
+  const logoSource = inlineLogoSrc || style.logoUrl;
   
   return (
     <div style={wrapperStyle} className={`relative flex items-center justify-center p-[40px] bg-cover bg-center`}>
@@ -168,7 +171,15 @@ const DefaultStoryRenderer: React.FC<StoryRendererProps> = ({
         style={cardStyle}
         onClick={(event) => event.stopPropagation()}
       >
-        {style.logoUrl && <img src={style.logoUrl} alt="Company Logo" style={logoStyle} className={`absolute object-contain ${positionClasses[style.logoPosition]}`} />}
+        {logoSource && (
+          <img
+            src={logoSource}
+            alt="Company Logo"
+            style={logoStyle}
+            className={`absolute object-contain ${positionClasses[style.logoPosition]}`}
+            crossOrigin="anonymous"
+          />
+        )}
 
         <header className="flex-shrink-0 text-center">
             {style.accentLines && <div style={{ backgroundColor: style.accent }} className="h-3 w-1/3 mx-auto rounded-full mb-8"></div>}
