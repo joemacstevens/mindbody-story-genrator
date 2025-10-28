@@ -79,3 +79,13 @@ body {
 .slider::-moz-range-thumb:active {
   transform: scale(1.05);
 }
+
+@keyframes successPulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.03);
+  }
+}

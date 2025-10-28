@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { ensureUserDocument, fetchUserRoot } from '../services/userData';
 import { Button, Modal } from '../components/ui';
@@ -29,6 +29,14 @@ import type {
 } from '../types';
 import { cn } from '../utils/cn';
 import { uploadImage } from '../services/storage';
+import { saveTemplate } from '../services/api';
+
+const SaveSpinner: React.FC = () => (
+  <span
+    className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"
+    aria-hidden="true"
+  />
+);
 
 type DeviceOption = 'mobile' | 'tablet' | 'desktop';
 
@@ -42,7 +50,6 @@ const formatPanelWidth = (value: number) => Math.min(600, Math.max(320, value));
 
 const EditorPage: React.FC = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [selectedDevice, setSelectedDevice] = useState<DeviceOption>('mobile');
   const [zoomLevel, setZoomLevel] = useState(100);
   const [activeTab, setActiveTab] = useState<'style' | 'content' | 'layout'>('style');
@@ -51,6 +58,7 @@ const EditorPage: React.FC = () => {
   const dragOffsetRef = useRef(0);
   const layoutRef = useRef<HTMLDivElement | null>(null);
   const [userGymName, setUserGymName] = useState<string>('Select a gym');
+  const [userGymSlug, setUserGymSlug] = useState<string | null>(null);
   const [isBackgroundUploading, setIsBackgroundUploading] = useState(false);
   const [isLogoUploading, setIsLogoUploading] = useState(false);
   const backgroundPreviewUrlRef = useRef<string | null>(null);
@@ -67,6 +75,9 @@ const EditorPage: React.FC = () => {
   const [activeColorElement, setActiveColorElement] = useState<ScheduleElementId | null>(null);
   const [isColorModalOpen, setIsColorModalOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const saveResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -76,6 +87,9 @@ const EditorPage: React.FC = () => {
         const root = await fetchUserRoot(user.uid);
         if (root?.lastScheduleSlug) {
           setUserGymName(root.lastScheduleSlug.replace(/-/g, ' '));
+          setUserGymSlug(root.lastScheduleSlug);
+        } else {
+          setUserGymSlug(null);
         }
       } catch (error) {
         console.error('Failed to load editor context', error);
@@ -323,6 +337,9 @@ const EditorPage: React.FC = () => {
     () => () => {
       revokeBackgroundPreview();
       revokeLogoPreview();
+      if (saveResetTimeoutRef.current) {
+        clearTimeout(saveResetTimeoutRef.current);
+      }
     },
     [revokeBackgroundPreview, revokeLogoPreview],
   );
@@ -371,6 +388,53 @@ const EditorPage: React.FC = () => {
     window.addEventListener('pointerup', handlePointerUp);
   };
 
+  const handleSaveTemplate = useCallback(async () => {
+    if (!user?.uid) {
+      console.warn('Attempted to save template without an authenticated user.');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await saveTemplate(
+        {
+          templateId,
+          style: styleState,
+          visibleElements,
+          hiddenElements,
+          elementOrder: visibleElements,
+          elementStyles,
+          gymSlug: userGymSlug,
+        },
+        user.uid,
+      );
+
+      setSaveSuccess(true);
+      if (saveResetTimeoutRef.current) {
+        clearTimeout(saveResetTimeoutRef.current);
+      }
+      saveResetTimeoutRef.current = setTimeout(() => {
+        setSaveSuccess(false);
+        saveResetTimeoutRef.current = null;
+      }, 2000);
+    } catch (error) {
+      console.error('Save failed:', error);
+      alert('Failed to save your template. Please try again.');
+      setSaveSuccess(false);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [
+    elementStyles,
+    hiddenElements,
+    saveTemplate,
+    styleState,
+    templateId,
+    user?.uid,
+    userGymSlug,
+    visibleElements,
+  ]);
+
   const devicePreset = devicePresets[selectedDevice];
   const previewStyle = {
     width: `${devicePreset.width * (zoomLevel / 100)}px`,
@@ -406,7 +470,34 @@ const EditorPage: React.FC = () => {
         </div>
         <div className="flex items-center gap-3">
           <Button variant="secondary" size="sm">↻ Reset</Button>
-          <Button size="sm">💾 Save Template</Button>
+          <Button
+            size="sm"
+            onClick={handleSaveTemplate}
+            disabled={isSaving || !user?.uid}
+            className={cn(
+              saveSuccess &&
+                'from-emerald-500 to-emerald-600 shadow-[0_4px_16px_rgba(16,185,129,0.45)] animate-[successPulse_0.5s_ease-out]',
+            )}
+          >
+            {isSaving ? (
+              <>
+                <SaveSpinner />
+                <span>Saving...</span>
+              </>
+            ) : saveSuccess ? (
+              <>
+                <span className="text-base">✓</span>
+                <span>Saved!</span>
+              </>
+            ) : (
+              <>
+                <span role="img" aria-hidden="true">
+                  💾
+                </span>
+                <span>Save Template</span>
+              </>
+            )}
+          </Button>
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-sm font-semibold shadow-primary">
             {user?.displayName?.[0]?.toUpperCase() ?? 'U'}
           </div>
