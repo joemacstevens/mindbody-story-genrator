@@ -22,11 +22,11 @@ const sizeClasses: Record<ButtonSize, string> = {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    'bg-gradient-to-r from-primary to-primary-dark text-text-primary shadow-primary hover:-translate-y-[2px]',
+    'bg-gradient-to-r from-primary to-primary-dark text-text-primary shadow-primary hover:-translate-y-[2px] hover:shadow-xl',
   secondary:
-    'bg-surface text-text-primary border border-border-light hover:bg-surface-hover',
+    'bg-surface text-text-primary border border-border-light hover:bg-surface-hover hover:-translate-y-[1px] hover:shadow-md',
   ghost:
-    'bg-transparent text-text-secondary hover:bg-surface-hover',
+    'bg-transparent text-text-secondary hover:bg-surface-hover hover:text-text-primary hover:-translate-y-[1px]',
 };
 
 export const Button: React.FC<ButtonProps> = ({
@@ -47,8 +47,7 @@ export const Button: React.FC<ButtonProps> = ({
       type={rest.type ?? 'button'}
       disabled={isDisabled}
       className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-3xl font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none',
-        'transform',
+        'inline-flex items-center justify-center gap-2 rounded-3xl font-semibold transition-all duration-200 ease-out will-change-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none',
         sizeClasses[size],
         variantClasses[variant],
         fullWidth && 'w-full',

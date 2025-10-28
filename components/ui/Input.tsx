@@ -53,8 +53,8 @@ const InputBase = (
     <label className="block w-full space-y-2">
       <div
         className={cn(
-          'relative flex items-center rounded-2xl border bg-surface text-text-primary transition-shadow',
-          'focus-within:border-primary focus-within:shadow-[0_0_0_4px_rgba(139,123,216,0.15)]',
+          'relative flex items-center rounded-2xl border bg-surface text-text-primary transition-all duration-300 ease-out',
+          'hover:border-border-primary/80 focus-within:border-primary focus-within:shadow-[0_0_0_4px_rgba(139,123,216,0.15)] focus-within:scale-[1.01]',
           showError ? 'border-accent-red' : hasValue ? 'border-border-primary' : 'border-border-light',
           'disabled:opacity-60 disabled:cursor-not-allowed',
         )}

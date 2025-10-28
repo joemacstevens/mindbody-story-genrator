@@ -1,5 +1,6 @@
 import React from 'react';
-import { HashRouter, Routes, Route, Outlet, Link, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Outlet, Link, Navigate, useLocation } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 import HomePage from './pages/HomePage';
 import RenderPage from './pages/RenderPage';
 import IngestPage from './pages/IngestPage';
@@ -7,6 +8,7 @@ import GymFinderPage from './pages/GymFinderPage';
 import AuthPage from './pages/AuthPage';
 import { useAuth } from './contexts/AuthContext';
 import EditorPage from './pages/EditorPage';
+import { PageTransition } from './components/transition/PageTransition';
 
 const AuthenticatedLayout: React.FC = () => {
   const { user, signOut } = useAuth();
@@ -79,21 +81,87 @@ const ProtectedRoute: React.FC = () => {
   return <AuthenticatedLayout />;
 };
 
+const AnimatedRoutes: React.FC = () => {
+  const location = useLocation();
+
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      <Routes location={location} key={location.pathname}>
+        <Route
+          path="/sign-in"
+          element={(
+            <PageTransition>
+              <AuthPage />
+            </PageTransition>
+          )}
+        />
+        <Route
+          path="/sign-up"
+          element={(
+            <PageTransition>
+              <AuthPage />
+            </PageTransition>
+          )}
+        />
+        <Route
+          path="render"
+          element={(
+            <PageTransition>
+              <RenderPage />
+            </PageTransition>
+          )}
+        />
+        <Route
+          path="render/:slug"
+          element={(
+            <PageTransition>
+              <RenderPage />
+            </PageTransition>
+          )}
+        />
+        <Route path="/" element={<ProtectedRoute />}>
+          <Route
+            index
+            element={(
+              <PageTransition>
+                <HomePage />
+              </PageTransition>
+            )}
+          />
+          <Route
+            path="editor"
+            element={(
+              <PageTransition>
+                <EditorPage />
+              </PageTransition>
+            )}
+          />
+          <Route
+            path="ingest"
+            element={(
+              <PageTransition>
+                <IngestPage />
+              </PageTransition>
+            )}
+          />
+          <Route
+            path="gym-finder"
+            element={(
+              <PageTransition>
+                <GymFinderPage />
+              </PageTransition>
+            )}
+          />
+        </Route>
+      </Routes>
+    </AnimatePresence>
+  );
+};
+
 const App: React.FC = () => {
   return (
     <HashRouter>
-      <Routes>
-        <Route path="/sign-in" element={<AuthPage />} />
-        <Route path="/sign-up" element={<AuthPage />} />
-        <Route path="render" element={<RenderPage />} />
-        <Route path="render/:slug" element={<RenderPage />} />
-        <Route path="/" element={<ProtectedRoute />}>
-          <Route index element={<HomePage />} />
-          <Route path="editor" element={<EditorPage />} />
-          <Route path="ingest" element={<IngestPage />} />
-          <Route path="gym-finder" element={<GymFinderPage />} />
-        </Route>
-      </Routes>
+      <AnimatedRoutes />
     </HashRouter>
   );
 };

@@ -32,8 +32,8 @@ export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
       disabled={disabled}
       onClick={handleToggle}
       className={cn(
-        'relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-        checked ? 'bg-primary' : 'bg-white/10',
+        'group relative inline-flex h-8 w-14 items-center rounded-full transition-all duration-300 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+        checked ? 'bg-primary shadow-[0_4px_12px_rgba(139,123,216,0.35)]' : 'bg-white/10',
         disabled && 'opacity-50 cursor-not-allowed',
         className,
       )}
@@ -41,7 +41,7 @@ export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
     >
       <span
         className={cn(
-          'absolute left-1 h-[18px] w-[18px] rounded-full bg-text-primary transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]',
+          'absolute left-1 h-[18px] w-[18px] rounded-full bg-text-primary shadow-sm transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] group-hover:scale-[1.05]',
           checked && 'translate-x-6',
         )}
       />
