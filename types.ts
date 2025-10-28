@@ -132,6 +132,16 @@ export type ScheduleElementStyle = {
   color: string;
 };
 
+export type EditorTemplateState = {
+  templateId: TemplateId;
+  gymSlug?: string | null;
+  style: Style;
+  visibleElements: ScheduleElementId[];
+  hiddenElements: ScheduleElementId[];
+  elementOrder: ScheduleElementId[];
+  elementStyles: Record<ScheduleElementId, ScheduleElementStyle>;
+};
+
 // --- Type Guards ---
 
 export const isSchedule = (data: any): data is Schedule => {

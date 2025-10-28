@@ -11,7 +11,14 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { firestore } from './firebase';
-import type { AppSettings, Schedule, Style, TemplateId } from '../types';
+import type {
+  AppSettings,
+  Schedule,
+  Style,
+  TemplateId,
+  ScheduleElementId,
+  ScheduleElementStyle,
+} from '../types';
 import { DEFAULT_APP_SETTINGS } from '../constants';
 import type { SavedGym } from './savedGyms';
 
@@ -42,7 +49,24 @@ export type UserRootDocument = {
 
 export type UserTemplateDocument = {
   style: Style;
+  visibleElements?: ScheduleElementId[];
+  hiddenElements?: ScheduleElementId[];
+  elementOrder?: ScheduleElementId[];
+  elementStyles?: Record<ScheduleElementId, ScheduleElementStyle>;
+  gymSlug?: string | null;
+  clientUpdatedAt?: string | null;
+  createdAt?: Timestamp;
   updatedAt?: Timestamp;
+};
+
+export type EditorTemplatePayload = {
+  style: Style;
+  visibleElements: ScheduleElementId[];
+  hiddenElements: ScheduleElementId[];
+  elementOrder?: ScheduleElementId[];
+  elementStyles: Record<ScheduleElementId, ScheduleElementStyle>;
+  gymSlug?: string | null;
+  clientUpdatedAt?: string;
 };
 
 export type UserScheduleDocument = {
@@ -186,6 +210,39 @@ export const saveTemplateStyle = async (
     },
     { merge: true },
   );
+};
+
+export const saveEditorTemplate = async (
+  uid: string,
+  templateId: TemplateId,
+  payload: EditorTemplatePayload,
+): Promise<void> => {
+  const ref = userTemplateDoc(uid, templateId);
+  const snapshot = await getDoc(ref);
+  const baseFields = snapshot.exists()
+    ? {}
+    : { createdAt: serverTimestamp() as unknown as Timestamp };
+
+  await setDoc(
+    ref,
+    {
+      ...baseFields,
+      style: payload.style,
+      visibleElements: payload.visibleElements,
+      hiddenElements: payload.hiddenElements,
+      elementOrder: payload.elementOrder ?? payload.visibleElements,
+      elementStyles: payload.elementStyles,
+      gymSlug: payload.gymSlug ?? null,
+      clientUpdatedAt: payload.clientUpdatedAt ?? nowIso(),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
+
+  await updateDoc(userDocRef(uid), {
+    activeTemplateId: templateId,
+    'profile.lastActiveAt': serverTimestamp(),
+  });
 };
 
 export const deleteTemplateStyle = async (uid: string, templateId: TemplateId): Promise<void> => {

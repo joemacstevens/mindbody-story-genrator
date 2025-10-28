@@ -1,5 +1,12 @@
 import { DEFAULT_APP_SETTINGS } from '../constants';
-import type { AppSettings, Schedule } from '../types';
+import type {
+  AppSettings,
+  Schedule,
+  Style,
+  TemplateId,
+  ScheduleElementId,
+  ScheduleElementStyle,
+} from '../types';
 import { isSchedule } from '../types';
 import {
   fetchUserSettings as firestoreFetchUserSettings,
@@ -7,6 +14,7 @@ import {
   fetchUserSchedule as firestoreFetchUserSchedule,
   saveUserSchedule as firestoreSaveUserSchedule,
   fetchUserRoot,
+  saveEditorTemplate as firestoreSaveEditorTemplate,
 } from './userData';
 
 const DEFAULT_SCHEDULE_SLUG = 'global';
@@ -68,3 +76,34 @@ export const saveSchedule = async (schedule: Schedule, slug: string, userId: str
 };
 
 export { fetchUserRoot };
+
+export type TemplateSavePayload = {
+  templateId: TemplateId;
+  style: Style;
+  visibleElements: ScheduleElementId[];
+  hiddenElements: ScheduleElementId[];
+  elementOrder?: ScheduleElementId[];
+  elementStyles: Record<ScheduleElementId, ScheduleElementStyle>;
+  gymSlug?: string | null;
+};
+
+export const saveTemplate = async (payload: TemplateSavePayload, userId?: string): Promise<void> => {
+  if (!userId) {
+    console.warn('saveTemplate called without a userId; skipping persistence.');
+    return;
+  }
+
+  try {
+    await firestoreSaveEditorTemplate(userId, payload.templateId, {
+      style: payload.style,
+      visibleElements: payload.visibleElements,
+      hiddenElements: payload.hiddenElements,
+      elementOrder: payload.elementOrder,
+      elementStyles: payload.elementStyles,
+      gymSlug: payload.gymSlug,
+    });
+  } catch (error) {
+    console.error('Failed to save template to Firestore.', error);
+    throw error;
+  }
+};
