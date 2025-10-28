@@ -26,6 +26,12 @@ const dividerClass: Record<NonNullable<Style['dividerStyle']>, string> = {
   dotted: 'border-t border-dotted border-border-light/40',
 };
 
+const SPACING_PRESETS: Record<NonNullable<Style['spacing']>, { itemGap: number; itemPadding: number }> = {
+  compact: { itemGap: 8, itemPadding: 14 },
+  comfortable: { itemGap: 12, itemPadding: 18 },
+  spacious: { itemGap: 18, itemPadding: 24 },
+};
+
 const getReadableTextColor = (color: string, fallback: string): string => {
   if (!color || !color.startsWith('#')) return fallback;
   const hex = color.replace('#', '');
@@ -53,6 +59,10 @@ export const SchedulePreview: React.FC<SchedulePreviewProps> = ({
 
   const hasBackgroundImage = Boolean(style.bgImage);
   const accentTextColor = getReadableTextColor(style.accent, style.backgroundColor);
+  const spacingPreset = style.spacing ?? 'comfortable';
+  const spacingConfig = SPACING_PRESETS[spacingPreset] ?? SPACING_PRESETS.comfortable;
+  const layoutStyle = style.layoutStyle ?? 'list';
+  const itemCornerRadius = style.cardCornerRadius ?? 24;
 
   const backgroundStyles: React.CSSProperties = {
     fontFamily: style.fontFamily,
@@ -118,7 +128,14 @@ export const SchedulePreview: React.FC<SchedulePreviewProps> = ({
                 Add classes on the right to see them previewed here.
               </div>
             ) : (
-              <ul className="grid gap-4">
+              <ul
+                className={cn(
+                  layoutStyle === 'grid'
+                    ? 'grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3'
+                    : 'flex flex-col',
+                )}
+                style={{ gap: `${spacingConfig.itemGap}px` }}
+              >
                 {schedule.items.map((item, index) => {
                   const renderedElements = visibleElements.reduce<
                     Array<{ id: ScheduleElementId; node: React.ReactNode }>
@@ -257,12 +274,19 @@ export const SchedulePreview: React.FC<SchedulePreviewProps> = ({
                   return (
                     <li
                       key={`${item.time}-${index}`}
-                      className="group flex rounded-3xl border p-5 shadow-sm transition hover:border-primary/40 hover:bg-primary/5"
+                      className={cn(
+                        'group relative border transition hover:border-primary/40 hover:bg-primary/5',
+                        layoutStyle === 'grid' && 'h-full',
+                        layoutStyle === 'card' ? 'shadow-lg' : 'shadow-sm',
+                      )}
                       style={{
                         backgroundColor: style.cardBackgroundColor,
                         borderColor: 'rgba(255,255,255,0.08)',
                         animation: `slide-up-fade 0.6s ease ${index * 0.08}s both`,
                         transition: 'background-color 0.3s ease, border-color 0.3s ease',
+                        borderRadius: `${itemCornerRadius}px`,
+                        padding: `${spacingConfig.itemPadding}px`,
+                        paddingLeft: `${spacingConfig.itemPadding + (style.accentLines ? 6 : 0)}px`,
                       }}
                     >
                       <div className="flex w-full items-start gap-4">
@@ -279,6 +303,12 @@ export const SchedulePreview: React.FC<SchedulePreviewProps> = ({
                               <React.Fragment key={`${element.id}-${idx}`}>{element.node}</React.Fragment>
                             ))}
                           </div>
+                        ) : null}
+                        {style.accentLines ? (
+                          <span
+                            className="pointer-events-none absolute inset-y-4 left-3 w-[3px] rounded-full"
+                            style={{ backgroundColor: style.accent, opacity: 0.6 }}
+                          />
                         ) : null}
                       </div>
                     </li>

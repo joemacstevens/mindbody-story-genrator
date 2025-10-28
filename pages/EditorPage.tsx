@@ -6,7 +6,9 @@ import { Button, Modal } from '../components/ui';
 import { SchedulePreview } from '../components/editor/SchedulePreview';
 import { StyleTab } from '../components/editor/StyleTab';
 import { ContentTab } from '../components/editor/ContentTab';
+import { LayoutTab } from '../components/editor/LayoutTab';
 import { FontSettings } from '../components/editor/FontSettings';
+import { ColorPicker } from '../components/editor/ColorPicker';
 import { DEFAULT_APP_SETTINGS, MOCK_SCHEDULE } from '../constants';
 import { STYLE_COLOR_PALETTES } from '../components/editor/stylePalettes';
 import {
@@ -62,6 +64,9 @@ const EditorPage: React.FC = () => {
   );
   const [activeFontElement, setActiveFontElement] = useState<ScheduleElementId | null>(null);
   const [isFontModalOpen, setIsFontModalOpen] = useState(false);
+  const [activeColorElement, setActiveColorElement] = useState<ScheduleElementId | null>(null);
+  const [isColorModalOpen, setIsColorModalOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -121,6 +126,33 @@ const EditorPage: React.FC = () => {
     if (logoPreviewUrlRef.current) {
       URL.revokeObjectURL(logoPreviewUrlRef.current);
       logoPreviewUrlRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    const updateMatch = () => {
+      if (typeof window === 'undefined') return;
+      const matches = window.matchMedia('(min-width: 1024px)').matches;
+      setIsDesktop(matches);
+    };
+
+    updateMatch();
+    if (typeof window !== 'undefined') {
+      const media = window.matchMedia('(min-width: 1024px)');
+      const listener = (event: MediaQueryListEvent) => setIsDesktop(event.matches);
+      if (media.addEventListener) {
+        media.addEventListener('change', listener);
+      } else {
+        // Safari
+        media.addListener(listener);
+      }
+      return () => {
+        if (media.removeEventListener) {
+          media.removeEventListener('change', listener);
+        } else {
+          media.removeListener(listener);
+        }
+      };
     }
   }, []);
 
@@ -195,6 +227,16 @@ const EditorPage: React.FC = () => {
     setActiveFontElement(null);
   }, []);
 
+  const handleOpenColorPicker = useCallback((elementId: ScheduleElementId) => {
+    setActiveColorElement(elementId);
+    setIsColorModalOpen(true);
+  }, []);
+
+  const handleCloseColorPicker = useCallback(() => {
+    setIsColorModalOpen(false);
+    setActiveColorElement(null);
+  }, []);
+
   const handleFontStyleChange = useCallback((elementId: ScheduleElementId, next: ScheduleElementStyle) => {
     setElementStyles((prev) => ({
       ...prev,
@@ -207,6 +249,27 @@ const EditorPage: React.FC = () => {
     setElementStyles((prev) => ({
       ...prev,
       [elementId]: defaults,
+    }));
+  }, []);
+
+  const handleElementColorChange = useCallback((elementId: ScheduleElementId, color: string) => {
+    setElementStyles((prev) => ({
+      ...prev,
+      [elementId]: {
+        ...prev[elementId],
+        color,
+      },
+    }));
+  }, []);
+
+  const handleElementColorReset = useCallback((elementId: ScheduleElementId) => {
+    const defaults = getDefaultElementStyle(elementId);
+    setElementStyles((prev) => ({
+      ...prev,
+      [elementId]: {
+        ...prev[elementId],
+        color: defaults.color,
+      },
     }));
   }, []);
 
@@ -271,6 +334,12 @@ const EditorPage: React.FC = () => {
       : null;
   const activeFontDefaults =
     activeFontElement != null ? getDefaultElementStyle(activeFontElement) : null;
+
+  const activeColorMeta = activeColorElement ? CONTENT_ELEMENT_META[activeColorElement] : null;
+  const activeColorValue =
+    activeColorElement != null
+      ? elementStyles[activeColorElement]?.color ?? getDefaultElementStyle(activeColorElement).color
+      : '#FFFFFF';
 
   const handleZoomChange = (delta: number) => {
     setZoomLevel((prev) => Math.min(200, Math.max(25, prev + delta)));
@@ -344,7 +413,10 @@ const EditorPage: React.FC = () => {
         </div>
       </header>
 
-      <div ref={layoutRef} className="grid h-[calc(100vh-72px)] grid-cols-[1fr_auto] overflow-hidden">
+      <div
+        ref={layoutRef}
+        className="flex flex-col gap-6 lg:grid lg:h-[calc(100vh-72px)] lg:grid-cols-[1fr_auto] lg:overflow-hidden"
+      >
         <section className="relative flex items-center justify-center overflow-hidden bg-background-deep">
           <div className="absolute inset-0">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(139,123,216,0.08),transparent_55%),radial-gradient(circle_at_80%_65%,rgba(139,123,216,0.08),transparent_60%)]" />
@@ -392,14 +464,14 @@ const EditorPage: React.FC = () => {
         </section>
 
         <aside
-          className="relative flex h-full flex-col border-l border-border-light/60 bg-background/95 backdrop-blur-2xl"
-          style={{ width: `${panelWidth}px` }}
+          className="relative flex flex-col border-t border-border-light/60 bg-background/95 backdrop-blur-2xl lg:h-full lg:border-t-0 lg:border-l"
+          style={isDesktop ? { width: `${panelWidth}px` } : undefined}
         >
           <button
             type="button"
             onPointerDown={handleResizeStart}
             className={cn(
-              'absolute left-0 top-0 z-20 h-full w-1 cursor-ew-resize transition',
+              'absolute left-0 top-0 z-20 hidden h-full w-1 cursor-ew-resize transition lg:block',
               isDragging ? 'bg-primary' : 'bg-transparent hover:bg-primary/40',
             )}
             aria-label="Resize panel"
@@ -451,6 +523,12 @@ const EditorPage: React.FC = () => {
                 onReorder={handleReorderElements}
                 onToggleVisibility={handleToggleElementVisibility}
                 onOpenFontSettings={handleOpenFontSettings}
+                onOpenColorPicker={handleOpenColorPicker}
+              />
+            ) : activeTab === 'layout' ? (
+              <LayoutTab
+                style={styleState}
+                onUpdate={updateStyle}
               />
             ) : (
               <p className="text-text-tertiary">
@@ -476,6 +554,24 @@ const EditorPage: React.FC = () => {
             onChange={(next) => handleFontStyleChange(activeFontElement, next)}
             onDone={handleCloseFontSettings}
             onReset={() => handleFontStyleReset(activeFontElement)}
+          />
+        ) : null}
+      </Modal>
+
+      <Modal
+        isOpen={Boolean(isColorModalOpen && activeColorElement && activeColorMeta)}
+        onClose={handleCloseColorPicker}
+        title={activeColorMeta ? `Color – ${activeColorMeta.label}` : 'Element Color'}
+      >
+        {activeColorElement && activeColorMeta ? (
+          <ColorPicker
+            elementId={activeColorElement}
+            meta={activeColorMeta}
+            color={activeColorValue}
+            defaultColor={getDefaultElementStyle(activeColorElement).color}
+            onChange={(nextColor) => handleElementColorChange(activeColorElement, nextColor)}
+            onDone={handleCloseColorPicker}
+            onReset={() => handleElementColorReset(activeColorElement)}
           />
         ) : null}
       </Modal>

@@ -40,6 +40,9 @@ export type Style = {
   showSubtitle?: boolean;
   showSchedule?: boolean;
   showFooter?: boolean;
+  cardCornerRadius?: number;
+  spacing?: 'compact' | 'comfortable' | 'spacious';
+  layoutStyle?: 'grid' | 'list' | 'card';
 };
 
 export type SelectedElementType = 'heading' | 'subtitle' | 'footer' | 'schedule';

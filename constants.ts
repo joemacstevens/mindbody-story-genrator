@@ -125,6 +125,9 @@ const HIIT_IMPACT: Style = {
   accentLines: true,
   footerBar: false,
   supportsBackgroundImage: true,
+  cardCornerRadius: 24,
+  spacing: 'comfortable',
+  layoutStyle: 'list',
 };
 
 const BOXING_KNOCKOUT: Style = {
