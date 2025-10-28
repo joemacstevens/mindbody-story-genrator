@@ -5,6 +5,7 @@ export type LogoPosition =
   | 'top-left'
   | 'top-center'
   | 'top-right'
+  | 'center'
   | 'bottom-left'
   | 'bottom-center'
   | 'bottom-right';
@@ -56,6 +57,9 @@ export type ScheduleItem = {
   time: string;
   class: string;
   coach: string;
+  location?: string;
+  duration?: string;
+  description?: string;
 };
 
 export type Schedule = {
@@ -80,6 +84,49 @@ export type ColorPalette = {
     textColorSecondary: string;
     accent: string;
   };
+};
+
+export type EditorColorPalette = {
+  id: string;
+  name: string;
+  description?: string;
+  colors: {
+    backgroundColor: string;
+    cardBackgroundColor: string;
+    textColorPrimary: string;
+    textColorSecondary: string;
+    accent: string;
+  };
+  preview: string[];
+};
+
+export type ScheduleElementId =
+  | 'time'
+  | 'className'
+  | 'instructor'
+  | 'location'
+  | 'duration'
+  | 'description';
+
+export type ScheduleElementMeta = {
+  id: ScheduleElementId;
+  label: string;
+  description?: string;
+  defaultFontSize: number;
+  defaultFontWeight?: number;
+  defaultLetterSpacing?: number;
+  defaultLineHeight?: number;
+  defaultColor: string;
+  icon?: string;
+  field: keyof ScheduleItem;
+};
+
+export type ScheduleElementStyle = {
+  fontSize: number;
+  fontWeight: number;
+  letterSpacing: number;
+  lineHeight: number;
+  color: string;
 };
 
 // --- Type Guards ---

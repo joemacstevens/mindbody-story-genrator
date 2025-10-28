@@ -185,6 +185,7 @@ const SimplifiedEditor: React.FC<SimplifiedEditorProps> = ({
     { value: 'top-left', label: 'TL' },
     { value: 'top-center', label: 'TC' },
     { value: 'top-right', label: 'TR' },
+    { value: 'center', label: 'C' },
     { value: 'bottom-left', label: 'BL' },
     { value: 'bottom-center', label: 'BC' },
     { value: 'bottom-right', label: 'BR' },
@@ -612,7 +613,7 @@ const SimplifiedEditor: React.FC<SimplifiedEditorProps> = ({
                     ))}
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                    TL=Top Left, TC=Top Center, TR=Top Right, BL=Bottom Left, BC=Bottom Center, BR=Bottom Right
+                    TL=Top Left, TC=Top Center, TR=Top Right, C=Center, BL=Bottom Left, BC=Bottom Center, BR=Bottom Right
                   </p>
                 </div>
 

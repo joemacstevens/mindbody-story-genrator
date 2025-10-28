@@ -6,6 +6,7 @@ import IngestPage from './pages/IngestPage';
 import GymFinderPage from './pages/GymFinderPage';
 import AuthPage from './pages/AuthPage';
 import { useAuth } from './contexts/AuthContext';
+import EditorPage from './pages/EditorPage';
 
 const AuthenticatedLayout: React.FC = () => {
   const { user, signOut } = useAuth();
@@ -88,6 +89,7 @@ const App: React.FC = () => {
         <Route path="render/:slug" element={<RenderPage />} />
         <Route path="/" element={<ProtectedRoute />}>
           <Route index element={<HomePage />} />
+          <Route path="editor" element={<EditorPage />} />
           <Route path="ingest" element={<IngestPage />} />
           <Route path="gym-finder" element={<GymFinderPage />} />
         </Route>

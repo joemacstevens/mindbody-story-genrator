@@ -19,6 +19,7 @@ const positionClasses: Record<LogoPosition, string> = {
   'top-left': 'top-12 left-12',
   'top-center': 'top-12 left-1/2 -translate-x-1/2',
   'top-right': 'top-12 right-12',
+  'center': 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2',
   'bottom-left': 'bottom-8 left-12',
   'bottom-center': 'bottom-8 left-1/2 -translate-x-1/2',
   'bottom-right': 'bottom-8 right-12',
@@ -79,6 +80,7 @@ const DefaultStoryRenderer: React.FC<StoryRendererProps> = ({
 
   const isTopLogo = style.logoUrl && style.logoPosition.startsWith('top-');
   const isBottomLogo = style.logoUrl && style.logoPosition.startsWith('bottom-');
+  const isCenterLogo = style.logoUrl && style.logoPosition === 'center';
   
   const basePaddingPx = 60;
   const topPaddingWithLogoPx = 192;
@@ -90,6 +92,7 @@ const DefaultStoryRenderer: React.FC<StoryRendererProps> = ({
     paddingRight: `${basePaddingPx}px`,
     paddingTop: isTopLogo ? `${topPaddingWithLogoPx + logoPadding}px` : `${basePaddingPx}px`,
     paddingBottom: isBottomLogo ? `${bottomPaddingWithLogoPx + logoPadding}px` : `${basePaddingPx}px`,
+    alignItems: isCenterLogo ? 'center' : undefined,
     backgroundColor: style.cardBackgroundColor,
   };
 
