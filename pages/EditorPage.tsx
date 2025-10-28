@@ -30,6 +30,7 @@ import type {
 import { cn } from '../utils/cn';
 import { uploadImage } from '../services/storage';
 import { saveTemplate } from '../services/api';
+import { toBlob } from 'html-to-image';
 
 const SaveSpinner: React.FC = () => (
   <span
@@ -78,6 +79,8 @@ const EditorPage: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const saveResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previewRef = useRef<HTMLDivElement | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -230,6 +233,41 @@ const EditorPage: React.FC = () => {
     },
     [updateStyle],
   );
+
+  const handleExport = useCallback(async () => {
+    if (!previewRef.current) {
+      return;
+    }
+
+    setIsExporting(true);
+
+    try {
+      const blob = await toBlob(previewRef.current, {
+        backgroundColor: 'transparent',
+        pixelRatio: 2,
+      });
+
+      if (!blob) {
+        throw new Error('Failed to generate export image');
+      }
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const baseName = (userGymSlug || userGymName || 'studiogram')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+      link.download = `${baseName || 'studiogram'}-schedule-${Date.now()}.png`;
+      link.href = url;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('We could not export your template. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  }, [userGymName, userGymSlug]);
 
   const handleOpenFontSettings = useCallback((elementId: ScheduleElementId) => {
     setActiveFontElement(elementId);
@@ -470,6 +508,21 @@ const EditorPage: React.FC = () => {
         </div>
         <div className="flex items-center gap-3">
           <Button variant="secondary" size="sm">↻ Reset</Button>
+          <Button variant="secondary" size="sm" onClick={handleExport} disabled={isExporting}>
+            {isExporting ? (
+              <>
+                <SaveSpinner />
+                <span>Exporting...</span>
+              </>
+            ) : (
+              <>
+                <span role="img" aria-hidden="true">
+                  📥
+                </span>
+                <span>Export</span>
+              </>
+            )}
+          </Button>
           <Button
             size="sm"
             onClick={handleSaveTemplate}
@@ -538,6 +591,7 @@ const EditorPage: React.FC = () => {
             </div>
             <div className="flex items-center justify-center">
               <div
+                ref={previewRef}
                 className="relative flex items-center justify-center border-4 border-border-light bg-gradient-to-br from-background via-background-deep to-background shadow-[0_30px_90px_rgba(0,0,0,0.5)] animate-float"
                 style={previewStyle}
               >
