@@ -59,10 +59,63 @@ export const SchedulePreview: React.FC<SchedulePreviewProps> = ({
 
   const hasBackgroundImage = Boolean(style.bgImage);
   const accentTextColor = getReadableTextColor(style.accent, style.backgroundColor);
+  const cardColorHex = style.cardBackgroundColor ?? '';
+  const cardIsLight =
+    typeof cardColorHex === 'string' && cardColorHex.startsWith('#')
+      ? getReadableTextColor(cardColorHex, '#111827') === '#111827'
+      : false;
+  const cardBorderColor = cardIsLight ? 'rgba(15, 23, 42, 0.18)' : 'rgba(255, 255, 255, 0.14)';
+  const stripeOverlayColor = cardIsLight ? 'rgba(15, 23, 42, 0.06)' : 'rgba(255, 255, 255, 0.06)';
   const spacingPreset = style.spacing ?? 'comfortable';
   const spacingConfig = SPACING_PRESETS[spacingPreset] ?? SPACING_PRESETS.comfortable;
   const layoutStyle = style.layoutStyle ?? 'list';
   const itemCornerRadius = style.cardCornerRadius ?? 24;
+
+  const classCount = schedule.items.length;
+  const clampedClassCount = Math.min(Math.max(classCount || 1, 1), 10);
+  const density = (clampedClassCount - 1) / 9;
+
+  const scheduleAreaPercent = 75 + density * 5; // 75% for a single class → 80% for ten classes
+  const gapScale = 1.15 - density * 0.45; // generous gaps for few classes, tighter for dense schedules
+  const paddingScale = 1.2 - density * 0.35;
+  const timeFontScale = 1.08 - density * 0.28;
+  const classFontScale = 1.02 - density * 0.24;
+  const instructorFontScale = 0.98 - density * 0.2;
+  const secondaryFontScale = 0.96 - density * 0.16;
+  const lineHeightScale = 1 - density * 0.08;
+
+  const scaledItemGap = Math.max(6, Math.round(spacingConfig.itemGap * gapScale));
+  const scaledItemPadding = Math.max(12, Math.round(spacingConfig.itemPadding * paddingScale));
+  const timePaddingY = Math.max(8, Math.round(14 * paddingScale));
+  const timePaddingX = Math.max(12, Math.round(18 * paddingScale));
+  const timeMinWidth = Math.max(64, Math.round(88 * paddingScale));
+  const innerColumnGap = Math.max(8, Math.round(16 * gapScale));
+  const timeStackGap = Math.max(6, Math.round(12 * gapScale));
+  const textStackGap = Math.max(6, Math.round(12 * gapScale));
+  const accentVerticalInset = Math.max(6, Math.round(scaledItemPadding * 0.45));
+  const accentHorizontalOffset = Math.max(10, Math.round(scaledItemPadding * 0.35));
+
+  const showStripedCards = clampedClassCount > 6;
+
+  const getScaledFontSize = (value: number, scale: number, minimum: number) => {
+    const scaled = value * scale;
+    return Math.max(minimum, Math.round(scaled * 10) / 10);
+  };
+
+  const getScaledLineHeight = (value: number | string | undefined) => {
+    if (typeof value === 'number') {
+      return Math.max(1.1, Number((value * lineHeightScale).toFixed(2)));
+    }
+
+    if (typeof value === 'string') {
+      const parsed = parseFloat(value);
+      if (!Number.isNaN(parsed)) {
+        return Math.max(1.1, Number((parsed * lineHeightScale).toFixed(2)));
+      }
+    }
+
+    return Math.max(1.2, Number((1.3 * lineHeightScale).toFixed(2)));
+  };
 
   const backgroundStyles: React.CSSProperties = {
     fontFamily: style.fontFamily,
@@ -119,7 +172,15 @@ export const SchedulePreview: React.FC<SchedulePreviewProps> = ({
         )}
 
         {showSchedule && (
-          <main className="flex-1 space-y-6 overflow-hidden">
+          <main
+            className="relative flex flex-col overflow-hidden"
+            style={{
+              flex: '0 0 auto',
+              height: `${scheduleAreaPercent}%`,
+              minHeight: `${scheduleAreaPercent}%`,
+              maxHeight: `${scheduleAreaPercent}%`,
+            }}
+          >
             {schedule.items.length === 0 ? (
               <div
                 className="flex h-full flex-col items-center justify-center rounded-3xl border border-border-light/40 p-8 text-sm text-text-tertiary"
@@ -132,9 +193,9 @@ export const SchedulePreview: React.FC<SchedulePreviewProps> = ({
                 className={cn(
                   layoutStyle === 'grid'
                     ? 'grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3'
-                    : 'flex flex-col',
+                    : 'flex h-full flex-1 flex-col',
                 )}
-                style={{ gap: `${spacingConfig.itemGap}px` }}
+                style={{ gap: `${scaledItemGap}px` }}
               >
                 {schedule.items.map((item, index) => {
                   const renderedElements = visibleElements.reduce<
@@ -154,20 +215,47 @@ export const SchedulePreview: React.FC<SchedulePreviewProps> = ({
                     const lineHeightValue = elementStyle.lineHeight ?? meta.defaultLineHeight ?? 1.3;
                     const textColor = elementStyle.color ?? meta.defaultColor ?? style.textColorSecondary;
 
+                    const numericFontSize =
+                      typeof fontSizePx === 'number' ? fontSizePx : parseFloat(String(fontSizePx));
+                    const resolvedFontSize =
+                      !Number.isNaN(numericFontSize) && Number.isFinite(numericFontSize)
+                        ? numericFontSize
+                        : typeof meta.defaultFontSize === 'number'
+                          ? meta.defaultFontSize
+                          : 16;
+                    const scaledLineHeight = getScaledLineHeight(lineHeightValue);
+
+                    const createTextStyle = (
+                      scale: number,
+                      minimum: number,
+                      colorValue: string | undefined,
+                      extra?: React.CSSProperties,
+                    ): React.CSSProperties => ({
+                      fontSize: `${getScaledFontSize(resolvedFontSize, scale, minimum)}px`,
+                      fontWeight,
+                      letterSpacing: letterSpacingValue,
+                      lineHeight: scaledLineHeight,
+                      color: colorValue,
+                      transition: 'color 0.3s ease',
+                      ...extra,
+                    });
+
                     let node: React.ReactNode | null = null;
 
                     switch (elementId) {
                       case 'time':
                         node = (
                           <div
-                            className="inline-flex min-w-[88px] items-center justify-center rounded-2xl px-4 py-3 font-semibold shadow-inner"
+                            className="inline-flex items-center justify-center rounded-2xl font-semibold shadow-inner"
                             style={{
                               backgroundColor: style.accent,
                               color: elementStyle.color || accentTextColor,
-                              fontSize: `${fontSizePx}px`,
+                              fontSize: `${getScaledFontSize(resolvedFontSize, timeFontScale, 18)}px`,
                               fontWeight,
                               letterSpacing: letterSpacingValue,
-                              lineHeight: lineHeightValue,
+                              lineHeight: scaledLineHeight,
+                              padding: `${timePaddingY}px ${timePaddingX}px`,
+                              minWidth: `${timeMinWidth}px`,
                               transition:
                                 'background-color 0.3s ease, color 0.3s ease, transform 0.3s ease',
                             }}
@@ -180,14 +268,7 @@ export const SchedulePreview: React.FC<SchedulePreviewProps> = ({
                         node = (
                           <p
                             className="font-semibold"
-                            style={{
-                              fontSize: `${fontSizePx}px`,
-                              fontWeight,
-                              letterSpacing: letterSpacingValue,
-                              lineHeight: lineHeightValue,
-                              color: textColor ?? style.textColorPrimary,
-                              transition: 'color 0.3s ease',
-                            }}
+                            style={createTextStyle(classFontScale, 16, textColor ?? style.textColorPrimary)}
                           >
                             {rawValue}
                           </p>
@@ -195,64 +276,28 @@ export const SchedulePreview: React.FC<SchedulePreviewProps> = ({
                         break;
                       case 'instructor':
                         node = (
-                          <p
-                            style={{
-                              fontSize: `${fontSizePx}px`,
-                              fontWeight,
-                              letterSpacing: letterSpacingValue,
-                              lineHeight: lineHeightValue,
-                              color: textColor ?? style.textColorSecondary,
-                              transition: 'color 0.3s ease',
-                            }}
-                          >
+                          <p style={createTextStyle(instructorFontScale, 14, textColor ?? style.textColorSecondary)}>
                             with {rawValue}
                           </p>
                         );
                         break;
                       case 'location':
                         node = (
-                          <p
-                            style={{
-                              fontSize: `${fontSizePx}px`,
-                              fontWeight,
-                              letterSpacing: letterSpacingValue,
-                              lineHeight: lineHeightValue,
-                              color: textColor ?? style.textColorSecondary,
-                              transition: 'color 0.3s ease',
-                            }}
-                          >
+                          <p style={createTextStyle(secondaryFontScale, 13, textColor ?? style.textColorSecondary)}>
                             📍 {rawValue}
                           </p>
                         );
                         break;
                       case 'duration':
                         node = (
-                          <p
-                            style={{
-                              fontSize: `${fontSizePx}px`,
-                              fontWeight,
-                              letterSpacing: letterSpacingValue,
-                              lineHeight: lineHeightValue,
-                              color: textColor ?? style.textColorSecondary,
-                              transition: 'color 0.3s ease',
-                            }}
-                          >
+                          <p style={createTextStyle(secondaryFontScale, 13, textColor ?? style.textColorSecondary)}>
                             ⏱️ {rawValue}
                           </p>
                         );
                         break;
                       case 'description':
                         node = (
-                          <p
-                            style={{
-                              fontSize: `${fontSizePx}px`,
-                              fontWeight,
-                              letterSpacing: letterSpacingValue,
-                              lineHeight: lineHeightValue,
-                              color: textColor ?? style.textColorSecondary,
-                              transition: 'color 0.3s ease',
-                            }}
-                          >
+                          <p style={createTextStyle(secondaryFontScale, 13, textColor ?? style.textColorSecondary)}>
                             {rawValue}
                           </p>
                         );
@@ -260,6 +305,7 @@ export const SchedulePreview: React.FC<SchedulePreviewProps> = ({
                       default:
                         break;
                     }
+
 
                     if (node) {
                       acc.push({ id: elementId, node });
@@ -271,34 +317,50 @@ export const SchedulePreview: React.FC<SchedulePreviewProps> = ({
                   const timeNodes = renderedElements.filter((element) => element.id === 'time');
                   const textNodes = renderedElements.filter((element) => element.id !== 'time');
 
+                  const cardStyles: React.CSSProperties = {
+                    backgroundColor: style.cardBackgroundColor,
+                    borderColor: cardBorderColor,
+                    animation: `slide-up-fade 0.6s ease ${index * 0.08}s both`,
+                    transition: 'background-color 0.3s ease, border-color 0.3s ease',
+                    borderRadius: `${itemCornerRadius}px`,
+                    padding: `${scaledItemPadding}px`,
+                    paddingLeft: `${scaledItemPadding + (style.accentLines ? 6 : 0)}px`,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    flex: layoutStyle === 'grid' ? '0 0 auto' : '1 1 0%',
+                    minHeight: layoutStyle === 'grid' ? undefined : 0,
+                  };
+
+                  if (showStripedCards && index % 2 === 1) {
+                    cardStyles.backgroundImage = `linear-gradient(${stripeOverlayColor}, ${stripeOverlayColor})`;
+                    cardStyles.backgroundBlendMode = 'overlay';
+                  }
+
+                  if (showStripedCards && index !== 0) {
+                    cardStyles.borderTop = `1px solid ${cardBorderColor}`;
+                  }
+
                   return (
                     <li
                       key={`${item.time}-${index}`}
                       className={cn(
-                        'group relative border transition hover:border-primary/40 hover:bg-primary/5',
+                        'group relative flex min-h-0 flex-col border transition hover:border-primary/40 hover:bg-primary/5',
+                        layoutStyle !== 'grid' && 'flex-1',
                         layoutStyle === 'grid' && 'h-full',
                         layoutStyle === 'card' ? 'shadow-lg' : 'shadow-sm',
                       )}
-                      style={{
-                        backgroundColor: style.cardBackgroundColor,
-                        borderColor: 'rgba(255,255,255,0.08)',
-                        animation: `slide-up-fade 0.6s ease ${index * 0.08}s both`,
-                        transition: 'background-color 0.3s ease, border-color 0.3s ease',
-                        borderRadius: `${itemCornerRadius}px`,
-                        padding: `${spacingConfig.itemPadding}px`,
-                        paddingLeft: `${spacingConfig.itemPadding + (style.accentLines ? 6 : 0)}px`,
-                      }}
+                      style={cardStyles}
                     >
-                      <div className="flex w-full items-start gap-4">
+                      <div className="flex w-full items-start" style={{ gap: `${innerColumnGap}px` }}>
                         {timeNodes.length > 0 ? (
-                          <div className="flex flex-col gap-3">
+                          <div className="flex flex-col" style={{ gap: `${timeStackGap}px` }}>
                             {timeNodes.map((element, idx) => (
                               <React.Fragment key={`${element.id}-${idx}`}>{element.node}</React.Fragment>
                             ))}
                           </div>
                         ) : null}
                         {textNodes.length > 0 ? (
-                          <div className="flex min-w-0 flex-1 flex-col gap-2">
+                          <div className="flex min-w-0 flex-1 flex-col" style={{ gap: `${textStackGap}px` }}>
                             {textNodes.map((element, idx) => (
                               <React.Fragment key={`${element.id}-${idx}`}>{element.node}</React.Fragment>
                             ))}
@@ -306,8 +368,15 @@ export const SchedulePreview: React.FC<SchedulePreviewProps> = ({
                         ) : null}
                         {style.accentLines ? (
                           <span
-                            className="pointer-events-none absolute inset-y-4 left-3 w-[3px] rounded-full"
-                            style={{ backgroundColor: style.accent, opacity: 0.6 }}
+                            className="pointer-events-none absolute rounded-full"
+                            style={{
+                              top: `${accentVerticalInset}px`,
+                              bottom: `${accentVerticalInset}px`,
+                              left: `${accentHorizontalOffset}px`,
+                              width: '3px',
+                              backgroundColor: style.accent,
+                              opacity: 0.6,
+                            }}
                           />
                         ) : null}
                       </div>
