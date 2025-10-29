@@ -1,11 +1,17 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Button, Card, Input } from '../components/ui';
-import { cn } from '../utils/cn';
-import type { GymLocation } from '../types';
+import { Button, Card } from '../components/ui';
+import type { GymLocation, Schedule } from '../types';
 import { searchGymLocations } from '../services/gymLocations';
 import { saveSchedule } from '../services/api';
+import {
+  loadSavedGymsForUser,
+  saveGymRecordForUser,
+  touchSavedGymForUser,
+  type SavedGym,
+} from '../services/savedGyms';
+import { cn } from '../utils/cn';
 
 const BackgroundGradients: React.FC = () => (
   <>
@@ -164,11 +170,12 @@ const EmptyState: React.FC<{ onManualEntry: () => void }> = ({ onManualEntry }) 
   </div>
 );
 
-const SavedGymsState: React.FC<{ 
-  gyms: any[];
-  onSelectGym: (gym: any) => void;
+const SavedGymsState: React.FC<{
+  gyms: SavedGym[];
+  defaultGymSlug: string | null;
+  onSelectGym: (gym: SavedGym) => void;
   onViewAll: () => void;
-}> = ({ gyms, onSelectGym, onViewAll }) => (
+}> = ({ gyms, defaultGymSlug, onSelectGym, onViewAll }) => (
   <>
     {/* Divider */}
     <div className="flex items-center gap-4 my-8">
@@ -189,26 +196,82 @@ const SavedGymsState: React.FC<{
         </button>
       </div>
       <div className="space-y-2">
-        {gyms.map((gym) => (
+        {gyms.map((gym) => {
+          const isDefault = gym.slug === defaultGymSlug;
+          const lastUsedLabel = formatRelativeLastUsed(gym.lastUsedAt);
+          return (
           <button
             key={gym.slug}
             onClick={() => onSelectGym(gym)}
-            className="w-full flex items-center gap-4 p-4 bg-white/3 border border-white/8 rounded-xl hover:bg-white/6 hover:border-purple-500/30 transition-all group"
+            className={cn(
+              'w-full flex items-center gap-4 p-4 border rounded-xl transition-all group',
+              isDefault
+                ? 'bg-purple-500/15 border-purple-500/30 shadow-[0_12px_40px_rgba(139,123,216,0.25)]'
+                : 'bg-white/3 border-white/8 hover:bg-white/6 hover:border-purple-500/30',
+            )}
           >
             <div className="w-11 h-11 bg-gradient-to-br from-purple-500/20 to-indigo-500/20 rounded-lg flex items-center justify-center text-xl flex-shrink-0">
-              {gym.emoji || '🏋️'}
+              {isDefault ? '⭐' : '🏋️'}
             </div>
             <div className="flex-1 text-left">
               <div className="font-medium text-slate-50">{gym.name}</div>
-              <div className="text-sm text-slate-500">{gym.lastUsed}</div>
+              <div className="text-sm text-slate-500">{lastUsedLabel}</div>
             </div>
             <span className="text-slate-500 group-hover:text-purple-400 transition-colors">→</span>
           </button>
-        ))}
+        );
+        })}
       </div>
     </div>
   </>
 );
+
+const formatScheduleDate = (value: string) => {
+  if (!value) {
+    return '';
+  }
+  const parsed = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+  return parsed.toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+};
+
+const formatRelativeLastUsed = (isoDate: string | null | undefined) => {
+  if (!isoDate) {
+    return 'Last synced recently';
+  }
+  const parsed = new Date(isoDate);
+  if (Number.isNaN(parsed.getTime())) {
+    return 'Last synced recently';
+  }
+
+  const now = Date.now();
+  const diffMs = now - parsed.getTime();
+  const minutes = Math.floor(diffMs / (1000 * 60));
+  if (minutes < 1) {
+    return 'Synced moments ago';
+  }
+  if (minutes < 60) {
+    return `Synced ${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) {
+    return `Synced ${hours} hour${hours === 1 ? '' : 's'} ago`;
+  }
+
+  const days = Math.floor(hours / 24);
+  if (days < 7) {
+    return `Synced ${days} day${days === 1 ? '' : 's'} ago`;
+  }
+
+  return `Synced ${parsed.toLocaleDateString()}`;
+};
 
 const GymFinderPage: React.FC = () => {
   const navigate = useNavigate();
@@ -220,26 +283,58 @@ const GymFinderPage: React.FC = () => {
   const [gymName, setGymName] = useState('');
   const [suggestions, setSuggestions] = useState<GymLocation[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [savedGyms, setSavedGyms] = useState<any[]>([]);
+  const [savedGyms, setSavedGyms] = useState<SavedGym[]>([]);
+  const [defaultGymSlug, setDefaultGymSlug] = useState<string | null>(null);
   const [hasLoadedGyms, setHasLoadedGyms] = useState(false);
   const [isLoadingSchedule, setIsLoadingSchedule] = useState(false);
   const [scheduleError, setScheduleError] = useState<string | null>(null);
   const [scheduleSuccess, setScheduleSuccess] = useState<string | null>(null);
+  const [loadedGymResult, setLoadedGymResult] = useState<{
+    gym: GymLocation;
+    schedule: Schedule;
+    slug: string;
+  } | null>(null);
+  const [isSavingGym, setIsSavingGym] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
 
   const initials = user?.displayName?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? 'U';
 
-  // Mock saved gyms for now
   useEffect(() => {
-    // Simulate loading saved gyms
-    setTimeout(() => {
-      setSavedGyms([
-        { name: 'Humble Yoga', slug: 'humble-yoga', lastUsed: 'Last used 2 days ago', emoji: '🧘' },
-        { name: 'CrossFit Downtown', slug: 'crossfit-downtown', lastUsed: 'Last used 1 week ago', emoji: '💪' },
-        { name: 'Core Pilates Studio', slug: 'core-pilates', lastUsed: 'Last used 2 weeks ago', emoji: '🤸' },
-      ]);
+    if (!user?.uid) {
+      setSavedGyms([]);
+      setDefaultGymSlug(null);
+      setHasLoadedGyms(true);
+      return;
+    }
+
+    let isActive = true;
+    setHasLoadedGyms(false);
+    setSavedGyms([]);
+
+    loadSavedGymsForUser(user.uid)
+      .then((state) => {
+        if (!isActive) {
+          return;
+        }
+        setSavedGyms(state.gyms);
+        setDefaultGymSlug(state.defaultGymSlug);
         setHasLoadedGyms(true);
-    }, 1000);
-  }, []);
+      })
+      .catch((error) => {
+        console.error('Failed to load saved gyms:', error);
+        if (!isActive) {
+          return;
+        }
+        setSavedGyms([]);
+        setDefaultGymSlug(null);
+        setHasLoadedGyms(true);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [user?.uid]);
 
   useEffect(() => {
     const trimmed = gymName.trim();
@@ -280,6 +375,7 @@ const GymFinderPage: React.FC = () => {
       if (!user?.uid) {
         setScheduleError('Sign in to load and save schedules.');
         setScheduleSuccess(null);
+        setLoadedGymResult(null);
         return;
       }
 
@@ -289,6 +385,9 @@ const GymFinderPage: React.FC = () => {
       setIsLoadingSchedule(true);
       setScheduleError(null);
       setScheduleSuccess(null);
+      setSaveError(null);
+      setSaveSuccess(null);
+      setLoadedGymResult(null);
 
       try {
         const response = await fetch(scheduleEndpoint, {
@@ -308,29 +407,33 @@ const GymFinderPage: React.FC = () => {
         }
 
         const payload = await response.json();
-        const schedule = payload?.schedule;
+        const schedule: Schedule | undefined = payload?.schedule;
         if (!schedule) {
           throw new Error('Response did not include a schedule payload.');
         }
 
         const responseSlug = typeof payload?.slug === 'string' && payload.slug.length > 0 ? payload.slug : gym.slug;
-        await saveSchedule(schedule, responseSlug, user.uid);
-
-        setScheduleSuccess(`Loaded ${schedule.items.length} classes for ${schedule.date}. Opening editor…`);
-        setSavedGyms((prev) => {
-          const existing = prev.filter((entry) => entry.slug !== responseSlug);
-          return [
-            {
-              name: gym.name,
-              slug: responseSlug,
-              lastUsed: `Loaded ${new Date().toLocaleDateString()}`,
-              emoji: '📍',
-            },
-            ...existing,
-          ];
+        setLoadedGymResult({
+          gym,
+          schedule,
+          slug: responseSlug,
         });
+        const formattedDate = formatScheduleDate(schedule.date);
+        const classCountLabel = `${schedule.items.length} ${schedule.items.length === 1 ? 'class' : 'classes'}`;
+        setScheduleSuccess(
+          `Loaded ${classCountLabel}${formattedDate ? ` for ${formattedDate}` : ''}.`,
+        );
 
-        setTimeout(() => navigate('/'), 600);
+        if (savedGyms.some((entry) => entry.slug === responseSlug)) {
+          void touchSavedGymForUser(user.uid, responseSlug)
+            .then((state) => {
+              setSavedGyms(state.gyms);
+              setDefaultGymSlug(state.defaultGymSlug);
+            })
+            .catch((touchError) => {
+              console.error('Failed to update saved gym metadata:', touchError);
+            });
+        }
       } catch (error) {
         console.error('Failed to load schedule:', error);
         setScheduleError('Could not load the schedule for this gym. Please try again.');
@@ -338,8 +441,55 @@ const GymFinderPage: React.FC = () => {
         setIsLoadingSchedule(false);
       }
     },
-    [navigate, scheduleEndpoint, user?.uid],
+    [savedGyms, scheduleEndpoint, user?.uid],
   );
+
+  const handleSaveGym = useCallback(async () => {
+    if (!user?.uid || !loadedGymResult) {
+      setSaveError('Load a gym schedule first to save it.');
+      return;
+    }
+
+    setIsSavingGym(true);
+    setSaveError(null);
+    setSaveSuccess(null);
+
+    try {
+      const savedSlug = await saveSchedule(loadedGymResult.schedule, loadedGymResult.slug, user.uid);
+      const existingGym = savedGyms.find((entry) => entry.slug === savedSlug);
+      const savedState = await saveGymRecordForUser(
+        user.uid,
+        {
+          name: loadedGymResult.gym.name,
+          slug: savedSlug,
+          radius: existingGym?.radius ?? 5,
+        },
+        { setAsDefault: true },
+      );
+      setSavedGyms(savedState.gyms);
+      setDefaultGymSlug(savedState.defaultGymSlug);
+      setSaveSuccess(`${loadedGymResult.gym.name} saved successfully.`);
+      setLoadedGymResult((prev) => (prev ? { ...prev, slug: savedSlug } : prev));
+    } catch (error) {
+      console.error('Failed to save schedule:', error);
+      setSaveError('Failed to save this gym. Please try again.');
+    } finally {
+      setIsSavingGym(false);
+    }
+  }, [loadedGymResult, savedGyms, user?.uid]);
+
+  const handleOpenEditor = useCallback(() => {
+    navigate('/');
+  }, [navigate]);
+
+  const handleResetLoadedState = useCallback(() => {
+    setLoadedGymResult(null);
+    setScheduleSuccess(null);
+    setSaveSuccess(null);
+    setSaveError(null);
+    setGymName('');
+    setSuggestions([]);
+  }, []);
 
   const handleSelectSuggestion = (gym: GymLocation) => {
     setGymName(gym.name);
@@ -347,13 +497,15 @@ const GymFinderPage: React.FC = () => {
     void loadScheduleForGym(gym);
   };
 
-  const handleSelectSavedGym = (gym: any) => {
+  const handleSelectSavedGym = (gym: SavedGym) => {
+    setGymName(gym.name);
+    setSuggestions([]);
     void loadScheduleForGym({
       name: gym.name,
       slug: gym.slug,
-      city: gym.city ?? '',
-      state: gym.state ?? '',
-      country: gym.country ?? 'US',
+      city: '',
+      state: '',
+      country: 'US',
     });
   };
 
@@ -367,6 +519,7 @@ const GymFinderPage: React.FC = () => {
   };
 
   const showSavedState = hasLoadedGyms && savedGyms.length > 0;
+  const hasSavedCurrentGym = Boolean(saveSuccess);
 
   return (
     <div className="relative min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 text-slate-50 flex items-center justify-center p-5 overflow-hidden">
@@ -396,9 +549,89 @@ const GymFinderPage: React.FC = () => {
               {scheduleError}
             </div>
           )}
-          {scheduleSuccess && (
-            <div className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
-              {scheduleSuccess}
+          {loadedGymResult && (
+            <div className="mb-8 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-6 text-emerald-50 shadow-[0_18px_48px_rgba(16,185,129,0.15)]">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-widest text-emerald-300/80">
+                    Schedule synced
+                  </p>
+                  <h3 className="mt-1 text-2xl font-semibold text-emerald-50">{loadedGymResult.gym.name}</h3>
+                  {scheduleSuccess && (
+                    <p className="mt-2 text-sm text-emerald-100/80">{scheduleSuccess}</p>
+                  )}
+                </div>
+                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-400/20 text-xl">
+                  ✅
+                </span>
+              </div>
+
+              {loadedGymResult.schedule.items.length > 0 ? (
+                <ul className="mt-5 space-y-2">
+                  {loadedGymResult.schedule.items.slice(0, 4).map((item, index) => (
+                    <li
+                      key={`${item.time}-${item.class}-${index}`}
+                      className="flex items-start gap-3 rounded-xl bg-emerald-500/10 px-4 py-3"
+                    >
+                      <div className="text-sm font-semibold text-emerald-200">{item.time}</div>
+                      <div className="flex-1">
+                        <div className="text-sm font-semibold text-emerald-50">{item.class}</div>
+                        {item.coach ? (
+                          <div className="text-xs text-emerald-200/80">with {item.coach}</div>
+                        ) : null}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="mt-5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 text-sm text-emerald-100/80">
+                  No classes were returned for this schedule yet. You can save it now or try another search.
+                </div>
+              )}
+              {loadedGymResult.schedule.items.length > 4 && (
+                <p className="mt-2 text-xs text-emerald-200/70">
+                  +{loadedGymResult.schedule.items.length - 4} more classes loaded
+                </p>
+              )}
+
+              {saveError && (
+                <div className="mt-4 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+                  {saveError}
+                </div>
+              )}
+              {saveSuccess && (
+                <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/15 px-4 py-3 text-sm text-emerald-50">
+                  {saveSuccess}
+                </div>
+              )}
+
+              <div className="mt-6 grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                <Button
+                  onClick={() => {
+                    void handleSaveGym();
+                  }}
+                  loading={isSavingGym}
+                  disabled={hasSavedCurrentGym}
+                  className="sm:col-span-1"
+                >
+                  {hasSavedCurrentGym ? 'Saved' : 'Save Gym'}
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={handleOpenEditor}
+                  disabled={!hasSavedCurrentGym}
+                  className="sm:col-span-1"
+                >
+                  Open Editor
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={handleResetLoadedState}
+                  className="sm:col-span-2"
+                >
+                  Search another gym
+                </Button>
+              </div>
             </div>
           )}
 
@@ -410,6 +643,7 @@ const GymFinderPage: React.FC = () => {
               ) : showSavedState ? (
             <SavedGymsState
               gyms={savedGyms}
+              defaultGymSlug={defaultGymSlug}
               onSelectGym={handleSelectSavedGym}
               onViewAll={handleViewAll}
             />
