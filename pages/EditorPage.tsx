@@ -637,11 +637,12 @@ const EditorPage: React.FC = () => {
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-900 text-slate-50">
       {/* Header */}
-      <header className="sticky top-0 z-30 h-18 border-b border-white/10 bg-slate-900/95 backdrop-blur-xl px-4 py-4 sm:px-6">
+      <header className="sticky top-0 z-50 h-18 border-b border-white/10 bg-slate-900/95 backdrop-blur-xl px-4 py-4 sm:px-6">
         <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3 sm:gap-6">
           {/* Header Left */}
           <div className="flex items-center gap-4">
-            <Link to="/" className="flex items-center gap-3 text-white transition hover:text-white/80">
+            {/* Desktop: Logo + Breadcrumb */}
+            <Link to="/" className="hidden sm:flex items-center gap-3 text-white transition hover:text-white/80">
               <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-purple-600 text-sm font-semibold text-white shadow-lg">
                 S
               </span>
@@ -652,6 +653,52 @@ const EditorPage: React.FC = () => {
               <span className="text-slate-600">/</span>
               <span className="font-medium text-slate-300">Schedule Editor</span>
             </nav>
+            {/* Mobile: Profile Icon */}
+            {isMobile && (
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsUserMenuOpen((prev) => !prev)}
+                  aria-haspopup="menu"
+                  aria-expanded={isUserMenuOpen}
+                  aria-label="Open account menu"
+                  className={cn(
+                    'flex h-10 w-10 items-center justify-center overflow-hidden rounded-full text-sm font-semibold text-white shadow-lg transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 hover:scale-105',
+                    user?.photoURL
+                      ? 'bg-white/10 hover:bg-white/20'
+                      : 'bg-gradient-to-br from-purple-500 to-purple-600'
+                  )}
+                >
+                  {user?.photoURL ? (
+                    <img
+                      src={user.photoURL}
+                      alt={user?.displayName ? `Signed in as ${user.displayName}` : 'Account avatar'}
+                      className="h-full w-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <span>{avatarFallback}</span>
+                  )}
+                </button>
+                {isUserMenuOpen && (
+                  <div
+                    role="menu"
+                    className="absolute left-0 mt-3 w-44 rounded-xl border border-white/10 bg-slate-900/95 p-2 shadow-xl backdrop-blur-xl"
+                  >
+                    <button
+                      type="button"
+                      onClick={handleSignOut}
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/10"
+                    >
+                      <span role="img" aria-hidden="true">
+                        🚪
+                      </span>
+                      <span>Sign out</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Header Center */}
@@ -686,62 +733,90 @@ const EditorPage: React.FC = () => {
           {/* Header Right */}
           <div className="flex items-center justify-end gap-4">
             {!isMobile && <div className="flex items-center gap-3">{actionButtons}</div>}
-            <div className="relative" ref={userMenuRef}>
-              <button
-                type="button"
-                onClick={() => setIsUserMenuOpen((prev) => !prev)}
-                aria-haspopup="menu"
-                aria-expanded={isUserMenuOpen}
-                aria-label="Open account menu"
-                className={cn(
-                  'flex h-10 w-10 items-center justify-center overflow-hidden rounded-full text-sm font-semibold text-white shadow-lg transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 hover:scale-105',
-                  user?.photoURL
-                    ? 'bg-white/10 hover:bg-white/20'
-                    : 'bg-gradient-to-br from-purple-500 to-purple-600'
-                )}
-              >
-                {user?.photoURL ? (
-                  <img
-                    src={user.photoURL}
-                    alt={user?.displayName ? `Signed in as ${user.displayName}` : 'Account avatar'}
-                    className="h-full w-full object-cover"
-                    referrerPolicy="no-referrer"
-                  />
-                ) : (
-                  <span>{avatarFallback}</span>
-                )}
-              </button>
-              {isUserMenuOpen && (
-                <div
-                  role="menu"
-                  className="absolute right-0 mt-3 w-44 rounded-xl border border-white/10 bg-slate-900/95 p-2 shadow-xl backdrop-blur-xl"
+            {/* Desktop: Profile Icon */}
+            {!isMobile && (
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsUserMenuOpen((prev) => !prev)}
+                  aria-haspopup="menu"
+                  aria-expanded={isUserMenuOpen}
+                  aria-label="Open account menu"
+                  className={cn(
+                    'flex h-10 w-10 items-center justify-center overflow-hidden rounded-full text-sm font-semibold text-white shadow-lg transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 hover:scale-105',
+                    user?.photoURL
+                      ? 'bg-white/10 hover:bg-white/20'
+                      : 'bg-gradient-to-br from-purple-500 to-purple-600'
+                  )}
                 >
-                  <button
-                    type="button"
-                    onClick={handleSignOut}
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/10"
+                  {user?.photoURL ? (
+                    <img
+                      src={user.photoURL}
+                      alt={user?.displayName ? `Signed in as ${user.displayName}` : 'Account avatar'}
+                      className="h-full w-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <span>{avatarFallback}</span>
+                  )}
+                </button>
+                {isUserMenuOpen && (
+                  <div
+                    role="menu"
+                    className="absolute right-0 mt-3 w-44 rounded-xl border border-white/10 bg-slate-900/95 p-2 shadow-xl backdrop-blur-xl"
                   >
+                    <button
+                      type="button"
+                      onClick={handleSignOut}
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/10"
+                    >
+                      <span role="img" aria-hidden="true">
+                        🚪
+                      </span>
+                      <span>Sign out</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+            {/* Mobile: Export Button */}
+            {isMobile && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleExport}
+                disabled={isExporting}
+              >
+                {isExporting ? (
+                  <>
+                    <SaveSpinner />
+                    <span>Exporting...</span>
+                  </>
+                ) : (
+                  <>
                     <span role="img" aria-hidden="true">
-                      🚪
+                      📥
                     </span>
-                    <span>Sign out</span>
-                  </button>
-                </div>
-              )}
-            </div>
+                    <span>Export</span>
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         </div>
-        {isMobile && (
-          <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-white/10 bg-slate-900/95 px-4 py-4 backdrop-blur-lg">
-            {actionButtons}
-          </div>
-        )}
       </header>
+
+      {/* Mobile Bottom Actions */}
+      {isMobile && (
+        <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-white/10 bg-slate-900/95 px-4 py-4 backdrop-blur-lg">
+          {actionButtons}
+        </div>
+      )}
 
       {/* Main Layout */}
       {isMobile ? (
         /* Mobile Layout - Stacked */
-        <div className="flex flex-col h-[calc(100vh-72px)] overflow-hidden">
+        <div className="flex flex-col h-[calc(100vh-72px-72px)] overflow-hidden pb-20">
           {/* Preview Section */}
           <div className="flex-1 bg-slate-900 flex flex-col items-center justify-center p-6 relative overflow-auto">
             {/* Canvas Background */}
@@ -1034,34 +1109,6 @@ const EditorPage: React.FC = () => {
             </div>
           </aside>
         </div>
-      )}
-
-      {/* Mobile Bottom Actions */}
-      {isMobile && (
-        <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-white/10 bg-slate-900/95 px-4 py-4 backdrop-blur-xl">
-          <Button variant="secondary" size="sm" className="flex-1">
-            <span>↻</span>
-            <span>Reset</span>
-          </Button>
-          <Button size="sm" onClick={handleSaveTemplate} disabled={isSaving || !user?.uid} className="flex-2">
-            {isSaving ? (
-              <>
-                <SaveSpinner />
-                <span>Saving...</span>
-              </>
-            ) : saveSuccess ? (
-              <>
-                <span>✓</span>
-                <span>Saved!</span>
-              </>
-            ) : (
-              <>
-                <span>💾</span>
-                <span>Save Template</span>
-              </>
-            )}
-          </Button>
-          </div>
       )}
 
       <Modal
