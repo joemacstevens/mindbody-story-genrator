@@ -51,7 +51,7 @@ const devicePresets: Record<DeviceOption, { width: number; height: number; radiu
 const formatPanelWidth = (value: number) => Math.min(600, Math.max(320, value));
 
 const EditorPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const [selectedDevice, setSelectedDevice] = useState<DeviceOption>('mobile');
   const [zoomLevel, setZoomLevel] = useState(100);
   const [activeTab, setActiveTab] = useState<'style' | 'content' | 'layout'>('style');
@@ -86,7 +86,13 @@ const EditorPage: React.FC = () => {
   const [isScheduleLoading, setIsScheduleLoading] = useState(false);
   const [scheduleError, setScheduleError] = useState<string | null>(null);
   const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(true);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const isMobile = !isDesktop;
+  const userMenuRef = useRef<HTMLDivElement | null>(null);
+  const avatarFallback =
+    user?.displayName?.charAt(0)?.toUpperCase() ||
+    user?.email?.charAt(0)?.toUpperCase() ||
+    'U';
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -188,6 +194,15 @@ const EditorPage: React.FC = () => {
     }
   }, []);
 
+  const handleSignOut = useCallback(async () => {
+    setIsUserMenuOpen(false);
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Sign out failed', error);
+    }
+  }, [signOut]);
+
   useEffect(() => {
     const updateMatch = () => {
       if (typeof window === 'undefined') return;
@@ -214,6 +229,33 @@ const EditorPage: React.FC = () => {
       };
     }
   }, []);
+
+  useEffect(() => {
+    if (!isUserMenuOpen) return;
+
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (!userMenuRef.current) return;
+      if (!userMenuRef.current.contains(event.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsUserMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isUserMenuOpen]);
 
   useEffect(() => {
     if (!isMobile) {
@@ -595,32 +637,97 @@ const EditorPage: React.FC = () => {
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-900 text-slate-50">
       {/* Header */}
-      <header className="sticky top-0 z-30 h-18 border-b border-white/10 bg-slate-900/95 backdrop-blur-xl px-6 py-4">
-        <div className="flex items-center justify-between">
+      <header className="sticky top-0 z-30 h-18 border-b border-white/10 bg-slate-900/95 backdrop-blur-xl px-4 py-4 sm:px-6">
+        <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3 sm:gap-6">
           {/* Header Left */}
-          <div className="flex items-center gap-6">
-            <div className="text-xl font-semibold text-slate-50">Studiogram</div>
+          <div className="flex items-center gap-4">
+            <Link to="/" className="flex items-center gap-3 text-white transition hover:text-white/80">
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-purple-600 text-sm font-semibold text-white shadow-lg">
+                S
+              </span>
+              <span className="text-lg font-semibold tracking-tight">Studiogram</span>
+            </Link>
             <nav className="hidden items-center gap-2 text-sm text-slate-400 sm:flex">
               <span>Templates</span>
               <span className="text-slate-600">/</span>
               <span className="font-medium text-slate-300">Schedule Editor</span>
             </nav>
           </div>
-          
+
           {/* Header Center */}
-          <div className="hidden sm:flex">
-            <div className="flex items-center gap-2 rounded-full bg-white/5 px-4 py-2 text-sm text-slate-300">
-              <span>📍</span>
-              <span>{userGymName}</span>
-              <span className="opacity-50">▾</span>
-            </div>
+          <div className="flex justify-center">
+            <Link
+              to="/gym-finder"
+              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-slate-200 transition hover:border-white/20 hover:text-white sm:hidden"
+              aria-label={userGymName ? `Open gym finder for ${userGymName}` : 'Open gym finder'}
+            >
+              <span role="img" aria-hidden="true">
+                📍
+              </span>
+              <span className="max-w-[140px] truncate">{userGymName}</span>
+              <span aria-hidden="true" className="text-xs opacity-70">
+                ▾
+              </span>
+            </Link>
+            <Link
+              to="/gym-finder"
+              className="hidden items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300 transition hover:border-white/20 hover:text-white sm:inline-flex"
+            >
+              <span role="img" aria-hidden="true">
+                📍
+              </span>
+              <span className="font-medium">{userGymName}</span>
+              <span aria-hidden="true" className="opacity-60">
+                ▾
+              </span>
+            </Link>
           </div>
 
           {/* Header Right */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center justify-end gap-4">
             {!isMobile && <div className="flex items-center gap-3">{actionButtons}</div>}
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-purple-600 text-sm font-semibold text-white shadow-lg hover:scale-105 transition-transform">
-              {user?.displayName?.[0]?.toUpperCase() ?? 'U'}
+            <div className="relative" ref={userMenuRef}>
+              <button
+                type="button"
+                onClick={() => setIsUserMenuOpen((prev) => !prev)}
+                aria-haspopup="menu"
+                aria-expanded={isUserMenuOpen}
+                aria-label="Open account menu"
+                className={cn(
+                  'flex h-10 w-10 items-center justify-center overflow-hidden rounded-full text-sm font-semibold text-white shadow-lg transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 hover:scale-105',
+                  user?.photoURL
+                    ? 'bg-white/10 hover:bg-white/20'
+                    : 'bg-gradient-to-br from-purple-500 to-purple-600'
+                )}
+              >
+                {user?.photoURL ? (
+                  <img
+                    src={user.photoURL}
+                    alt={user?.displayName ? `Signed in as ${user.displayName}` : 'Account avatar'}
+                    className="h-full w-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <span>{avatarFallback}</span>
+                )}
+              </button>
+              {isUserMenuOpen && (
+                <div
+                  role="menu"
+                  className="absolute right-0 mt-3 w-44 rounded-xl border border-white/10 bg-slate-900/95 p-2 shadow-xl backdrop-blur-xl"
+                >
+                  <button
+                    type="button"
+                    onClick={handleSignOut}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/10"
+                  >
+                    <span role="img" aria-hidden="true">
+                      🚪
+                    </span>
+                    <span>Sign out</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
