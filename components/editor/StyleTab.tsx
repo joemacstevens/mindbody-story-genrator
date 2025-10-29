@@ -1,7 +1,9 @@
 import React, { useRef } from 'react';
+import type { CSSProperties } from 'react';
 import type { EditorColorPalette, Style, LogoPosition } from '../../types';
 import { Button } from '../ui';
 import { cn } from '../../utils/cn';
+import { useStaggerAnimation } from '../../hooks/useStaggerAnimation';
 
 interface StyleTabProps {
   palettes: EditorColorPalette[];
@@ -21,6 +23,7 @@ interface PaletteCardProps {
   palette: EditorColorPalette;
   selected: boolean;
   onSelect: (palette: EditorColorPalette) => void;
+  style?: CSSProperties;
 }
 
 const StyleSection: React.FC<{ title: string; children: React.ReactNode; description?: string }> = ({
@@ -28,10 +31,10 @@ const StyleSection: React.FC<{ title: string; children: React.ReactNode; descrip
   description,
   children,
 }) => (
-  <section className="space-y-4 rounded-2xl border border-border-light/70 bg-surface/70 p-5 shadow-sm backdrop-blur">
-    <div className="space-y-1">
-      <h3 className="text-sm font-semibold text-text-primary">{title}</h3>
-      {description ? <p className="text-xs text-text-tertiary">{description}</p> : null}
+  <section className="mb-7">
+    <div className="mb-3.5">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">{title}</h3>
+      {description ? <p className="text-xs text-slate-500">{description}</p> : null}
     </div>
     {children}
   </section>
@@ -81,15 +84,15 @@ const ImageUploadArea: React.FC<ImageUploadAreaProps> = ({ currentImage, onUploa
         onClick={handleClick}
         onKeyDown={handleKeyDown}
         className={cn(
-          'relative flex min-h-[140px] flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-border-light/60',
-          'bg-surface/60 p-6 text-center transition-all duration-200 focus-visible:border-primary focus-visible:bg-primary/15 focus-visible:outline-none',
-          currentImage ? 'border-solid border-border-light/70 bg-surface/80 hover:border-primary hover:bg-primary/10' : 'hover:border-primary hover:bg-primary/10',
+          'relative flex min-h-[120px] flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-white/20 bg-white/3 p-7 text-center cursor-pointer transition-all duration-200',
+          'hover:border-purple-500 hover:bg-purple-500/5',
+          currentImage ? 'border-solid border-white/30 bg-white/5' : '',
           isUploading && 'pointer-events-none opacity-70',
         )}
       >
         {children}
         {isUploading ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-2xl bg-background/80 text-text-secondary">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-900/80 text-slate-300">
             <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/60 border-t-transparent" />
             <p className="text-xs font-semibold uppercase tracking-wide">Uploading…</p>
           </div>
@@ -107,8 +110,8 @@ const ImageUploadArea: React.FC<ImageUploadAreaProps> = ({ currentImage, onUploa
 };
 
 const ControlGroup: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-  <div className="space-y-3">
-    <p className="text-xs font-semibold uppercase tracking-wide text-text-tertiary">{label}</p>
+  <div className="mb-5">
+    <p className="text-sm text-slate-300 mb-3">{label}</p>
     {children}
   </div>
 );
@@ -126,49 +129,38 @@ const RadioOption: React.FC<{ selected: boolean; onClick: () => void; children: 
     type="button"
     onClick={onClick}
     className={cn(
-      'rounded-xl border border-border-light/70 px-4 py-2 text-sm font-medium text-text-tertiary transition-all duration-150',
-      'hover:border-primary hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-      selected && 'border-primary bg-primary/10 text-primary-light shadow-[0_0_0_2px_rgba(139,123,216,0.15)]',
+      'rounded-lg border-2 px-3 py-3 text-center text-sm transition-all duration-200',
+      'hover:border-purple-500/50 hover:text-slate-50',
+      selected 
+        ? 'border-purple-500 bg-purple-500/10 text-purple-400' 
+        : 'border-white/10 bg-white/5 text-slate-400',
     )}
   >
     {children}
   </button>
 );
 
-const PaletteCard: React.FC<PaletteCardProps> = ({ palette, selected, onSelect }) => (
+const PaletteCard: React.FC<PaletteCardProps> = ({ palette, selected, onSelect, style }) => (
   <button
     type="button"
     onClick={() => onSelect(palette)}
     className={cn(
-      'group w-full rounded-2xl border border-border-light/70 bg-surface/80 p-4 text-left transition-all duration-200',
-      'hover:-translate-y-0.5 hover:border-primary hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-      selected && 'border-primary bg-primary/10 shadow-[0_0_0_3px_rgba(139,123,216,0.15)]',
+      'w-full rounded-xl border-2 bg-white/4 p-4 text-left transition-all duration-200 cursor-pointer',
+      'hover:border-purple-500/40 hover:-translate-y-0.5 hover:shadow-lg',
+      selected 
+        ? 'border-purple-500 bg-purple-500/8 shadow-[0_0_0_3px_rgba(139,123,216,0.1)]' 
+        : 'border-white/10',
     )}
+    style={style}
   >
-    <div className="flex items-start justify-between gap-3">
-      <div className="space-y-1">
-        <p className="text-sm font-semibold text-text-primary">{palette.name}</p>
-        {palette.description ? (
-          <p className="text-xs text-text-tertiary">{palette.description}</p>
-        ) : null}
-      </div>
-      <span
-        className={cn(
-          'flex h-6 w-6 items-center justify-center rounded-full border border-border-light text-xs text-text-tertiary transition',
-          selected
-            ? 'border-primary bg-primary text-background'
-            : 'bg-surface-hover/50 group-hover:bg-primary/20',
-        )}
-        aria-hidden="true"
-      >
-        {selected ? '✓' : '–'}
-      </span>
+    <div className="mb-2">
+      <p className="text-sm font-medium text-slate-200">{palette.name}</p>
     </div>
-    <div className="mt-4 flex gap-3">
+    <div className="flex gap-1.5">
       {palette.preview.map((color) => (
         <span
           key={color}
-          className="h-9 w-9 rounded-lg border border-border-light/60"
+          className="h-7 w-7 rounded-md border border-white/15"
           style={{ backgroundColor: color }}
         />
       ))}
@@ -188,110 +180,104 @@ export const StyleTab: React.FC<StyleTabProps> = ({
   onLogoPositionChange,
   isBackgroundUploading = false,
   isLogoUploading = false,
-}) => (
-  <div className="space-y-6">
-    <StyleSection title="Color Theme" description="Choose a palette to instantly restyle your schedule preview.">
-      <div className="grid gap-3 sm:grid-cols-2">
-        {palettes.map((palette) => (
-          <PaletteCard
-            key={palette.id}
-            palette={palette}
-            selected={palette.id === selectedPaletteId}
-            onSelect={onSelectPalette}
-          />
-        ))}
-      </div>
-      <Button variant="secondary" fullWidth disabled>
-        🎨 Customize Colors (coming soon)
-      </Button>
-    </StyleSection>
+}) => {
+  const paletteAnimations = useStaggerAnimation(palettes.length, 70);
 
-    <StyleSection
-      title="Background"
-      description="Use a photo or keep things simple with a solid color backdrop."
-    >
-      <ImageUploadArea
-        currentImage={style.bgImage}
-        onUpload={onBackgroundUpload}
-        isUploading={isBackgroundUploading}
-      >
-        {style.bgImage ? (
-          <img
-            src={style.bgImage}
-            alt="Background preview"
-            className="max-h-[140px] w-full rounded-xl object-cover"
-          />
-        ) : (
-          <>
-            <span className="text-2xl opacity-70">🖼️</span>
-            <div className="space-y-1 text-sm text-text-tertiary">
-              <p className="font-semibold text-text-secondary">Tap to upload image</p>
-              <p className="text-xs text-text-tertiary">or stay with the solid color</p>
-            </div>
-          </>
-        )}
-      </ImageUploadArea>
-      {style.bgImage ? (
-        <Button
-          variant="secondary"
-          fullWidth
-          onClick={onRemoveBackground}
-          disabled={isBackgroundUploading}
-        >
-          🗑️ Remove Background
+  return (
+    <div className="space-y-7">
+      <StyleSection title="Color Theme">
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          {palettes.map((palette, index) => (
+            <PaletteCard
+              key={palette.id}
+              palette={palette}
+              selected={palette.id === selectedPaletteId}
+              onSelect={onSelectPalette}
+              style={paletteAnimations[index]?.style}
+            />
+          ))}
+        </div>
+        <Button variant="secondary" fullWidth disabled>
+          🎨 Customize Colors
         </Button>
-      ) : null}
-    </StyleSection>
+      </StyleSection>
 
-    <StyleSection title="Logo" description="Add your mark and choose where it appears on the canvas.">
-      <ImageUploadArea
-        currentImage={style.logoUrl}
-        onUpload={onLogoUpload}
-        isUploading={isLogoUploading}
-      >
-        {style.logoUrl ? (
-          <img
-            src={style.logoUrl}
-            alt="Logo preview"
-            className="max-h-[120px] w-full rounded-xl object-contain p-4"
-          />
-        ) : (
-          <>
-            <span className="text-2xl opacity-70">📌</span>
-            <div className="space-y-1 text-sm text-text-tertiary">
-              <p className="font-semibold text-text-secondary">Upload your logo</p>
-              <p className="text-xs text-text-tertiary">PNG or SVG with transparent backgrounds work best</p>
-            </div>
-          </>
-        )}
-      </ImageUploadArea>
-      {style.logoUrl ? (
-        <div className="space-y-4">
+      <StyleSection title="Background">
+        <ImageUploadArea
+          currentImage={style.bgImage}
+          onUpload={onBackgroundUpload}
+          isUploading={isBackgroundUploading}
+        >
+          {style.bgImage ? (
+            <img
+              src={style.bgImage}
+              alt="Background preview"
+              className="max-h-[120px] w-full rounded-lg object-cover"
+            />
+          ) : (
+            <>
+              <span className="text-3xl opacity-50 mb-2">🖼️</span>
+              <div className="text-sm text-slate-400">
+                <p className="font-medium">Tap to upload image</p>
+                <p className="text-xs opacity-70 mt-1">or use solid color</p>
+              </div>
+            </>
+          )}
+        </ImageUploadArea>
+        {style.bgImage ? (
           <Button
             variant="secondary"
             fullWidth
-            onClick={onRemoveLogo}
-            disabled={isLogoUploading}
+            onClick={onRemoveBackground}
+            disabled={isBackgroundUploading}
+            className="mt-3"
           >
-            🗑️ Remove Logo
+            🗑️ Remove Background
           </Button>
-          <ControlGroup label="Logo Position">
-            <RadioGroup>
-              <RadioOption selected={style.logoPosition === 'top-center'} onClick={() => onLogoPositionChange('top-center')}>
-                Top
-              </RadioOption>
-              <RadioOption selected={style.logoPosition === 'center'} onClick={() => onLogoPositionChange('center')}>
-                Center
-              </RadioOption>
-              <RadioOption selected={style.logoPosition === 'bottom-center'} onClick={() => onLogoPositionChange('bottom-center')}>
-                Bottom
-              </RadioOption>
-            </RadioGroup>
-          </ControlGroup>
-        </div>
-      ) : null}
-    </StyleSection>
-  </div>
-);
+        ) : null}
+      </StyleSection>
+
+      <StyleSection title="Logo">
+        <ImageUploadArea
+          currentImage={style.logoUrl}
+          onUpload={onLogoUpload}
+          isUploading={isLogoUploading}
+        >
+          {style.logoUrl ? (
+            <img
+              src={style.logoUrl}
+              alt="Logo preview"
+              className="max-h-[100px] w-full rounded-lg object-contain p-4"
+            />
+          ) : (
+            <>
+              <span className="text-3xl opacity-50 mb-2">📌</span>
+              <div className="text-sm text-slate-400">
+                <p className="font-medium">Upload your logo</p>
+              </div>
+            </>
+          )}
+        </ImageUploadArea>
+        {style.logoUrl ? (
+          <div className="mt-4">
+            <ControlGroup label="Position">
+              <RadioGroup>
+                <RadioOption selected={style.logoPosition === 'top-center'} onClick={() => onLogoPositionChange('top-center')}>
+                  Top
+                </RadioOption>
+                <RadioOption selected={style.logoPosition === 'center'} onClick={() => onLogoPositionChange('center')}>
+                  Center
+                </RadioOption>
+                <RadioOption selected={style.logoPosition === 'bottom-center'} onClick={() => onLogoPositionChange('bottom-center')}>
+                  Bottom
+                </RadioOption>
+              </RadioGroup>
+            </ControlGroup>
+          </div>
+        ) : null}
+      </StyleSection>
+    </div>
+  );
+};
 
 export default StyleTab;

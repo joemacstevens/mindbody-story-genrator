@@ -1,7 +1,9 @@
 import React, { useCallback, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { ToggleSwitch } from '../ui';
 import { cn } from '../../utils/cn';
 import type { ScheduleElementId, ScheduleElementMeta } from '../../types';
+import { useStaggerAnimation } from '../../hooks/useStaggerAnimation';
 
 interface ContentTabProps {
   visibleElements: ScheduleElementId[];
@@ -27,6 +29,7 @@ interface ElementItemProps {
   onDrop?: (event: React.DragEvent<HTMLDivElement>) => void;
   onDragEnd?: () => void;
   isDragging?: boolean;
+  style?: CSSProperties;
 }
 
 const Section: React.FC<{ title: string; badge?: string; children: React.ReactNode }> = ({
@@ -34,11 +37,11 @@ const Section: React.FC<{ title: string; badge?: string; children: React.ReactNo
   badge,
   children,
 }) => (
-  <section className="space-y-4 rounded-2xl border border-border-light/70 bg-surface/70 p-5 shadow-sm backdrop-blur">
-    <div className="flex items-center justify-between gap-3">
-      <h3 className="text-sm font-semibold text-text-primary">{title}</h3>
+  <section className="mb-7">
+    <div className="flex items-center justify-between gap-3 mb-4">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">{title}</h3>
       {badge ? (
-        <span className="inline-flex items-center rounded-full border border-border-light/60 bg-surface/80 px-3 py-1 text-xs font-medium text-text-tertiary">
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-500/15 rounded-xl text-xs text-purple-400 font-medium">
           {badge}
         </span>
       ) : null}
@@ -61,10 +64,11 @@ const ElementItem: React.FC<ElementItemProps> = ({
   onDrop,
   onDragEnd,
   isDragging = false,
+  style,
 }) => {
   const iconButtonClass = cn(
-    'flex h-9 w-9 items-center justify-center rounded-xl border border-border-light/60 bg-surface/60 text-sm text-text-tertiary transition-all duration-200',
-    'hover:border-primary hover:text-primary-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+    'w-7 h-7 rounded-md bg-white/5 border-none text-slate-400 cursor-pointer flex items-center justify-center transition-all text-sm',
+    'hover:bg-purple-500/20 hover:text-purple-400',
   );
 
   return (
@@ -72,10 +76,10 @@ const ElementItem: React.FC<ElementItemProps> = ({
       role="listitem"
       data-element-id={id}
       className={cn(
-        'group relative flex items-center justify-between gap-4 rounded-2xl border border-border-light/60 bg-surface/80 px-4 py-3 transition-all duration-200',
-        visible ? 'text-text-primary' : 'text-text-tertiary opacity-75',
+        'flex items-center gap-3 rounded-lg border bg-white/5 px-3.5 py-3.5 transition-all duration-200 cursor-move',
+        visible ? 'border-white/10 text-slate-200' : 'border-white/10 text-slate-400 opacity-50',
         draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-default',
-        isDragging && 'border-primary bg-primary/10 shadow-[0_0_0_3px_rgba(139,123,216,0.18)]',
+        isDragging && 'border-purple-500 bg-purple-500/10',
       )}
       draggable={draggable}
       onDragStart={onDragStart}
@@ -83,31 +87,10 @@ const ElementItem: React.FC<ElementItemProps> = ({
       onDragOver={onDragOver}
       onDrop={onDrop}
       onDragEnd={onDragEnd}
+      style={style}
     >
-      <div className="flex flex-1 items-center gap-3">
-        <div
-          className={cn(
-            'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-border-light/60 bg-surface/60 text-xs text-text-tertiary transition-colors',
-            draggable ? 'cursor-grab active:cursor-grabbing group-hover:text-text-secondary' : 'cursor-default opacity-60',
-          )}
-          aria-hidden="true"
-        >
-          ☰
-        </div>
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            {meta.icon ? (
-              <span className="text-sm text-text-tertiary" aria-hidden="true">
-                {meta.icon}
-              </span>
-            ) : null}
-            <span className="text-sm font-semibold text-text-primary">{meta.label}</span>
-          </div>
-          {meta.description ? (
-            <p className="text-xs text-text-tertiary">{meta.description}</p>
-          ) : null}
-        </div>
-      </div>
+      <div className="text-slate-500 text-lg cursor-grab">☰</div>
+      <div className="flex-1 text-sm text-slate-200">{meta.label}</div>
       <div className="flex items-center gap-2">
         <button
           type="button"
@@ -122,7 +105,7 @@ const ElementItem: React.FC<ElementItemProps> = ({
         <ToggleSwitch
           checked={visible}
           onChange={onToggle}
-          className="ml-1 h-7 w-[52px]"
+          className="ml-1 h-6 w-12"
           label={visible ? `Hide ${meta.label}` : `Show ${meta.label}`}
         />
       </div>
@@ -140,6 +123,8 @@ export const ContentTab: React.FC<ContentTabProps> = ({
   onOpenColorPicker,
 }) => {
   const [draggingId, setDraggingId] = useState<ScheduleElementId | null>(null);
+  const visibleAnimations = useStaggerAnimation(visibleElements.length, 70);
+  const hiddenAnimations = useStaggerAnimation(hiddenElements.length, 70, visibleElements.length * 70);
 
   const handleDragStart = useCallback(
     (id: ScheduleElementId) => (event: React.DragEvent<HTMLDivElement>) => {
@@ -182,15 +167,15 @@ export const ContentTab: React.FC<ContentTabProps> = ({
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
       <Section title="Schedule Elements" badge="💡 Drag to reorder">
         <div
           role="list"
-          className="space-y-3"
+          className="space-y-2"
           onDragOver={handleDragOver}
           onDrop={handleDropOnList}
         >
-          {visibleElements.map((elementId) => {
+          {visibleElements.map((elementId, index) => {
             const meta = elementsMeta[elementId];
             if (!meta) return null;
             return (
@@ -208,20 +193,21 @@ export const ContentTab: React.FC<ContentTabProps> = ({
                 onDrop={handleDropOnItem(elementId)}
                 onDragEnd={handleDragEnd}
                 isDragging={draggingId === elementId}
+                style={visibleAnimations[index]?.style}
               />
             );
           })}
         </div>
 
-        <div className="space-y-3 rounded-2xl border border-border-light/50 bg-surface/60 p-4">
-          <div className="text-xs font-semibold uppercase tracking-wide text-text-tertiary">
+        <div className="mt-5 pt-5 border-t border-white/8">
+          <div className="text-xs uppercase tracking-wider text-slate-500 mb-3">
             Hidden Elements
           </div>
           <div className="space-y-2" role="list">
             {hiddenElements.length === 0 ? (
-              <p className="text-xs text-text-muted">No hidden elements</p>
+              <p className="text-xs text-slate-500">No hidden elements</p>
             ) : (
-              hiddenElements.map((elementId) => {
+              hiddenElements.map((elementId, index) => {
                 const meta = elementsMeta[elementId];
                 if (!meta) return null;
                 return (
@@ -233,6 +219,7 @@ export const ContentTab: React.FC<ContentTabProps> = ({
                     onToggle={(next) => onToggleVisibility(elementId)}
                     onOpenFontSettings={() => onOpenFontSettings(elementId)}
                     onOpenColorPicker={() => onOpenColorPicker(elementId)}
+                    style={hiddenAnimations[index]?.style}
                   />
                 );
               })

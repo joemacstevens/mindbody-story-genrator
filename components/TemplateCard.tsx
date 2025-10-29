@@ -3,6 +3,7 @@ import type { Style, TemplateId, Schedule } from '../types';
 import StoryRenderer from './StoryRenderer';
 import MoreVertIcon from './icons/MoreVertIcon';
 import CheckIcon from './icons/CheckIcon';
+import { cn } from '../utils/cn';
 
 interface TemplateCardProps {
   id: TemplateId;
@@ -37,11 +38,13 @@ const TemplateCard: React.FC<TemplateCardProps> = ({
   return (
     <div
       onClick={handleClick}
-      className={`relative group cursor-pointer rounded-3xl transition-all duration-200 ${
+      className={cn(
+        'relative group cursor-pointer rounded-3xl bg-slate-900/70 transition-all duration-200 ease-out transform-gpu',
+        'active:translate-y-0',
         isActive
           ? 'ring-4 ring-white shadow-[0_15px_35px_rgba(15,23,42,0.8)] scale-[1.02]'
-          : 'ring-2 ring-white/10 hover:ring-white/40 hover:shadow-lg'
-      } bg-slate-900/70`}
+          : 'ring-2 ring-white/10 hover:-translate-y-1 hover:ring-white/40 hover:shadow-[0_18px_45px_rgba(15,23,42,0.55)]',
+      )}
     >
       {/* Active Indicator */}
       {isActive && (
