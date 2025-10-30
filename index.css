@@ -32,6 +32,31 @@
   --shadow-xl: 0 20px 60px rgba(0, 0, 0, 0.3);
   --shadow-primary: 0 4px 16px rgba(139, 123, 216, 0.3);
 
+  --font-heading: 48px;
+  --font-subtitle: 26px;
+  --font-date: 16px;
+  --font-class: 22px;
+  --font-time: 20px;
+  --font-instructor: 18px;
+  --font-location: 16px;
+  --font-description: 16px;
+  --font-footer: 18px;
+
+  --story-hero-gap: 20px;
+  --story-schedule-gap: 14px;
+  --story-card-padding: 20px;
+  --story-footer-gap: 16px;
+  --story-time-padding-y: 12px;
+  --story-time-padding-x: 18px;
+  --story-time-min-width: 80px;
+  --story-card-accent-inset: 12px;
+  --story-card-accent-offset: 10px;
+  --story-inner-gap: 14px;
+  --story-text-gap: 10px;
+  --story-time-gap: 8px;
+  --story-logo-gap: 18px;
+  --story-logo-bottom-padding: 32px;
+
   color-scheme: dark;
 }
 
@@ -120,6 +145,14 @@ body {
 
 .touch-scroll {
   -webkit-overflow-scrolling: touch;
+}
+
+.story-canvas {
+  transition: background-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.story-canvas * {
+  transition: font-size 0.3s ease, line-height 0.3s ease, padding 0.3s ease, gap 0.3s ease, letter-spacing 0.3s ease, margin 0.3s ease;
 }
 
 @keyframes fadeSlideIn {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
@@ -10,6 +10,12 @@ import { ContentTab } from '../components/editor/ContentTab';
 import { LayoutTab } from '../components/editor/LayoutTab';
 import { FontSettings } from '../components/editor/FontSettings';
 import { ColorPicker } from '../components/editor/ColorPicker';
+import {
+  computeSmartSizing,
+  DEFAULT_SMART_SPACING,
+  type SmartSpacingScales,
+  type StoryMetrics,
+} from '../components/editor/smartTextSizing';
 import { DEFAULT_APP_SETTINGS } from '../constants';
 import { STYLE_COLOR_PALETTES } from '../components/editor/stylePalettes';
 import {
@@ -42,6 +48,9 @@ const SaveSpinner: React.FC = () => (
   />
 );
 
+// Removed device chrome overlay for edge-to-edge story preview
+const PhoneFrameOverlay: React.FC = () => null;
+
 type ZoomMode = 'fit' | '1' | '1.5';
 
 const ZOOM_OPTIONS: ZoomMode[] = ['fit', '1', '1.5'];
@@ -65,6 +74,7 @@ const EditorPage: React.FC = () => {
   const previewAreaRef = useRef<HTMLDivElement | null>(null);
   const storyCanvasRef = useRef<HTMLDivElement | null>(null);
   const zoomModeRef = useRef<ZoomMode>('fit');
+  const autoSizingKeysRef = useRef<Set<string>>(new Set());
   const [userGymName, setUserGymName] = useState<string>('Select a gym');
   const [userGymSlug, setUserGymSlug] = useState<string | null>(null);
   const [isBackgroundUploading, setIsBackgroundUploading] = useState(false);
@@ -78,6 +88,9 @@ const EditorPage: React.FC = () => {
   const [elementStyles, setElementStyles] = useState<Record<ScheduleElementId, ScheduleElementStyle>>(
     () => buildInitialElementStyles(),
   );
+  const [smartSpacing, setSmartSpacing] = useState<SmartSpacingScales>(DEFAULT_SMART_SPACING);
+  const [storyMetrics, setStoryMetrics] = useState<StoryMetrics | null>(null);
+  const [isSmartSizing, setIsSmartSizing] = useState(false);
   const [activeFontElement, setActiveFontElement] = useState<ScheduleElementId | null>(null);
   const [isFontModalOpen, setIsFontModalOpen] = useState(false);
   const [activeColorElement, setActiveColorElement] = useState<ScheduleElementId | null>(null);
@@ -464,6 +477,132 @@ const EditorPage: React.FC = () => {
     }));
   }, []);
 
+  const handleStoryMetricsChange = useCallback((metrics: StoryMetrics) => {
+    setStoryMetrics(metrics);
+  }, []);
+
+  const handleApplySmartSizing = useCallback(() => {
+    setIsSmartSizing(true);
+    setElementStyles((prev) => {
+      try {
+        const result = computeSmartSizing({
+          currentStyles: prev,
+          style: styleState,
+          visibleElements,
+          schedule,
+          metrics: storyMetrics,
+        });
+        setSmartSpacing(result.spacing);
+        return result.elementStyles;
+      } finally {
+        setIsSmartSizing(false);
+      }
+    });
+  }, [schedule, storyMetrics, styleState, visibleElements]);
+
+  const scheduleSignature = useMemo(() => {
+    if (!schedule?.items?.length) return 'none';
+    return schedule.items
+      .map(
+        (item) =>
+          [
+            item.class?.length ?? 0,
+            item.coach?.length ?? 0,
+            item.location?.length ?? 0,
+            item.description?.length ?? 0,
+            item.time?.length ?? 0,
+            item.duration?.length ?? 0,
+          ].join('-'),
+      )
+      .join('|');
+  }, [schedule]);
+
+  const heroSignature = useMemo(
+    () =>
+      [
+        styleState.heading?.length ?? 0,
+        styleState.subtitle?.length ?? 0,
+        styleState.footer?.length ?? 0,
+        styleState.showHeading !== false ? 1 : 0,
+        styleState.showSubtitle !== false ? 1 : 0,
+        styleState.showFooter !== false ? 1 : 0,
+        styleState.showScheduleDate !== false ? 1 : 0,
+      ].join('-'),
+    [
+      styleState.heading,
+      styleState.subtitle,
+      styleState.footer,
+      styleState.showHeading,
+      styleState.showSubtitle,
+      styleState.showFooter,
+      styleState.showScheduleDate,
+    ],
+  );
+
+  const metricsSignature = useMemo(
+    () =>
+      storyMetrics
+        ? [
+            Math.round(storyMetrics.contentHeight),
+            Math.round(storyMetrics.availableHeight),
+            Math.round(storyMetrics.heroHeight),
+            Math.round(storyMetrics.scheduleHeight),
+            Math.round(storyMetrics.footerHeight),
+            storyMetrics.itemCount,
+          ].join(':')
+        : 'metrics-none',
+    [storyMetrics],
+  );
+
+  const visibleSignature = useMemo(() => visibleElements.join(','), [visibleElements]);
+
+  const autoSizingKey = useMemo(
+    () =>
+      [
+        activeTemplateId,
+        heroSignature,
+        styleState.layoutStyle ?? 'list',
+        styleState.spacing ?? 'comfortable',
+        styleState.cardCornerRadius ?? 0,
+        styleState.accentLines ? 1 : 0,
+        styleState.footerBar ? 1 : 0,
+        schedule?.items.length ?? 0,
+        schedule?.date ?? '',
+        scheduleSignature,
+        visibleSignature,
+        metricsSignature,
+      ].join('|'),
+    [
+      activeTemplateId,
+      heroSignature,
+      styleState.layoutStyle,
+      styleState.spacing,
+      styleState.cardCornerRadius,
+      styleState.accentLines,
+      styleState.footerBar,
+      schedule?.items.length,
+      schedule?.date,
+      scheduleSignature,
+      visibleSignature,
+      metricsSignature,
+    ],
+  );
+
+  useEffect(() => {
+    if (!storyMetrics) return;
+    if (isSmartSizing) return;
+    const key = autoSizingKey;
+    const seen = autoSizingKeysRef.current;
+    if (seen.has(key)) {
+      return;
+    }
+    if (seen.size > 50) {
+      seen.clear();
+    }
+    seen.add(key);
+    handleApplySmartSizing();
+  }, [autoSizingKey, handleApplySmartSizing, isSmartSizing, storyMetrics]);
+
   const updateStoryScale = useCallback(
     (mode?: ZoomMode) => {
       const nextMode = mode ?? zoomModeRef.current;
@@ -510,6 +649,7 @@ const EditorPage: React.FC = () => {
 
     const node = previewAreaRef.current;
     handleResize();
+    const rafId = window.requestAnimationFrame(handleResize);
 
     let observer: ResizeObserver | null = null;
 
@@ -521,6 +661,7 @@ const EditorPage: React.FC = () => {
     }
 
     return () => {
+      window.cancelAnimationFrame(rafId);
       if (observer) {
         observer.disconnect();
       } else {
@@ -1060,15 +1201,10 @@ const EditorPage: React.FC = () => {
                   </div>
                   <div
                     ref={previewAreaRef}
-                    className="relative flex h-full w-full flex-1 items-center justify-center overflow-auto"
+                    className="relative z-10 flex h-full w-full min-h-0 min-w-0 flex-1 items-center justify-center overflow-auto"
                   >
                     <div className="relative flex items-center justify-center" style={scaledCanvasWrapperStyle}>
-                      <img
-                        src="/frames/iphone-frame.png"
-                        alt="Phone frame"
-                        className="pointer-events-none absolute inset-0 z-10 h-full w-full select-none object-contain"
-                        draggable={false}
-                      />
+                      <PhoneFrameOverlay />
                       <div
                         id="story-canvas"
                         ref={storyCanvasRef}
@@ -1080,6 +1216,8 @@ const EditorPage: React.FC = () => {
                           style={styleState}
                           visibleElements={visibleElements}
                           elementStyles={elementStyles}
+                          spacingScales={smartSpacing}
+                          onMetricsChange={handleStoryMetricsChange}
                         />
                       </div>
                     </div>
@@ -1160,6 +1298,8 @@ const EditorPage: React.FC = () => {
                       onOpenColorPicker={handleOpenColorPicker}
                       staticVisibility={staticVisibility}
                       onToggleStaticElement={handleToggleStaticElement}
+                      onApplySmartSizing={handleApplySmartSizing}
+                      isSmartSizing={isSmartSizing}
                     />
                   ) : activeTab === 'layout' ? (
                     <LayoutTab style={styleState} onUpdate={updateStyle} />
@@ -1172,11 +1312,11 @@ const EditorPage: React.FC = () => {
               <div className="relative flex flex-1 flex-col items-center justify-center overflow-hidden bg-slate-900 p-12">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(139,123,216,0.03),transparent_50%),radial-gradient(circle_at_80%_70%,rgba(139,123,216,0.03),transparent_50%)]" />
                 <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px] opacity-50" />
-                <div className="relative z-10 flex w-full max-w-5xl flex-col items-center">
+                <div className="relative z-10 flex h-full w-full max-w-5xl flex-col items-center justify-start min-h-0">
                   {scheduleStatusMessage ? (
                     <div className="mb-4 w-full max-w-sm text-center">{scheduleStatusMessage}</div>
                   ) : null}
-                  <div className="mb-6 flex flex-wrap items-center justify-center gap-2">
+                  <div className="relative z-20 mb-6 flex flex-wrap items-center justify-center gap-2">
                     {ZOOM_OPTIONS.map((option) => (
                       <button
                         key={option}
@@ -1215,15 +1355,10 @@ const EditorPage: React.FC = () => {
                   </div>
                   <div
                     ref={previewAreaRef}
-                    className="relative flex h-full w-full flex-1 items-center justify-center overflow-auto"
+                    className="relative z-10 flex h-full w-full min-h-0 min-w-0 flex-1 items-center justify-center overflow-auto"
                   >
-                    <div className="relative flex itemsCenter justify-center" style={scaledCanvasWrapperStyle}>
-                      <img
-                        src="/frames/iphone-frame.png"
-                        alt="Phone frame"
-                        className="pointer-events-none absolute inset-0 z-10 h-full w-full select-none object-contain"
-                        draggable={false}
-                      />
+                    <div className="relative flex items-center justify-center" style={scaledCanvasWrapperStyle}>
+                      <PhoneFrameOverlay />
                       <div
                         id="story-canvas"
                         ref={storyCanvasRef}
@@ -1235,6 +1370,8 @@ const EditorPage: React.FC = () => {
                           style={styleState}
                           visibleElements={visibleElements}
                           elementStyles={elementStyles}
+                          spacingScales={smartSpacing}
+                          onMetricsChange={handleStoryMetricsChange}
                         />
                       </div>
                     </div>
@@ -1292,6 +1429,8 @@ const EditorPage: React.FC = () => {
                       onOpenColorPicker={handleOpenColorPicker}
                       staticVisibility={staticVisibility}
                       onToggleStaticElement={handleToggleStaticElement}
+                      onApplySmartSizing={handleApplySmartSizing}
+                      isSmartSizing={isSmartSizing}
                     />
                   ) : activeTab === 'layout' ? (
                     <LayoutTab style={styleState} onUpdate={updateStyle} />

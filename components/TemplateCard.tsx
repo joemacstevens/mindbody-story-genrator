@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import type { Style, TemplateId, Schedule } from '../types';
 import { SchedulePreview } from './editor/SchedulePreview';
+import { DEFAULT_SMART_SPACING } from './editor/smartTextSizing';
 import {
   DEFAULT_VISIBLE_ELEMENTS,
   buildInitialElementStyles,
@@ -94,6 +95,7 @@ const TemplateCard: React.FC<TemplateCardProps> = ({
               style={style}
               visibleElements={DEFAULT_VISIBLE_ELEMENTS}
               elementStyles={elementStyles}
+              spacingScales={DEFAULT_SMART_SPACING}
             />
           </div>
         </div>

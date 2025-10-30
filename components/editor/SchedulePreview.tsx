@@ -2,12 +2,15 @@ import React from 'react';
 import type { Schedule, Style, ScheduleElementId, ScheduleElementStyle } from '../../types';
 import { cn } from '../../utils/cn';
 import { CONTENT_ELEMENT_META, getDefaultElementStyle } from './contentElements';
+import type { SmartSpacingScales, StoryMetrics } from './smartTextSizing';
 
 interface SchedulePreviewProps {
   schedule: Schedule;
   style: Style;
   visibleElements: ScheduleElementId[];
   elementStyles: Record<ScheduleElementId, ScheduleElementStyle>;
+  spacingScales: SmartSpacingScales;
+  onMetricsChange?: (metrics: StoryMetrics) => void;
 }
 
 const dividerClass: Record<NonNullable<Style['dividerStyle']>, string> = {
@@ -22,6 +25,8 @@ const SPACING_PRESETS: Record<NonNullable<Style['spacing']>, { itemGap: number; 
   comfortable: { itemGap: 12, itemPadding: 18 },
   spacious: { itemGap: 18, itemPadding: 24 },
 };
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 const getReadableTextColor = (color: string, fallback: string): string => {
   if (!color || !color.startsWith('#')) return fallback;
@@ -41,9 +46,16 @@ export const SchedulePreview: React.FC<SchedulePreviewProps> = ({
   style,
   visibleElements,
   elementStyles,
+  spacingScales,
+  onMetricsChange,
 }) => {
+  const rootRef = React.useRef<HTMLDivElement | null>(null);
+  const heroRef = React.useRef<HTMLDivElement | null>(null);
+  const footerRef = React.useRef<HTMLDivElement | null>(null);
   const scheduleContainerRef = React.useRef<HTMLDivElement | null>(null);
+  const metricsRef = React.useRef<StoryMetrics | null>(null);
   const [scheduleHeight, setScheduleHeight] = React.useState(0);
+
   const showHeading = style.showHeading !== false;
   const showSubtitle = style.showSubtitle !== false;
   const showSchedule = style.showSchedule !== false;
@@ -64,21 +76,13 @@ export const SchedulePreview: React.FC<SchedulePreviewProps> = ({
     updateHeight();
 
     if ('ResizeObserver' in window) {
-      const observer = new ResizeObserver(() => {
-        updateHeight();
-      });
+      const observer = new ResizeObserver(updateHeight);
       observer.observe(node);
-
-      return () => {
-        observer.disconnect();
-      };
+      return () => observer.disconnect();
     }
 
     const handle = window.setInterval(updateHeight, 250);
-
-    return () => {
-      window.clearInterval(handle);
-    };
+    return () => window.clearInterval(handle);
   }, [schedule.items.length]);
 
   const hasBackgroundImage = Boolean(style.bgImage);
@@ -96,393 +100,523 @@ export const SchedulePreview: React.FC<SchedulePreviewProps> = ({
   const itemCornerRadius = style.cardCornerRadius ?? 24;
 
   const classCount = schedule.items.length;
-  const effectiveClassCount = Math.min(Math.max(classCount || 1, 1), 20);
-  const density = (effectiveClassCount - 1) / 19;
-  const availableHeight = scheduleHeight || 0;
-  const baseDynamicFont = React.useMemo(() => {
-    if (!availableHeight || effectiveClassCount === 0) {
-      return 18;
-    }
-
-    const rawSize = availableHeight / (effectiveClassCount * 1.85);
-    return Math.max(11, Math.min(rawSize, 22));
-  }, [availableHeight, effectiveClassCount]);
-
-  const fontSizeScale = baseDynamicFont / 18;
-  const scheduleAreaPercent = 68 + density * 12; // 68% for sparse schedules → 80% for dense ones
-  const spacingTightness = 1 - density * 0.5;
-  const fontTightness = 0.9 + Math.min(fontSizeScale, 1.1) * 0.1;
-  const combinedSpacingScale = spacingTightness * fontTightness;
-  const paddingScale = 1.15 * combinedSpacingScale;
-  const timeFontScale = (1.08 - density * 0.32) * fontSizeScale;
-  const classFontScale = (1.02 - density * 0.26) * fontSizeScale;
-  const instructorFontScale = (0.98 - density * 0.22) * fontSizeScale;
-  const secondaryFontScale = (0.96 - density * 0.18) * fontSizeScale;
-  const lineHeightScale = Math.max(0.9, (1 - density * 0.1) * (0.92 + fontSizeScale * 0.08));
-  const headingElementStyle = elementStyles.heading ?? getDefaultElementStyle('heading');
-  const subtitleElementStyle = elementStyles.subtitle ?? getDefaultElementStyle('subtitle');
-  const scheduleDateElementStyle =
-    elementStyles.scheduleDate ?? getDefaultElementStyle('scheduleDate');
-  const footerElementStyle = elementStyles.footer ?? getDefaultElementStyle('footer');
-
-  const scaledItemGap = Math.max(4, Math.round(spacingConfig.itemGap * combinedSpacingScale));
-  const scaledItemPadding = Math.max(10, Math.round(spacingConfig.itemPadding * paddingScale));
-  const timePaddingY = Math.max(6, Math.round(14 * combinedSpacingScale));
-  const timePaddingX = Math.max(10, Math.round(18 * combinedSpacingScale));
-  const timeMinWidth = Math.max(56, Math.round(88 * combinedSpacingScale));
-  const innerColumnGap = Math.max(6, Math.round(16 * combinedSpacingScale));
-  const timeStackGap = Math.max(4, Math.round(12 * combinedSpacingScale));
-  const textStackGap = Math.max(4, Math.round(12 * combinedSpacingScale));
-  const accentVerticalInset = Math.max(4, Math.round(scaledItemPadding * 0.42));
-  const accentHorizontalOffset = Math.max(8, Math.round(scaledItemPadding * 0.32));
-
+  const effectiveClassCount = clamp(classCount || 1, 1, 18);
+  const density = (effectiveClassCount - 1) / 14;
+  const scheduleAreaPercent = clamp(
+    68 + density * 10 + (layoutStyle === 'grid' ? 4 : 0) - (spacingPreset === 'spacious' ? 3 : 0),
+    62,
+    84,
+  );
   const showStripedCards = effectiveClassCount > 6;
 
-  const getScaledFontSize = (value: number, scale: number, minimum: number) => {
-    const scaled = value * scale;
-    const minSize = minimum * fontSizeScale;
-    return Math.max(minSize, Math.round(scaled * 10) / 10);
-  };
+  const headingElementStyle = elementStyles.heading ?? getDefaultElementStyle('heading');
+  const subtitleElementStyle = elementStyles.subtitle ?? getDefaultElementStyle('subtitle');
+  const scheduleDateElementStyle = elementStyles.scheduleDate ?? getDefaultElementStyle('scheduleDate');
+  const footerElementStyle = elementStyles.footer ?? getDefaultElementStyle('footer');
 
-  const getScaledLineHeight = (value: number | string | undefined) => {
-    if (typeof value === 'number') {
-      return Math.max(1.1, Number((value * lineHeightScale).toFixed(2)));
+  const classStyle = elementStyles.className ?? getDefaultElementStyle('className');
+  const timeStyle = elementStyles.time ?? getDefaultElementStyle('time');
+  const instructorStyle = elementStyles.instructor ?? getDefaultElementStyle('instructor');
+  const locationStyle = elementStyles.location ?? getDefaultElementStyle('location');
+  const durationStyle = elementStyles.duration ?? getDefaultElementStyle('duration');
+  const descriptionStyle = elementStyles.description ?? getDefaultElementStyle('description');
+
+  const heroGap = Math.max(14, Math.round(22 * spacingScales.heroGap));
+  const scheduleGap = Math.max(6, Math.round(spacingConfig.itemGap * spacingScales.scheduleGap));
+  const cardPadding = Math.max(12, Math.round(spacingConfig.itemPadding * spacingScales.cardPadding));
+  const footerGap = Math.max(12, Math.round(18 * spacingScales.footerGap));
+  const timePaddingY = Math.max(6, Math.round(12 * spacingScales.timePadding));
+  const timePaddingX = Math.max(10, Math.round(18 * spacingScales.timePadding));
+  const timeMinWidth = Math.max(56, Math.round(80 * spacingScales.timePadding));
+  const innerColumnGap = Math.max(6, Math.round(16 * spacingScales.scheduleGap));
+  const timeStackGap = Math.max(4, Math.round(10 * spacingScales.scheduleGap));
+  const textStackGap = Math.max(4, Math.round(11 * spacingScales.scheduleGap));
+  const accentVerticalInset = Math.max(4, Math.round(cardPadding * 0.42));
+  const accentHorizontalOffset = Math.max(8, Math.round(cardPadding * 0.3));
+  const logoGap = Math.max(14, Math.round(24 * spacingScales.logoPadding));
+  const logoBottomPadding = Math.max(24, Math.round(36 * spacingScales.logoPadding));
+
+  const backgroundStyles = React.useMemo<React.CSSProperties>(
+    () => ({
+      fontFamily: style.fontFamily,
+      color: style.textColorPrimary,
+      backgroundColor: style.backgroundColor,
+      backgroundImage: hasBackgroundImage
+        ? style.overlayColor && style.overlayColor !== 'rgba(0, 0, 0, 0)'
+          ? `linear-gradient(${style.overlayColor}, ${style.overlayColor}), url(${style.bgImage})`
+          : `url(${style.bgImage})`
+        : undefined,
+      backgroundSize: style.bgFit ?? 'cover',
+      backgroundPosition: style.bgPosition ?? '50% 50%',
+      backgroundRepeat: 'no-repeat',
+    }),
+    [
+      style.fontFamily,
+      style.textColorPrimary,
+      style.backgroundColor,
+      style.overlayColor,
+      style.bgImage,
+      style.bgFit,
+      style.bgPosition,
+      hasBackgroundImage,
+    ],
+  );
+
+  const fontVars = React.useMemo<React.CSSProperties>(
+    () => ({
+      '--font-heading': `${headingElementStyle.fontSize}px`,
+      '--font-subtitle': `${subtitleElementStyle.fontSize}px`,
+      '--font-date': `${scheduleDateElementStyle.fontSize}px`,
+      '--font-class': `${classStyle.fontSize}px`,
+      '--font-time': `${timeStyle.fontSize}px`,
+      '--font-instructor': `${instructorStyle.fontSize}px`,
+      '--font-location': `${locationStyle.fontSize}px`,
+      '--font-description': `${descriptionStyle.fontSize}px`,
+      '--font-footer': `${footerElementStyle.fontSize}px`,
+    }),
+    [
+      headingElementStyle.fontSize,
+      subtitleElementStyle.fontSize,
+      scheduleDateElementStyle.fontSize,
+      classStyle.fontSize,
+      timeStyle.fontSize,
+      instructorStyle.fontSize,
+      locationStyle.fontSize,
+      descriptionStyle.fontSize,
+      footerElementStyle.fontSize,
+    ],
+  );
+
+  const spacingVars = React.useMemo<React.CSSProperties>(
+    () => ({
+      '--story-hero-gap': `${heroGap}px`,
+      '--story-schedule-gap': `${scheduleGap}px`,
+      '--story-card-padding': `${cardPadding}px`,
+      '--story-footer-gap': `${footerGap}px`,
+      '--story-time-padding-y': `${timePaddingY}px`,
+      '--story-time-padding-x': `${timePaddingX}px`,
+      '--story-time-min-width': `${timeMinWidth}px`,
+      '--story-card-accent-inset': `${accentVerticalInset}px`,
+      '--story-card-accent-offset': `${accentHorizontalOffset}px`,
+      '--story-inner-gap': `${innerColumnGap}px`,
+      '--story-text-gap': `${textStackGap}px`,
+      '--story-time-gap': `${timeStackGap}px`,
+      '--story-logo-gap': `${logoGap}px`,
+      '--story-logo-bottom-padding': `${logoBottomPadding}px`,
+    }),
+    [
+      heroGap,
+      scheduleGap,
+      cardPadding,
+      footerGap,
+      timePaddingY,
+      timePaddingX,
+      timeMinWidth,
+      accentVerticalInset,
+      accentHorizontalOffset,
+      innerColumnGap,
+      textStackGap,
+      timeStackGap,
+      logoGap,
+      logoBottomPadding,
+    ],
+  );
+
+  const combinedStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      ...backgroundStyles,
+      ...fontVars,
+      ...spacingVars,
+    }),
+    [backgroundStyles, fontVars, spacingVars],
+  );
+
+  const hasLogo = Boolean(style.logoUrl);
+  const logoPosition = style.logoPosition ?? 'bottom-center';
+  const normalizedLogoPosition =
+    logoPosition === 'top-left' || logoPosition === 'top-right'
+      ? 'top-center'
+      : logoPosition === 'bottom-left' || logoPosition === 'bottom-right'
+        ? 'bottom-center'
+        : logoPosition;
+  const logoSize = Math.min(Math.max(style.logoSize ?? 100, 32), 320);
+
+  const renderLogoBadge = ({ pointerEvents = true }: { pointerEvents?: boolean } = {}) => (
+    <div
+      className={cn(
+        'inline-flex items-center justify-center rounded-2xl border border-white/15 bg-white/12 px-6 py-4 text-base shadow-[0_18px_48px_rgba(15,23,42,0.55)] transition-all duration-300',
+        !pointerEvents && 'pointer-events-none',
+      )}
+      style={{
+        maxWidth: `${logoSize + 64}px`,
+        backdropFilter: 'blur(18px)',
+        WebkitBackdropFilter: 'blur(18px)',
+      }}
+    >
+      <img
+        src={style.logoUrl}
+        alt={style.heading ? `${style.heading} logo` : 'Brand logo'}
+        style={{
+          width: `${logoSize}px`,
+          maxWidth: '100%',
+          maxHeight: `${logoSize}px`,
+          objectFit: 'contain',
+        }}
+        draggable={false}
+      />
+    </div>
+  );
+
+  const topLogo =
+    hasLogo && normalizedLogoPosition === 'top-center'
+      ? (
+        <div className="flex justify-center" style={{ paddingBottom: 'var(--story-logo-gap)' }}>
+          {renderLogoBadge()}
+        </div>
+      )
+      : null;
+
+  const bottomLogo =
+    hasLogo && normalizedLogoPosition === 'bottom-center'
+      ? (
+        <div
+          className="mt-auto flex justify-center"
+          style={{
+            paddingTop: 'var(--story-logo-gap)',
+            paddingBottom: 'var(--story-logo-bottom-padding)',
+          }}
+        >
+          {renderLogoBadge()}
+        </div>
+      )
+      : null;
+
+  const centerLogo =
+    hasLogo && normalizedLogoPosition === 'center'
+      ? (
+        <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center">
+          {renderLogoBadge({ pointerEvents: false })}
+        </div>
+      )
+      : null;
+
+  React.useLayoutEffect(() => {
+    if (!onMetricsChange) return;
+    const root = rootRef.current;
+    if (!root) return;
+
+    const heroNode = heroRef.current;
+    const footerNode = footerRef.current;
+
+    const metrics: StoryMetrics = {
+      contentHeight: root.scrollHeight,
+      availableHeight: root.getBoundingClientRect().height,
+      heroHeight: heroNode?.getBoundingClientRect().height ?? 0,
+      scheduleHeight,
+      footerHeight: footerNode?.getBoundingClientRect().height ?? 0,
+      itemCount: schedule.items.length,
+    };
+
+    const prev = metricsRef.current;
+    const changed =
+      !prev ||
+      prev.contentHeight !== metrics.contentHeight ||
+      prev.availableHeight !== metrics.availableHeight ||
+      prev.heroHeight !== metrics.heroHeight ||
+      prev.scheduleHeight !== metrics.scheduleHeight ||
+      prev.footerHeight !== metrics.footerHeight ||
+      prev.itemCount !== metrics.itemCount;
+
+    if (changed) {
+      metricsRef.current = metrics;
+      onMetricsChange(metrics);
     }
+  }, [
+    onMetricsChange,
+    scheduleHeight,
+    schedule.items.length,
+    elementStyles,
+    spacingScales,
+    style.heading,
+    style.subtitle,
+    style.footer,
+    style.showHeading,
+    style.showSubtitle,
+    style.showSchedule,
+    style.showFooter,
+  ]);
 
-    if (typeof value === 'string') {
-      const parsed = parseFloat(value);
-      if (!Number.isNaN(parsed)) {
-        return Math.max(1.1, Number((parsed * lineHeightScale).toFixed(2)));
-      }
-    }
-
-    return Math.max(1.2, Number((1.3 * lineHeightScale).toFixed(2)));
-  };
-
-  const backgroundStyles: React.CSSProperties = {
-    fontFamily: style.fontFamily,
-    color: style.textColorPrimary,
-    backgroundColor: style.backgroundColor,
-    backgroundImage: hasBackgroundImage
-      ? style.overlayColor && style.overlayColor !== 'rgba(0, 0, 0, 0)'
-        ? `linear-gradient(${style.overlayColor}, ${style.overlayColor}), url(${style.bgImage})`
-        : `url(${style.bgImage})`
-      : undefined,
-    backgroundSize: style.bgFit ?? 'cover',
-    backgroundPosition: style.bgPosition ?? '50% 50%',
-    backgroundRepeat: 'no-repeat',
-    transition: 'background-color 0.3s ease, color 0.3s ease',
-  };
+  const renderTextStyle = React.useCallback(
+    (elementId: ScheduleElementId, fallbackColor: string) => {
+      const styleRecord = elementStyles[elementId] ?? getDefaultElementStyle(elementId);
+      return {
+        color: styleRecord.color ?? fallbackColor,
+        fontWeight: styleRecord.fontWeight ?? CONTENT_ELEMENT_META[elementId]?.defaultFontWeight ?? 500,
+        letterSpacing: `${(styleRecord.letterSpacing ?? CONTENT_ELEMENT_META[elementId]?.defaultLetterSpacing ?? 0).toFixed(2)}px`,
+        lineHeight: styleRecord.lineHeight ?? CONTENT_ELEMENT_META[elementId]?.defaultLineHeight ?? 1.3,
+        transition: 'color 0.3s ease, font-weight 0.3s ease',
+      } as React.CSSProperties;
+    },
+    [elementStyles],
+  );
 
   return (
     <div
+      ref={rootRef}
       className={cn(
-        'relative flex h-full w-full flex-col justify-evenly overflow-hidden rounded-[inherit] px-6 py-10',
+        'story-canvas relative flex h-full w-full flex-col overflow-hidden rounded-[inherit] px-6 py-10',
       )}
-      style={backgroundStyles}
+      style={combinedStyle}
     >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.05),transparent_55%),radial-gradient(circle_at_bottom,rgba(139,123,216,0.08),transparent_60%)] opacity-40" />
-      <div className="relative z-10 flex h-full flex-col gap-6">
-        {(showHeading || showSubtitle) && (
-          <header className="space-y-2 text-center" style={{ color: style.textColorPrimary }}>
-            {showHeading && (
-              <h1
-                className="text-4xl font-bold tracking-tight sm:text-5xl"
-                style={{
-                  color: headingElementStyle.color ?? style.textColorPrimary,
-                  fontWeight: headingElementStyle.fontWeight ?? Number(style.headingWeight ?? '700'),
-                  fontSize: `${headingElementStyle.fontSize}px`,
-                  letterSpacing: `${(headingElementStyle.letterSpacing ?? 0).toFixed(2)}px`,
-                  lineHeight: headingElementStyle.lineHeight ?? 1.1,
-                  transition: 'color 0.3s ease, font-size 0.3s ease',
-                }}
-              >
-                {style.heading}
-              </h1>
-            )}
-            {showScheduleDate && (
-              <p
-                className="text-sm uppercase"
-                style={{
-                  color: scheduleDateElementStyle.color ?? style.textColorSecondary,
-                  fontSize: `${scheduleDateElementStyle.fontSize}px`,
-                  fontWeight: scheduleDateElementStyle.fontWeight ?? 600,
-                  letterSpacing: `${(scheduleDateElementStyle.letterSpacing ?? 0).toFixed(2)}px`,
-                  lineHeight: scheduleDateElementStyle.lineHeight ?? 1.2,
-                  transition: 'color 0.3s ease',
-                }}
-              >
-                {schedule.date}
-              </p>
-            )}
-            {showSubtitle && (
-              <p
-                className="text-base"
-                style={{
-                  color: subtitleElementStyle.color ?? style.textColorSecondary,
-                  fontSize: `${subtitleElementStyle.fontSize}px`,
-                  fontWeight: subtitleElementStyle.fontWeight ?? 500,
-                  letterSpacing: `${(subtitleElementStyle.letterSpacing ?? 0).toFixed(2)}px`,
-                  lineHeight: subtitleElementStyle.lineHeight ?? 1.3,
-                  transition: 'color 0.3s ease',
-                }}
-              >
-                {style.subtitle}
-              </p>
-            )}
-          </header>
-        )}
+      <div className="pointer-events-none absolute inset-0 z-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.05),transparent_55%),radial-gradient(circle_at_bottom,rgba(139,123,216,0.08),transparent_60%)] opacity-40" />
+      {centerLogo}
+      <div className="relative z-10 flex h-full flex-col">
+        {topLogo}
+        <div className="flex flex-1 flex-col" style={{ gap: 'var(--story-hero-gap)' }}>
+          {(showHeading || showSubtitle) && (
+            <header ref={heroRef} className="flex flex-col items-center text-center" style={{ gap: 'var(--story-hero-gap)' }}>
+              {showHeading && (
+                <h1
+                  className="text-story-heading font-bold tracking-tight text-center"
+                  style={{
+                    ...renderTextStyle('heading', style.textColorPrimary),
+                    fontWeight: headingElementStyle.fontWeight ?? Number(style.headingWeight ?? '700'),
+                  }}
+                >
+                  {style.heading}
+                </h1>
+              )}
+              {showScheduleDate && (
+                <p
+                  className="text-story-date uppercase"
+                  style={renderTextStyle('scheduleDate', style.textColorSecondary)}
+                >
+                  {schedule.date}
+                </p>
+              )}
+              {showSubtitle && (
+                <p className="text-story-subtitle" style={renderTextStyle('subtitle', style.textColorSecondary)}>
+                  {style.subtitle}
+                </p>
+              )}
+            </header>
+          )}
 
-        {style.dividerStyle && style.dividerStyle !== 'none' && (
-          <div
-            className={cn('opacity-80', dividerClass[style.dividerStyle])}
-            style={{ borderColor: style.textColorSecondary }}
-          />
-        )}
+          {style.dividerStyle && style.dividerStyle !== 'none' && (
+            <div
+              className={cn('opacity-80', dividerClass[style.dividerStyle])}
+              style={{ borderColor: style.textColorSecondary }}
+            />
+          )}
 
-        {showSchedule && (
-          <main
-            ref={scheduleContainerRef}
-            className="relative flex flex-col overflow-hidden"
-            style={{
-              flex: '0 0 auto',
-              height: `${scheduleAreaPercent}%`,
-              minHeight: `${scheduleAreaPercent}%`,
-              maxHeight: `${scheduleAreaPercent}%`,
-            }}
-          >
-            {schedule.items.length === 0 ? (
-              <div
-                className="flex h-full flex-col items-center justify-center rounded-3xl border border-border-light/40 p-8 text-sm text-text-tertiary"
-                style={{ backgroundColor: style.cardBackgroundColor }}
-              >
-                Add classes on the right to see them previewed here.
-              </div>
-            ) : (
-              <ul
-                className={cn(
-                  layoutStyle === 'grid'
-                    ? 'grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3'
-                    : 'flex h-full flex-1 flex-col',
-                )}
-                style={{ gap: `${scaledItemGap}px` }}
-              >
-                {schedule.items.map((item, index) => {
-                  const renderedElements = visibleElements.reduce<
-                    Array<{ id: ScheduleElementId; node: React.ReactNode }>
-                  >((acc, elementId) => {
-                    const meta = CONTENT_ELEMENT_META[elementId];
-                    if (!meta) return acc;
-                    const rawValue = item[meta.field];
-                    if (!rawValue) return acc;
-
-                    const elementStyle = elementStyles[elementId] ?? getDefaultElementStyle(elementId);
-                    const fontSizePx = elementStyle.fontSize ?? meta.defaultFontSize ?? 16;
-                    const fontWeight = elementStyle.fontWeight ?? meta.defaultFontWeight ?? 500;
-                    const letterSpacingValue = `${(
-                      elementStyle.letterSpacing ?? meta.defaultLetterSpacing ?? 0
-                    ).toFixed(2)}px`;
-                    const lineHeightValue = elementStyle.lineHeight ?? meta.defaultLineHeight ?? 1.3;
-                    const textColor = elementStyle.color ?? meta.defaultColor ?? style.textColorSecondary;
-
-                    const numericFontSize =
-                      typeof fontSizePx === 'number' ? fontSizePx : parseFloat(String(fontSizePx));
-                    const resolvedFontSize =
-                      !Number.isNaN(numericFontSize) && Number.isFinite(numericFontSize)
-                        ? numericFontSize
-                        : typeof meta.defaultFontSize === 'number'
-                          ? meta.defaultFontSize
-                          : 16;
-                    const scaledLineHeight = getScaledLineHeight(lineHeightValue);
-
-                    const createTextStyle = (
-                      scale: number,
-                      minimum: number,
-                      colorValue: string | undefined,
-                      extra?: React.CSSProperties,
-                    ): React.CSSProperties => ({
-                      fontSize: `${getScaledFontSize(resolvedFontSize, scale, minimum)}px`,
-                      fontWeight,
-                      letterSpacing: letterSpacingValue,
-                      lineHeight: scaledLineHeight,
-                      color: colorValue,
-                      transition: 'color 0.3s ease',
-                      ...extra,
-                    });
-
-                    let node: React.ReactNode | null = null;
-
-                    switch (elementId) {
-                      case 'time':
-                        node = (
-                          <div
-                            className="inline-flex items-center justify-center rounded-2xl font-semibold shadow-inner"
-                            style={{
-                              backgroundColor: style.accent,
-                              color: elementStyle.color || accentTextColor,
-                              fontSize: `${getScaledFontSize(resolvedFontSize, timeFontScale, 18)}px`,
-                              fontWeight,
-                              letterSpacing: letterSpacingValue,
-                              lineHeight: scaledLineHeight,
-                              padding: `${timePaddingY}px ${timePaddingX}px`,
-                              minWidth: `${timeMinWidth}px`,
-                              transition:
-                                'background-color 0.3s ease, color 0.3s ease, transform 0.3s ease',
-                            }}
-                          >
-                            {rawValue}
-                          </div>
-                        );
-                        break;
-                      case 'className':
-                        node = (
-                          <p
-                            className="font-semibold"
-                            style={createTextStyle(classFontScale, 16, textColor ?? style.textColorPrimary)}
-                          >
-                            {rawValue}
-                          </p>
-                        );
-                        break;
-                      case 'instructor':
-                        node = (
-                          <p style={createTextStyle(instructorFontScale, 14, textColor ?? style.textColorSecondary)}>
-                            with {rawValue}
-                          </p>
-                        );
-                        break;
-                      case 'location':
-                        node = (
-                          <p style={createTextStyle(secondaryFontScale, 13, textColor ?? style.textColorSecondary)}>
-                            📍 {rawValue}
-                          </p>
-                        );
-                        break;
-                      case 'duration':
-                        node = (
-                          <p style={createTextStyle(secondaryFontScale, 13, textColor ?? style.textColorSecondary)}>
-                            ⏱️ {rawValue}
-                          </p>
-                        );
-                        break;
-                      case 'description':
-                        node = (
-                          <p style={createTextStyle(secondaryFontScale, 13, textColor ?? style.textColorSecondary)}>
-                            {rawValue}
-                          </p>
-                        );
-                        break;
-                      default:
-                        break;
-                    }
-
-
-                    if (node) {
-                      acc.push({ id: elementId, node });
-                    }
-
-                    return acc;
-                  }, []);
-
-                  const timeNodes = renderedElements.filter((element) => element.id === 'time');
-                  const textNodes = renderedElements.filter((element) => element.id !== 'time');
-
-                  const cardStyles: React.CSSProperties = {
-                    backgroundColor: style.cardBackgroundColor,
-                    borderColor: cardBorderColor,
-                    animation: `slide-up-fade 0.6s ease ${index * 0.08}s both`,
-                    transition: 'background-color 0.3s ease, border-color 0.3s ease',
-                    borderRadius: `${itemCornerRadius}px`,
-                    padding: `${scaledItemPadding}px`,
-                    paddingLeft: `${scaledItemPadding + (style.accentLines ? 6 : 0)}px`,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    flex: layoutStyle === 'grid' ? '0 0 auto' : '1 1 0%',
-                    minHeight: layoutStyle === 'grid' ? undefined : 0,
-                  };
-
-                  if (showStripedCards && index % 2 === 1) {
-                    cardStyles.backgroundImage = `linear-gradient(${stripeOverlayColor}, ${stripeOverlayColor})`;
-                    cardStyles.backgroundBlendMode = 'overlay';
-                  }
-
-                  if (showStripedCards && index !== 0) {
-                    cardStyles.borderTop = `1px solid ${cardBorderColor}`;
-                  }
-
-                  return (
-                    <li
-                      key={`${item.time}-${index}`}
-                      className={cn(
-                        'group relative flex min-h-0 flex-col border transition hover:border-primary/40 hover:bg-primary/5',
-                        layoutStyle !== 'grid' && 'flex-1',
-                        layoutStyle === 'grid' && 'h-full',
-                        layoutStyle === 'card' ? 'shadow-lg' : 'shadow-sm',
-                      )}
-                      style={cardStyles}
-                    >
-                      <div className="flex w-full items-start" style={{ gap: `${innerColumnGap}px` }}>
-                        {timeNodes.length > 0 ? (
-                          <div className="flex flex-col" style={{ gap: `${timeStackGap}px` }}>
-                            {timeNodes.map((element, idx) => (
-                              <React.Fragment key={`${element.id}-${idx}`}>{element.node}</React.Fragment>
-                            ))}
-                          </div>
-                        ) : null}
-                        {textNodes.length > 0 ? (
-                          <div className="flex min-w-0 flex-1 flex-col" style={{ gap: `${textStackGap}px` }}>
-                            {textNodes.map((element, idx) => (
-                              <React.Fragment key={`${element.id}-${idx}`}>{element.node}</React.Fragment>
-                            ))}
-                          </div>
-                        ) : null}
-                        {style.accentLines ? (
-                          <span
-                            className="pointer-events-none absolute rounded-full"
-                            style={{
-                              top: `${accentVerticalInset}px`,
-                              bottom: `${accentVerticalInset}px`,
-                              left: `${accentHorizontalOffset}px`,
-                              width: '3px',
-                              backgroundColor: style.accent,
-                              opacity: 0.6,
-                            }}
-                          />
-                        ) : null}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </main>
-        )}
-
-        {showFooter && (
-          <footer className="mt-auto flex flex-col gap-3 text-sm text-text-tertiary">
-            {style.footerBar && (
-              <div
-                className="h-2 rounded-full"
-                style={{ backgroundColor: style.accent, transition: 'background-color 0.3s ease' }}
-              />
-            )}
-            <p
+          {showSchedule && (
+            <main
+              ref={scheduleContainerRef}
+              className="relative flex flex-col overflow-hidden"
               style={{
-                color: footerElementStyle.color ?? style.textColorSecondary,
-                fontSize: `${footerElementStyle.fontSize}px`,
-                fontWeight: footerElementStyle.fontWeight ?? 500,
-                letterSpacing: `${(footerElementStyle.letterSpacing ?? 0).toFixed(2)}px`,
-                lineHeight: footerElementStyle.lineHeight ?? 1.4,
-                transition: 'color 0.3s ease',
+                flex: '0 0 auto',
+                height: `${scheduleAreaPercent}%`,
+                minHeight: `${scheduleAreaPercent}%`,
+                maxHeight: `${scheduleAreaPercent}%`,
               }}
             >
-              {style.footer}
-            </p>
-          </footer>
-        )}
+              {schedule.items.length === 0 ? (
+                <div
+                  className="flex h-full flex-col items-center justify-center rounded-3xl border border-border-light/40 p-8 text-sm text-text-tertiary"
+                  style={{ backgroundColor: style.cardBackgroundColor }}
+                >
+                  Add classes on the right to see them previewed here.
+                </div>
+              ) : (
+                <ul
+                  className={cn(
+                    layoutStyle === 'grid'
+                      ? 'grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3'
+                      : 'flex h-full flex-1 flex-col',
+                  )}
+                  style={{ gap: 'var(--story-schedule-gap)' }}
+                >
+                  {schedule.items.map((item, index) => {
+                    const renderedElements = visibleElements.reduce<
+                      Array<{ id: ScheduleElementId; node: React.ReactNode }>
+                    >((acc, elementId) => {
+                      const meta = CONTENT_ELEMENT_META[elementId];
+                      if (!meta) return acc;
+                      const rawValue = item[meta.field];
+                      if (!rawValue) return acc;
+
+                      const styleRecord = elementStyles[elementId] ?? getDefaultElementStyle(elementId);
+                      const typography = renderTextStyle(elementId, style.textColorSecondary);
+
+                      let node: React.ReactNode | null = null;
+
+                      switch (elementId) {
+                        case 'time':
+                          node = (
+                            <div
+                              className="text-story-time inline-flex items-center justify-center rounded-2xl font-semibold shadow-inner"
+                              style={{
+                                ...typography,
+                                backgroundColor: style.accent,
+                                color: styleRecord.color || accentTextColor,
+                                padding: 'var(--story-time-padding-y) var(--story-time-padding-x)',
+                                minWidth: 'var(--story-time-min-width)',
+                                transition:
+                                  'background-color 0.3s ease, color 0.3s ease, transform 0.3s ease',
+                              }}
+                            >
+                              {rawValue}
+                            </div>
+                          );
+                          break;
+                        case 'className':
+                          node = (
+                            <p className="text-story-class font-semibold" style={renderTextStyle('className', style.textColorPrimary)}>
+                              {rawValue}
+                            </p>
+                          );
+                          break;
+                        case 'instructor':
+                          node = (
+                            <p className="text-story-instructor" style={renderTextStyle('instructor', style.textColorSecondary)}>
+                              with {rawValue}
+                            </p>
+                          );
+                          break;
+                        case 'location':
+                          node = (
+                            <p className="text-story-location" style={renderTextStyle('location', style.textColorSecondary)}>
+                              📍 {rawValue}
+                            </p>
+                          );
+                          break;
+                        case 'duration':
+                          node = (
+                            <p className="text-story-location" style={renderTextStyle('duration', style.textColorSecondary)}>
+                              ⏱️ {rawValue}
+                            </p>
+                          );
+                          break;
+                        case 'description':
+                          node = (
+                            <p className="text-story-description" style={renderTextStyle('description', style.textColorSecondary)}>
+                              {rawValue}
+                            </p>
+                          );
+                          break;
+                        default:
+                          break;
+                      }
+
+                      if (node) {
+                        acc.push({ id: elementId, node });
+                      }
+
+                      return acc;
+                    }, []);
+
+                    const timeNodes = renderedElements.filter((element) => element.id === 'time');
+                    const textNodes = renderedElements.filter((element) => element.id !== 'time');
+
+                    const cardStyles: React.CSSProperties = {
+                      backgroundColor: style.cardBackgroundColor,
+                      borderColor: cardBorderColor,
+                      borderRadius: `${itemCornerRadius}px`,
+                      padding: 'var(--story-card-padding)',
+                      paddingLeft: style.accentLines
+                        ? `calc(var(--story-card-padding) + 6px)`
+                        : 'var(--story-card-padding)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      flex: layoutStyle === 'grid' ? '0 0 auto' : '1 1 0%',
+                      minHeight: layoutStyle === 'grid' ? undefined : 0,
+                      transition: 'background-color 0.3s ease, border-color 0.3s ease',
+                      animation: `slide-up-fade 0.6s ease ${index * 0.08}s both`,
+                    };
+
+                    if (showStripedCards && index % 2 === 1) {
+                      cardStyles.backgroundImage = `linear-gradient(${stripeOverlayColor}, ${stripeOverlayColor})`;
+                      cardStyles.backgroundBlendMode = 'overlay';
+                    }
+
+                    if (showStripedCards && index !== 0) {
+                      cardStyles.borderTop = `1px solid ${cardBorderColor}`;
+                    }
+
+                    return (
+                      <li
+                        key={`${item.time}-${index}`}
+                        className={cn(
+                          'group relative flex min-h-0 flex-col border transition hover:border-primary/40 hover:bg-primary/5',
+                          layoutStyle !== 'grid' && 'flex-1',
+                          layoutStyle === 'grid' && 'h-full',
+                          layoutStyle === 'card' ? 'shadow-lg' : 'shadow-sm',
+                        )}
+                        style={cardStyles}
+                      >
+                        <div className="flex w-full items-start" style={{ gap: 'var(--story-inner-gap)' }}>
+                          {timeNodes.length > 0 ? (
+                            <div className="flex flex-col" style={{ gap: 'var(--story-time-gap)' }}>
+                              {timeNodes.map((element, idx) => (
+                                <React.Fragment key={`${element.id}-${idx}`}>{element.node}</React.Fragment>
+                              ))}
+                            </div>
+                          ) : null}
+                          {textNodes.length > 0 ? (
+                            <div className="flex min-w-0 flex-1 flex-col" style={{ gap: 'var(--story-text-gap)' }}>
+                              {textNodes.map((element, idx) => (
+                                <React.Fragment key={`${element.id}-${idx}`}>{element.node}</React.Fragment>
+                              ))}
+                            </div>
+                          ) : null}
+                          {style.accentLines ? (
+                            <span
+                              className="pointer-events-none absolute rounded-full"
+                              style={{
+                                top: 'var(--story-card-accent-inset)',
+                                bottom: 'var(--story-card-accent-inset)',
+                                left: 'var(--story-card-accent-offset)',
+                                width: '3px',
+                                backgroundColor: style.accent,
+                                opacity: 0.6,
+                              }}
+                            />
+                          ) : null}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </main>
+          )}
+
+          {showFooter && (
+            <footer
+              ref={footerRef}
+              className="mt-auto flex flex-col text-sm text-text-tertiary"
+              style={{ gap: 'var(--story-footer-gap)' }}
+            >
+              {style.footerBar && (
+                <div
+                  className="h-2 rounded-full"
+                  style={{ backgroundColor: style.accent, transition: 'background-color 0.3s ease' }}
+                />
+              )}
+              <p
+                className="text-story-footer"
+                style={renderTextStyle('footer', style.textColorSecondary)}
+              >
+                {style.footer}
+              </p>
+            </footer>
+          )}
+        </div>
+        {bottomLogo}
       </div>
     </div>
   );
 };
 
 export default SchedulePreview;
+

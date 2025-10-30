@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { ToggleSwitch } from '../ui';
+import { ToggleSwitch, Button } from '../ui';
 import { cn } from '../../utils/cn';
 import type { ScheduleElementId, ScheduleElementMeta } from '../../types';
 import { useStaggerAnimation } from '../../hooks/useStaggerAnimation';
@@ -16,6 +16,8 @@ interface ContentTabProps {
   onOpenColorPicker: (elementId: ScheduleElementId) => void;
   staticVisibility: Partial<Record<ScheduleElementId, boolean>>;
   onToggleStaticElement: (elementId: ScheduleElementId, next: boolean) => void;
+  onApplySmartSizing: () => void;
+  isSmartSizing: boolean;
 }
 
 interface ElementItemProps {
@@ -139,6 +141,8 @@ export const ContentTab: React.FC<ContentTabProps> = ({
   onOpenColorPicker,
   staticVisibility,
   onToggleStaticElement,
+  onApplySmartSizing,
+  isSmartSizing,
 }) => {
   const [draggingId, setDraggingId] = useState<ScheduleElementId | null>(null);
   const visibleAnimations = useStaggerAnimation(visibleElements.length, 70);
@@ -194,6 +198,23 @@ export const ContentTab: React.FC<ContentTabProps> = ({
 
   return (
     <div className="space-y-7">
+      <Section title="Smart Text Sizing" badge="Auto fit">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-slate-400 sm:max-w-xs">
+            Automatically balances headings and class details so everything fits the frame. Great when you just want it to look right.
+          </p>
+          <Button
+            size="sm"
+            onClick={onApplySmartSizing}
+            className="w-full sm:w-auto"
+            disabled={isSmartSizing}
+            aria-busy={isSmartSizing}
+          >
+            {isSmartSizing ? 'Balancing…' : 'Smart Fit Text'}
+          </Button>
+        </div>
+      </Section>
+
       <Section title="Schedule Elements" badge="💡 Drag to reorder">
         <div
           role="list"
