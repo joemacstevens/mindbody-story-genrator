@@ -147,8 +147,21 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
+.story-preview {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+}
+
 .story-canvas {
-  transition: background-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+  width: 1080px;
+  height: 1920px;
+  transform-origin: center center;
+  transition: transform 0.3s ease, background-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .story-canvas * {

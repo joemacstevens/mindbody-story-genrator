@@ -477,9 +477,25 @@ const EditorPage: React.FC = () => {
     }));
   }, []);
 
-  const handleStoryMetricsChange = useCallback((metrics: StoryMetrics) => {
-    setStoryMetrics(metrics);
-  }, []);
+  const handleStoryMetricsChange = useCallback(
+    (metrics: StoryMetrics) => {
+      setStoryMetrics((prev) => {
+        if (
+          prev &&
+          prev.contentHeight === metrics.contentHeight &&
+          prev.availableHeight === metrics.availableHeight &&
+          prev.heroHeight === metrics.heroHeight &&
+          prev.scheduleHeight === metrics.scheduleHeight &&
+          prev.footerHeight === metrics.footerHeight &&
+          prev.itemCount === metrics.itemCount
+        ) {
+          return prev;
+        }
+        return metrics;
+      });
+    },
+    [],
+  );
 
   const handleApplySmartSizing = useCallback(() => {
     setIsSmartSizing(true);
@@ -539,21 +555,6 @@ const EditorPage: React.FC = () => {
     ],
   );
 
-  const metricsSignature = useMemo(
-    () =>
-      storyMetrics
-        ? [
-            Math.round(storyMetrics.contentHeight),
-            Math.round(storyMetrics.availableHeight),
-            Math.round(storyMetrics.heroHeight),
-            Math.round(storyMetrics.scheduleHeight),
-            Math.round(storyMetrics.footerHeight),
-            storyMetrics.itemCount,
-          ].join(':')
-        : 'metrics-none',
-    [storyMetrics],
-  );
-
   const visibleSignature = useMemo(() => visibleElements.join(','), [visibleElements]);
 
   const autoSizingKey = useMemo(
@@ -570,7 +571,6 @@ const EditorPage: React.FC = () => {
         schedule?.date ?? '',
         scheduleSignature,
         visibleSignature,
-        metricsSignature,
       ].join('|'),
     [
       activeTemplateId,
@@ -584,7 +584,6 @@ const EditorPage: React.FC = () => {
       schedule?.date,
       scheduleSignature,
       visibleSignature,
-      metricsSignature,
     ],
   );
 
@@ -834,21 +833,58 @@ const EditorPage: React.FC = () => {
     visibleElements,
   ]);
 
-  const scaledCanvasWrapperStyle = React.useMemo(
+  const fontVars = React.useMemo<React.CSSProperties>(
+    () => {
+      const headingStyle = elementStyles.heading ?? getDefaultElementStyle('heading');
+      const subtitleStyle = elementStyles.subtitle ?? getDefaultElementStyle('subtitle');
+      const scheduleDateStyle = elementStyles.scheduleDate ?? getDefaultElementStyle('scheduleDate');
+      const footerStyle = elementStyles.footer ?? getDefaultElementStyle('footer');
+      const classStyle = elementStyles.className ?? getDefaultElementStyle('className');
+      const timeStyle = elementStyles.time ?? getDefaultElementStyle('time');
+      const instructorStyle = elementStyles.instructor ?? getDefaultElementStyle('instructor');
+      const locationStyle = elementStyles.location ?? getDefaultElementStyle('location');
+      const descriptionStyle = elementStyles.description ?? getDefaultElementStyle('description');
+
+      return {
+        '--font-heading': `${headingStyle.fontSize}px`,
+        '--font-subtitle': `${subtitleStyle.fontSize}px`,
+        '--font-date': `${scheduleDateStyle.fontSize}px`,
+        '--font-class': `${classStyle.fontSize}px`,
+        '--font-time': `${timeStyle.fontSize}px`,
+        '--font-instructor': `${instructorStyle.fontSize}px`,
+        '--font-location': `${locationStyle.fontSize}px`,
+        '--font-description': `${descriptionStyle.fontSize}px`,
+        '--font-footer': `${footerStyle.fontSize}px`,
+      };
+    },
+    [elementStyles],
+  );
+
+  const baseCanvasStyle = React.useMemo<React.CSSProperties>(
     () => ({
-      width: `${Math.max(1080 * storyScale, 0)}px`,
-      height: `${Math.max(1920 * storyScale, 0)}px`,
+      width: '1080px',
+      height: '1920px',
+      transform: `scale(${storyScale})`,
+      transformOrigin: 'center center',
+    }),
+    [storyScale],
+  );
+
+  const scaledCanvasWrapperStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      width: `${1080 * storyScale}px`,
+      height: `${1920 * storyScale}px`,
     }),
     [storyScale],
   );
 
   const storyCanvasTransformStyle = React.useMemo<React.CSSProperties>(
     () => ({
-      transform: `scale(${storyScale})`,
-      transformOrigin: 'top left',
-      '--story-scale': `${storyScale}`,
+      ...fontVars,
+      width: '1080px',
+      height: '1920px',
     }),
-    [storyScale],
+    [fontVars],
   );
   const actionButtons = isGalleryOpen ? (
     <Button
@@ -1201,24 +1237,26 @@ const EditorPage: React.FC = () => {
                   </div>
                   <div
                     ref={previewAreaRef}
-                    className="relative z-10 flex h-full w-full min-h-0 min-w-0 flex-1 items-center justify-center overflow-auto"
+                    className="story-preview relative z-10 flex h-full w-full min-h-0 min-w-0 flex-1 items-center justify-center overflow-auto"
                   >
                     <div className="relative flex items-center justify-center" style={scaledCanvasWrapperStyle}>
-                      <PhoneFrameOverlay />
-                      <div
-                        id="story-canvas"
-                        ref={storyCanvasRef}
-                        className="absolute left-0 top-0 z-0 h-[1920px] w-[1080px] overflow-hidden rounded-[48px] bg-slate-950 shadow-[0_30px_90px_rgba(0,0,0,0.5)]"
-                        style={storyCanvasTransformStyle as React.CSSProperties}
-                      >
-                        <SchedulePreview
-                          schedule={schedule ?? { date: userGymName, items: [] }}
-                          style={styleState}
-                          visibleElements={visibleElements}
-                          elementStyles={elementStyles}
-                          spacingScales={smartSpacing}
-                          onMetricsChange={handleStoryMetricsChange}
-                        />
+                      <div className="relative" style={baseCanvasStyle}>
+                        <PhoneFrameOverlay />
+                        <div
+                          id="story-canvas"
+                          ref={storyCanvasRef}
+                          className="story-canvas z-0 overflow-hidden rounded-[48px] bg-slate-950 shadow-[0_30px_90px_rgba(0,0,0,0.5)]"
+                          style={storyCanvasTransformStyle as React.CSSProperties}
+                        >
+                          <SchedulePreview
+                            schedule={schedule ?? { date: userGymName, items: [] }}
+                            style={styleState}
+                            visibleElements={visibleElements}
+                            elementStyles={elementStyles}
+                            spacingScales={smartSpacing}
+                            onMetricsChange={handleStoryMetricsChange}
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1355,24 +1393,26 @@ const EditorPage: React.FC = () => {
                   </div>
                   <div
                     ref={previewAreaRef}
-                    className="relative z-10 flex h-full w-full min-h-0 min-w-0 flex-1 items-center justify-center overflow-auto"
+                    className="story-preview relative z-10 flex h-full w-full min-h-0 min-w-0 flex-1 items-center justify-center overflow-auto"
                   >
                     <div className="relative flex items-center justify-center" style={scaledCanvasWrapperStyle}>
-                      <PhoneFrameOverlay />
-                      <div
-                        id="story-canvas"
-                        ref={storyCanvasRef}
-                        className="absolute left-0 top-0 z-0 h-[1920px] w-[1080px] overflow-hidden rounded-[48px] bg-slate-950 shadow-[0_40px_120px_rgba(0,0,0,0.55)]"
-                        style={storyCanvasTransformStyle as React.CSSProperties}
-                      >
-                        <SchedulePreview
-                          schedule={schedule ?? { date: userGymName, items: [] }}
-                          style={styleState}
-                          visibleElements={visibleElements}
-                          elementStyles={elementStyles}
-                          spacingScales={smartSpacing}
-                          onMetricsChange={handleStoryMetricsChange}
-                        />
+                      <div className="relative" style={baseCanvasStyle}>
+                        <PhoneFrameOverlay />
+                        <div
+                          id="story-canvas"
+                          ref={storyCanvasRef}
+                          className="story-canvas z-0 overflow-hidden rounded-[48px] bg-slate-950 shadow-[0_40px_120px_rgba(0,0,0,0.55)]"
+                          style={storyCanvasTransformStyle as React.CSSProperties}
+                        >
+                          <SchedulePreview
+                            schedule={schedule ?? { date: userGymName, items: [] }}
+                            style={styleState}
+                            visibleElements={visibleElements}
+                            elementStyles={elementStyles}
+                            spacingScales={smartSpacing}
+                            onMetricsChange={handleStoryMetricsChange}
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>

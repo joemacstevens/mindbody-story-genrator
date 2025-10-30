@@ -349,11 +349,25 @@ export const SchedulePreview: React.FC<SchedulePreviewProps> = ({
   const renderTextStyle = React.useCallback(
     (elementId: ScheduleElementId, fallbackColor: string) => {
       const styleRecord = elementStyles[elementId] ?? getDefaultElementStyle(elementId);
+      const fontVarMap: Record<ScheduleElementId, string> = {
+        heading: '--font-heading',
+        subtitle: '--font-subtitle',
+        scheduleDate: '--font-date',
+        className: '--font-class',
+        time: '--font-time',
+        instructor: '--font-instructor',
+        location: '--font-location',
+        duration: '--font-location',
+        description: '--font-description',
+        footer: '--font-footer',
+      };
+      const fontVar = fontVarMap[elementId];
       return {
         color: styleRecord.color ?? fallbackColor,
         fontWeight: styleRecord.fontWeight ?? CONTENT_ELEMENT_META[elementId]?.defaultFontWeight ?? 500,
         letterSpacing: `${(styleRecord.letterSpacing ?? CONTENT_ELEMENT_META[elementId]?.defaultLetterSpacing ?? 0).toFixed(2)}px`,
         lineHeight: styleRecord.lineHeight ?? CONTENT_ELEMENT_META[elementId]?.defaultLineHeight ?? 1.3,
+        fontSize: fontVar ? `var(${fontVar})` : undefined,
         transition: 'color 0.3s ease, font-weight 0.3s ease',
       } as React.CSSProperties;
     },
