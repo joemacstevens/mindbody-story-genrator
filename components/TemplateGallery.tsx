@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { AppSettings, TemplateId, Schedule } from '../types';
-import { TEMPLATE_CATEGORIES } from '../constants';
+import { TEMPLATE_CATEGORIES, MOCK_SCHEDULE } from '../constants';
 import TemplateCard from './TemplateCard';
 import UploadIcon from './icons/UploadIcon';
 
 interface TemplateGalleryProps {
   settings: AppSettings;
-  schedule: Schedule;
+  schedule?: Schedule | null;
   onTemplateSelect: (id: TemplateId) => void;
   onTemplateMenu?: (id: TemplateId, event: React.MouseEvent) => void;
   onCreateNew?: () => void;
@@ -25,6 +25,9 @@ const TemplateGallery: React.FC<TemplateGalleryProps> = ({
   const [menuTemplateId, setMenuTemplateId] = useState<TemplateId | null>(null);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const previewSchedule = schedule ?? MOCK_SCHEDULE;
+  const usingMockData = !schedule;
 
   // Close menu on outside click
   useEffect(() => {
@@ -101,9 +104,15 @@ const TemplateGallery: React.FC<TemplateGalleryProps> = ({
         </div>
       )}
 
+      {usingMockData && (
+        <div className="flex-shrink-0 bg-white/5 border-b border-white/10 px-4 py-3 text-sm text-slate-300">
+          Showing sample schedule data. Connect a gym to preview with your live schedule.
+        </div>
+      )}
+
       {/* Template Grid */}
       <div className="flex-grow overflow-y-auto p-4">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 pb-20">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 pb-20">
           {/* Create New Template Card */}
           {onCreateNew && (
             <button
@@ -126,7 +135,7 @@ const TemplateGallery: React.FC<TemplateGalleryProps> = ({
               id={template.id}
               name={template.name}
               style={template.style}
-              schedule={schedule}
+              schedule={previewSchedule}
               isActive={settings.activeTemplateId === template.id}
               onSelect={onTemplateSelect}
               onMenuClick={handleMenuClick}
