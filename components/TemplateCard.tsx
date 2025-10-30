@@ -92,7 +92,6 @@ const TemplateCard: React.FC<TemplateCardProps> = ({
             <SchedulePreview
               schedule={schedule}
               style={style}
-              device="mobile"
               visibleElements={DEFAULT_VISIBLE_ELEMENTS}
               elementStyles={elementStyles}
             />

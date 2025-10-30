@@ -32,7 +32,7 @@ import type {
 import { cn } from '../utils/cn';
 import { uploadImage } from '../services/storage';
 import { saveTemplate, getUserSchedule } from '../services/api';
-import { toBlob } from 'html-to-image';
+import { toPng } from 'html-to-image';
 import TemplateGallery from '../components/TemplateGallery';
 
 const SaveSpinner: React.FC = () => (
@@ -42,25 +42,29 @@ const SaveSpinner: React.FC = () => (
   />
 );
 
-type DeviceOption = 'mobile' | 'tablet' | 'desktop';
+type ZoomMode = 'fit' | '1' | '1.5';
 
-const devicePresets: Record<DeviceOption, { width: number; height: number; radius: string }> = {
-  mobile: { width: 375, height: 667, radius: '24px' },
-  tablet: { width: 768, height: 1024, radius: '20px' },
-  desktop: { width: 1200, height: 800, radius: '12px' },
+const ZOOM_OPTIONS: ZoomMode[] = ['fit', '1', '1.5'];
+const ZOOM_LABELS: Record<ZoomMode, string> = {
+  fit: 'Fit to Screen',
+  '1': '100%',
+  '1.5': '150%',
 };
 
 const formatPanelWidth = (value: number) => Math.min(600, Math.max(320, value));
 
 const EditorPage: React.FC = () => {
   const { user, signOut } = useAuth();
-  const [selectedDevice, setSelectedDevice] = useState<DeviceOption>('mobile');
-  const [zoomLevel, setZoomLevel] = useState(100);
   const [activeTab, setActiveTab] = useState<'style' | 'content' | 'layout'>('style');
   const [panelWidth, setPanelWidth] = useState(420);
   const [isDragging, setIsDragging] = useState(false);
   const dragOffsetRef = useRef(0);
   const layoutRef = useRef<HTMLDivElement | null>(null);
+  const [zoomMode, setZoomMode] = useState<ZoomMode>('fit');
+  const [storyScale, setStoryScale] = useState(1);
+  const previewAreaRef = useRef<HTMLDivElement | null>(null);
+  const storyCanvasRef = useRef<HTMLDivElement | null>(null);
+  const zoomModeRef = useRef<ZoomMode>('fit');
   const [userGymName, setUserGymName] = useState<string>('Select a gym');
   const [userGymSlug, setUserGymSlug] = useState<string | null>(null);
   const [isBackgroundUploading, setIsBackgroundUploading] = useState(false);
@@ -83,7 +87,6 @@ const EditorPage: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const saveResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const previewRef = useRef<HTMLDivElement | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [schedule, setSchedule] = useState<Schedule | null>(null);
   const [isScheduleLoading, setIsScheduleLoading] = useState(false);
@@ -369,32 +372,31 @@ const EditorPage: React.FC = () => {
   }, []);
 
   const handleExport = useCallback(async () => {
-    if (!previewRef.current) {
+    if (!storyCanvasRef.current) {
       return;
     }
 
     setIsExporting(true);
 
     try {
-      const blob = await toBlob(previewRef.current, {
-        backgroundColor: 'transparent',
-        pixelRatio: 2,
+      const dataUrl = await toPng(storyCanvasRef.current, {
+        width: 1080,
+        height: 1920,
+        style: {
+          transform: 'none',
+          width: '1080px',
+          height: '1920px',
+        },
       });
 
-      if (!blob) {
-        throw new Error('Failed to generate export image');
-      }
-
-      const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       const baseName = (userGymSlug || userGymName || 'studiogram')
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '');
       link.download = `${baseName || 'studiogram'}-schedule-${Date.now()}.png`;
-      link.href = url;
+      link.href = dataUrl;
       link.click();
-      URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Export failed:', error);
       alert('We could not export your template. Please try again.');
@@ -461,6 +463,71 @@ const EditorPage: React.FC = () => {
       },
     }));
   }, []);
+
+  const updateStoryScale = useCallback(
+    (mode?: ZoomMode) => {
+      const nextMode = mode ?? zoomModeRef.current;
+      zoomModeRef.current = nextMode;
+      setZoomMode(nextMode);
+
+      if (nextMode === 'fit') {
+        const container = previewAreaRef.current;
+        if (!container || typeof window === 'undefined') {
+          setStoryScale(1);
+          return;
+        }
+
+        const bounds = container.getBoundingClientRect();
+        const scaleWidth = bounds.width / 1080;
+        const scaleHeight = bounds.height / 1920;
+        const computedScale = Math.min(scaleWidth, scaleHeight);
+        const safeScale = Number.isFinite(computedScale) && computedScale > 0 ? computedScale : 1;
+        setStoryScale(safeScale);
+      } else {
+        const parsed = Number.parseFloat(nextMode);
+        const safeScale = Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+        setStoryScale(safeScale);
+      }
+    },
+    [],
+  );
+
+  const handleZoomSelect = useCallback(
+    (mode: ZoomMode) => {
+      updateStoryScale(mode);
+    },
+    [updateStoryScale],
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const handleResize = () => {
+      updateStoryScale();
+    };
+
+    const node = previewAreaRef.current;
+    handleResize();
+
+    let observer: ResizeObserver | null = null;
+
+    if (node && 'ResizeObserver' in window) {
+      observer = new ResizeObserver(handleResize);
+      observer.observe(node);
+    } else {
+      window.addEventListener('resize', handleResize);
+    }
+
+    return () => {
+      if (observer) {
+        observer.disconnect();
+      } else {
+        window.removeEventListener('resize', handleResize);
+      }
+    };
+  }, [updateStoryScale, isDesktop, isGalleryOpen, panelWidth]);
 
   const handleToggleElementVisibility = useCallback(
     (elementId: ScheduleElementId) => {
@@ -555,12 +622,6 @@ const EditorPage: React.FC = () => {
       ? elementStyles[activeColorElement]?.color ?? getDefaultElementStyle(activeColorElement).color
       : '#FFFFFF';
 
-  const handleZoomChange = (delta: number) => {
-    setZoomLevel((prev) => Math.min(200, Math.max(25, prev + delta)));
-  };
-
-  const handleResetZoom = () => setZoomLevel(100);
-
   const handlePointerMove = useCallback(
     (event: PointerEvent) => {
       if (!isDragging || !layoutRef.current) return;
@@ -632,18 +693,22 @@ const EditorPage: React.FC = () => {
     visibleElements,
   ]);
 
-  const devicePreset = devicePresets[selectedDevice];
-  const previewStyle = {
-    width: `${devicePreset.width * (zoomLevel / 100)}px`,
-    height: `${devicePreset.height * (zoomLevel / 100)}px`,
-    borderRadius: devicePreset.radius,
-  };
-  const aspectRatio = Number((devicePreset.height / devicePreset.width).toFixed(4));
-  const mobilePreviewStyle = {
-    width: 'min(320px, 80vw)',
-    height: `calc(min(320px, 80vw) * ${aspectRatio})`,
-    borderRadius: devicePreset.radius,
-  } as const;
+  const scaledCanvasWrapperStyle = React.useMemo(
+    () => ({
+      width: `${Math.max(1080 * storyScale, 0)}px`,
+      height: `${Math.max(1920 * storyScale, 0)}px`,
+    }),
+    [storyScale],
+  );
+
+  const storyCanvasTransformStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      transform: `scale(${storyScale})`,
+      transformOrigin: 'top left',
+      '--story-scale': `${storyScale}`,
+    }),
+    [storyScale],
+  );
   const actionButtons = isGalleryOpen ? (
     <Button
       variant="secondary"
@@ -701,6 +766,16 @@ const EditorPage: React.FC = () => {
       </Button>
     </>
   );
+
+  const scheduleStatusMessage = isScheduleLoading ? (
+    <div className="rounded-xl border border-purple-500/30 bg-purple-500/10 px-4 py-3 text-xs text-purple-100 text-center">
+      Loading your latest schedule…
+    </div>
+  ) : scheduleError ? (
+    <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-100 text-center">
+      {scheduleError}
+    </div>
+  ) : null;
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-900 text-slate-50">
@@ -935,340 +1010,296 @@ const EditorPage: React.FC = () => {
             transition={{ duration: 0.25, ease: 'easeOut' }}
           >
           {isMobile ? (
-                  /* Mobile Layout - Stacked */
-                  <div className="flex flex-col h-[calc(100vh-72px-72px)] overflow-hidden pb-20">
-                    {/* Preview Section */}
-                    <div className="flex-1 bg-slate-900 flex flex-col items-center justify-center p-6 relative overflow-auto">
-                      {/* Canvas Background */}
-                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(139,123,216,0.03),transparent_50%),radial-gradient(circle_at_80%_70%,rgba(139,123,216,0.03),transparent_50%)]" />
-                      
-                      {/* Canvas Grid */}
-                      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px] opacity-50" />
-                      
-                      <div className="relative z-10 w-full max-w-sm">
-                        {isScheduleLoading ? (
-                          <div className="mb-6 rounded-xl border border-purple-500/30 bg-purple-500/10 px-4 py-3 text-xs text-purple-100 text-center">
-                            Loading your latest schedule…
-                          </div>
-                        ) : scheduleError ? (
-                          <div className="mb-6 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-100 text-center">
-                            {scheduleError}
-                          </div>
-                        ) : null}
-                        {/* Live Preview Label */}
-                        <div className="text-center mb-6">
-                          <h2 className="text-sm font-medium text-slate-400 uppercase tracking-wider">Live Preview</h2>
-                        </div>
-                        
-                        {/* Preview Frame */}
-                        <div
-                          ref={previewRef}
-                          className="relative bg-gradient-to-br from-slate-700 to-slate-900 border-2 border-white/15 shadow-[0_20px_60px_rgba(0,0,0,0.4)] transition-all duration-300 ease-out overflow-hidden mx-auto"
-                          style={mobilePreviewStyle}
-                        >
-                          <div className="h-full p-6">
-                            <SchedulePreview
-                              schedule={schedule ?? { date: userGymName, items: [] }}
-                              style={styleState}
-                              device={selectedDevice}
-                              visibleElements={visibleElements}
-                              elementStyles={elementStyles}
-                            />
-                          </div>
-                        </div>
-                        
-                        {/* Preview Controls */}
-                    <div className="flex flex-wrap gap-3 justify-center mt-6">
-                      <button className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-slate-400 text-sm hover:bg-white/10 hover:text-slate-50 transition-all">
-                        <span>↻</span> Refresh
-                      </button>
-                      <button className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-slate-400 text-sm hover:bg-white/10 hover:text-slate-50 transition-all">
-                        <span>📱</span> Full Screen
-                      </button>
-                      <button
-                        className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-slate-400 text-sm hover:bg-white/10 hover:text-slate-50 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-                        onClick={handleExport}
-                        disabled={isExporting}
-                      >
-                        {isExporting ? (
-                          <span className="inline-flex items-center gap-2">
-                            <SaveSpinner />
-                            <span>Exporting…</span>
-                          </span>
-                        ) : (
-                          <>
-                            <span>📥</span> Export
-                          </>
-                        )}
-                      </button>
-                    </div>
-                      </div>
-                    </div>
-          
-                    {/* Editor Panel */}
-                      <div
-                        className={cn(
-                          'relative bg-slate-900/95 backdrop-blur-xl border-t border-white/10 flex flex-col overflow-hidden transition-[height] duration-300 ease-out',
-                          !isMobilePanelOpen && 'shadow-[0_-18px_40px_rgba(0,0,0,0.4)]'
-                        )}
-                        style={{ height: isMobilePanelOpen ? '52vh' : '64px' }}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => setIsMobilePanelOpen((prev) => !prev)}
-                          aria-expanded={isMobilePanelOpen}
-                          className={cn(
-                            'absolute left-1/2 -top-6 z-50 flex h-10 w-20 -translate-x-1/2 items-center justify-center rounded-full border border-white/20 bg-white/12 shadow-[0_12px_30px_rgba(5,12,24,0.35)] backdrop-blur-md transition-all duration-300 ease-out hover:bg-white/18',
-                            isMobilePanelOpen ? 'opacity-100' : 'opacity-95'
-                          )}
-                        >
-                          <span className="sr-only">{isMobilePanelOpen ? 'Collapse editor panel' : 'Expand editor panel'}</span>
-                          <span
-                            className={cn(
-                              'inline-flex h-1.5 w-12 items-center justify-center rounded-full bg-white/40 transition-transform duration-300 ease-out',
-                              isMobilePanelOpen ? 'rotate-0' : 'rotate-180'
-                            )}
-                            aria-hidden="true"
-                          />
-                        </button>
-          
-                      {/* Tab Navigation */}
-                      <div
-                        className={cn(
-                          'flex bg-white/3 p-1.5 m-5 rounded-xl gap-1 transition-all duration-300 ease-out',
-                          isMobilePanelOpen ? 'opacity-100 translate-y-0' : 'opacity-0 pointer-events-none translate-y-2'
-                        )}
-                      >
-                        {(['style', 'content', 'layout'] as const).map((tab) => (
-                          <button
-                            key={tab}
-                            className={`flex-1 py-2.5 px-4 bg-transparent border-none text-slate-400 font-medium cursor-pointer rounded-lg transition-all duration-200 ${
-                              activeTab === tab 
-                                ? 'bg-purple-500/15 text-purple-400' 
-                                : 'hover:text-slate-300'
-                            }`}
-                            onClick={() => setActiveTab(tab)}
-                          >
-                            {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                          </button>
-                        ))}
-                      </div>
-          
-                      {/* Panel Content */}
-                      <div
-                        className={cn(
-                          'flex-1 overflow-y-auto px-6 pb-20 transition-opacity duration-300 ease-out',
-                          isMobilePanelOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-                        )}
-                      >
-                        {activeTab === 'style' ? (
-                          <StyleTab
-                            palettes={STYLE_COLOR_PALETTES}
-                            selectedPaletteId={selectedPaletteId}
-                            onSelectPalette={handlePaletteSelect}
-                            style={styleState}
-                            onBackgroundUpload={handleBackgroundUpload}
-                            onRemoveBackground={handleRemoveBackground}
-                            onLogoUpload={handleLogoUpload}
-                            onRemoveLogo={handleRemoveLogo}
-                            onLogoPositionChange={handleLogoPositionChange}
-                            isBackgroundUploading={isBackgroundUploading}
-                            isLogoUploading={isLogoUploading}
-                          />
-                        ) : activeTab === 'content' ? (
-                          <ContentTab
-                            visibleElements={visibleElements}
-                            hiddenElements={hiddenElements}
-                            elementsMeta={CONTENT_ELEMENT_META}
-                            onReorder={handleReorderElements}
-                            onToggleVisibility={handleToggleElementVisibility}
-                            onOpenFontSettings={handleOpenFontSettings}
-                            onOpenColorPicker={handleOpenColorPicker}
-                            staticVisibility={staticVisibility}
-                            onToggleStaticElement={handleToggleStaticElement}
-                          />
-                        ) : activeTab === 'layout' ? (
-                          <LayoutTab
-                            style={styleState}
-                            onUpdate={updateStyle}
-                          />
-                        ) : null}
-                      </div>
-                    </div>
+            <div className="flex h-[calc(100vh-72px-72px)] flex-col overflow-hidden pb-20">
+              <div className="relative flex-1 overflow-hidden bg-slate-900">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(139,123,216,0.03),transparent_50%),radial-gradient(circle_at_80%_70%,rgba(139,123,216,0.03),transparent_50%)]" />
+                <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px] opacity-50" />
+                <div className="relative z-10 flex h-full flex-col items-center px-4 py-6">
+                  {scheduleStatusMessage ? (
+                    <div className="mb-4 w-full max-w-sm">{scheduleStatusMessage}</div>
+                  ) : null}
+                  <div className="mb-4 text-center">
+                    <h2 className="text-sm font-medium uppercase tracking-wider text-slate-400">Live Preview</h2>
                   </div>
-                ) : (
-                  /* Desktop Layout - Side by Side */
-                  <div className="flex h-[calc(100vh-72px)] overflow-hidden">
-                    {/* Canvas Area (Left) */}
-                    <div className="flex-1 bg-slate-900 flex items-center justify-center p-12 relative overflow-auto">
-                      {/* Canvas Background */}
-                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(139,123,216,0.03),transparent_50%),radial-gradient(circle_at_80%_70%,rgba(139,123,216,0.03),transparent_50%)]" />
-                      
-                      {/* Canvas Grid */}
-                      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px] opacity-50" />
-                      
-                      <div className="relative z-10">
-                        {isScheduleLoading ? (
-                          <div className="absolute -top-20 left-0 right-0 mx-auto w-max rounded-full border border-purple-500/30 bg-purple-500/15 px-4 py-2 text-xs text-purple-100">
-                            Loading schedule…
-                          </div>
-                        ) : scheduleError ? (
-                          <div className="absolute -top-20 left-0 right-0 mx-auto w-max rounded-full border border-amber-500/40 bg-amber-500/15 px-4 py-2 text-xs text-amber-100">
-                            {scheduleError}
-                          </div>
-                        ) : null}
-                        {/* Preview Controls Top */}
-              <div className="absolute -top-16 left-0 right-0 flex items-center justify-between">
-                {/* Zoom Controls */}
-                <div className="flex gap-2 bg-slate-900/80 backdrop-blur-sm p-2 rounded-xl border border-white/10">
-                  <button
-                    className="w-8 h-8 bg-white/5 border-none rounded-md text-slate-400 cursor-pointer transition-all text-base hover:bg-white/10 hover:text-slate-50"
-                    onClick={() => handleZoomChange(-10)}
-                  >
-                    −
-                  </button>
-                  <span className="flex items-center px-3 text-xs text-slate-400">{zoomLevel}%</span>
-                  <button
-                    className="w-8 h-8 bg-white/5 border-none rounded-md text-slate-400 cursor-pointer transition-all text-base hover:bg-white/10 hover:text-slate-50"
-                    onClick={() => handleZoomChange(10)}
-                  >
-                    +
-                  </button>
-                  <button
-                    className="w-8 h-8 bg-white/5 border-none rounded-md text-slate-400 cursor-pointer transition-all text-base hover:bg-white/10 hover:text-slate-50"
-                    onClick={handleResetZoom}
-                    title="Fit to screen"
-                  >
-                    ⊡
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  {/* Device Toggle */}
-                  <div className="flex gap-1 bg-slate-900/80 backdrop-blur-sm p-1 rounded-xl border border-white/10">
-                    {(['mobile', 'tablet', 'desktop'] as DeviceOption[]).map((device) => (
+                  <div className="mb-6 flex flex-wrap items-center justify-center gap-2">
+                    {ZOOM_OPTIONS.map((option) => (
                       <button
-                        key={device}
-                        className={`px-4 py-2 bg-transparent border-none rounded-md text-slate-400 cursor-pointer transition-all text-xs ${
-                          selectedDevice === device
-                            ? 'bg-purple-500/20 text-purple-400'
-                            : 'hover:text-slate-50'
-                        }`}
-                        onClick={() => setSelectedDevice(device)}
+                        key={option}
+                        type="button"
+                        onClick={() => handleZoomSelect(option)}
+                        className={cn(
+                          'rounded-lg border border-white/10 px-3 py-2 text-xs font-medium transition',
+                          zoomMode === option
+                            ? 'bg-purple-500/20 text-white shadow-[0_0_25px_rgba(99,102,241,0.35)]'
+                            : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white',
+                        )}
                       >
-                        {device === 'mobile' ? '📱 Mobile' : device === 'tablet' ? '📱 Tablet' : '🖥️ Desktop'}
+                        {ZOOM_LABELS[option]}
                       </button>
                     ))}
-                  </div>
-                  <button
-                    className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-slate-300 transition hover:bg-white/10 disabled:opacity-60 disabled:cursor-not-allowed"
-                    onClick={handleExport}
-                    disabled={isExporting}
-                  >
-                    {isExporting ? (
-                      <>
-                        <SaveSpinner />
-                        <span>Exporting…</span>
-                      </>
-                    ) : (
-                      <>
-                        <span role="img" aria-hidden="true">📥</span>
-                        <span>Export</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-          
-                        {/* Preview Frame */}
-                        <div
-                          ref={previewRef}
-                          className="relative bg-gradient-to-br from-slate-700 to-slate-900 border-2 border-white/15 shadow-[0_30px_90px_rgba(0,0,0,0.5)] transition-all duration-300 ease-out overflow-hidden"
-                          style={previewStyle}
-                        >
-                          <div className="h-full p-8">
-                          <SchedulePreview
-                            schedule={schedule ?? { date: userGymName, items: [] }}
-                            style={styleState}
-                            device={selectedDevice}
-                            visibleElements={visibleElements}
-                            elementStyles={elementStyles}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    </div>
-          
-                    {/* Right Panel */}
-                  <aside
-                      className="relative w-[420px] bg-slate-900/95 backdrop-blur-xl border-l border-white/10 flex flex-col overflow-hidden"
-                      style={{ width: `${panelWidth}px` }}
-                    >
-                      {/* Resize Handle */}
                     <button
                       type="button"
-                      onPointerDown={handleResizeStart}
-                        className={`absolute left-0 top-0 z-20 h-full w-1 cursor-ew-resize transition ${
-                          isDragging ? 'bg-purple-500' : 'bg-transparent hover:bg-purple-500/40'
-                        }`}
-                      aria-label="Resize panel"
-                    />
-                      
-                      {/* Tab Navigation */}
-                      <div className="flex bg-white/3 p-1.5 m-5 rounded-xl gap-1">
-                        {(['style', 'content', 'layout'] as const).map((tab) => (
-                          <button
-                            key={tab}
-                            className={`flex-1 py-2.5 px-4 bg-transparent border-none text-slate-400 font-medium cursor-pointer rounded-lg transition-all duration-200 ${
-                              activeTab === tab 
-                                ? 'bg-purple-500/15 text-purple-400' 
-                                : 'hover:text-slate-300'
-                            }`}
-                            onClick={() => setActiveTab(tab)}
-                          >
-                            {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                          </button>
-                        ))}
-                    </div>
-          
-                      {/* Panel Content */}
-                      <div className="flex-1 overflow-y-auto px-6 py-6">
-                      {activeTab === 'style' ? (
-                        <StyleTab
-                          palettes={STYLE_COLOR_PALETTES}
-                          selectedPaletteId={selectedPaletteId}
-                          onSelectPalette={handlePaletteSelect}
-                          style={styleState}
-                          onBackgroundUpload={handleBackgroundUpload}
-                          onRemoveBackground={handleRemoveBackground}
-                          onLogoUpload={handleLogoUpload}
-                          onRemoveLogo={handleRemoveLogo}
-                          onLogoPositionChange={handleLogoPositionChange}
-                          isBackgroundUploading={isBackgroundUploading}
-                          isLogoUploading={isLogoUploading}
-                        />
-                      ) : activeTab === 'content' ? (
-                        <ContentTab
-                          visibleElements={visibleElements}
-                          hiddenElements={hiddenElements}
-                          elementsMeta={CONTENT_ELEMENT_META}
-                          onReorder={handleReorderElements}
-                          onToggleVisibility={handleToggleElementVisibility}
-                          onOpenFontSettings={handleOpenFontSettings}
-                          onOpenColorPicker={handleOpenColorPicker}
-                          staticVisibility={staticVisibility}
-                          onToggleStaticElement={handleToggleStaticElement}
-                        />
-                      ) : activeTab === 'layout' ? (
-                        <LayoutTab
-                          style={styleState}
-                          onUpdate={updateStyle}
-                        />
-                        ) : null}
-                      </div>
-                    </aside>
+                      onClick={handleExport}
+                      disabled={isExporting}
+                      className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isExporting ? (
+                        <>
+                          <SaveSpinner />
+                          <span>Exporting…</span>
+                        </>
+                      ) : (
+                        <>
+                          <span role="img" aria-hidden="true">
+                            📥
+                          </span>
+                          <span>Export</span>
+                        </>
+                      )}
+                    </button>
                   </div>
+                  <div
+                    ref={previewAreaRef}
+                    className="relative flex h-full w-full flex-1 items-center justify-center overflow-auto"
+                  >
+                    <div className="relative flex items-center justify-center" style={scaledCanvasWrapperStyle}>
+                      <img
+                        src="/frames/iphone-frame.png"
+                        alt="Phone frame"
+                        className="pointer-events-none absolute inset-0 z-10 h-full w-full select-none object-contain"
+                        draggable={false}
+                      />
+                      <div
+                        id="story-canvas"
+                        ref={storyCanvasRef}
+                        className="absolute left-0 top-0 z-0 h-[1920px] w-[1080px] overflow-hidden rounded-[48px] bg-slate-950 shadow-[0_30px_90px_rgba(0,0,0,0.5)]"
+                        style={storyCanvasTransformStyle as React.CSSProperties}
+                      >
+                        <SchedulePreview
+                          schedule={schedule ?? { date: userGymName, items: [] }}
+                          style={styleState}
+                          visibleElements={visibleElements}
+                          elementStyles={elementStyles}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div
+                className={cn(
+                  'relative bg-slate-900/95 backdrop-blur-xl border-t border-white/10 flex flex-col overflow-hidden transition-[height] duration-300 ease-out',
+                  !isMobilePanelOpen && 'shadow-[0_-18px_40px_rgba(0,0,0,0.4)]',
                 )}
+                style={{ height: isMobilePanelOpen ? '52vh' : '64px' }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setIsMobilePanelOpen((prev) => !prev)}
+                  aria-expanded={isMobilePanelOpen}
+                  className={cn(
+                    'absolute left-1/2 -top-6 z-50 flex h-10 w-20 -translate-x-1/2 items-center justify-center rounded-full border border-white/20 bg-white/12 shadow-[0_12px_30px_rgba(5,12,24,0.35)] backdrop-blur-md transition-all duration-300 ease-out hover:bg-white/18',
+                    isMobilePanelOpen ? 'opacity-100' : 'opacity-95',
+                  )}
+                >
+                  <span className="sr-only">{isMobilePanelOpen ? 'Collapse editor panel' : 'Expand editor panel'}</span>
+                  <span
+                    className={cn(
+                      'inline-flex h-1.5 w-12 items-center justify-center rounded-full bg-white/40 transition-transform duration-300 ease-out',
+                      isMobilePanelOpen ? 'rotate-0' : 'rotate-180',
+                    )}
+                    aria-hidden="true"
+                  />
+                </button>
+                <div
+                  className={cn(
+                    'm-5 flex gap-1 rounded-xl bg-white/3 p-1.5 transition-all duration-300 ease-out',
+                    isMobilePanelOpen ? 'opacity-100 translate-y-0' : 'pointer-events-none translate-y-2 opacity-0',
+                  )}
+                >
+                  {(['style', 'content', 'layout'] as const).map((tab) => (
+                    <button
+                      key={tab}
+                      className={`flex-1 rounded-lg border-none bg-transparent px-4 py-2.5 text-slate-400 transition-all duration-200 ${
+                        activeTab === tab ? 'bg-purple-500/15 text-purple-400' : 'hover:text-slate-300'
+                      }`}
+                      onClick={() => setActiveTab(tab)}
+                    >
+                      {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                    </button>
+                  ))}
+                </div>
+                <div
+                  className={cn(
+                    'flex-1 overflow-y-auto px-6 pb-20 transition-opacity duration-300 ease-out',
+                    isMobilePanelOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0',
+                  )}
+                >
+                  {activeTab === 'style' ? (
+                    <StyleTab
+                      palettes={STYLE_COLOR_PALETTES}
+                      selectedPaletteId={selectedPaletteId}
+                      onSelectPalette={handlePaletteSelect}
+                      style={styleState}
+                      onBackgroundUpload={handleBackgroundUpload}
+                      onRemoveBackground={handleRemoveBackground}
+                      onLogoUpload={handleLogoUpload}
+                      onRemoveLogo={handleRemoveLogo}
+                      onLogoPositionChange={handleLogoPositionChange}
+                      isBackgroundUploading={isBackgroundUploading}
+                      isLogoUploading={isLogoUploading}
+                    />
+                  ) : activeTab === 'content' ? (
+                    <ContentTab
+                      visibleElements={visibleElements}
+                      hiddenElements={hiddenElements}
+                      elementsMeta={CONTENT_ELEMENT_META}
+                      onReorder={handleReorderElements}
+                      onToggleVisibility={handleToggleElementVisibility}
+                      onOpenFontSettings={handleOpenFontSettings}
+                      onOpenColorPicker={handleOpenColorPicker}
+                      staticVisibility={staticVisibility}
+                      onToggleStaticElement={handleToggleStaticElement}
+                    />
+                  ) : activeTab === 'layout' ? (
+                    <LayoutTab style={styleState} onUpdate={updateStyle} />
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex h-[calc(100vh-72px)] overflow-hidden">
+              <div className="relative flex flex-1 flex-col items-center justify-center overflow-hidden bg-slate-900 p-12">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(139,123,216,0.03),transparent_50%),radial-gradient(circle_at_80%_70%,rgba(139,123,216,0.03),transparent_50%)]" />
+                <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px] opacity-50" />
+                <div className="relative z-10 flex w-full max-w-5xl flex-col items-center">
+                  {scheduleStatusMessage ? (
+                    <div className="mb-4 w-full max-w-sm text-center">{scheduleStatusMessage}</div>
+                  ) : null}
+                  <div className="mb-6 flex flex-wrap items-center justify-center gap-2">
+                    {ZOOM_OPTIONS.map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => handleZoomSelect(option)}
+                        className={cn(
+                          'rounded-lg border border-white/10 px-4 py-2 text-xs font-medium transition',
+                          zoomMode === option
+                            ? 'bg-purple-500/20 text-white shadow-[0_0_30px_rgba(99,102,241,0.35)]'
+                            : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white',
+                        )}
+                      >
+                        {ZOOM_LABELS[option]}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={handleExport}
+                      disabled={isExporting}
+                      className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isExporting ? (
+                        <>
+                          <SaveSpinner />
+                          <span>Exporting…</span>
+                        </>
+                      ) : (
+                        <>
+                          <span role="img" aria-hidden="true">
+                            📥
+                          </span>
+                          <span>Export</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <div
+                    ref={previewAreaRef}
+                    className="relative flex h-full w-full flex-1 items-center justify-center overflow-auto"
+                  >
+                    <div className="relative flex itemsCenter justify-center" style={scaledCanvasWrapperStyle}>
+                      <img
+                        src="/frames/iphone-frame.png"
+                        alt="Phone frame"
+                        className="pointer-events-none absolute inset-0 z-10 h-full w-full select-none object-contain"
+                        draggable={false}
+                      />
+                      <div
+                        id="story-canvas"
+                        ref={storyCanvasRef}
+                        className="absolute left-0 top-0 z-0 h-[1920px] w-[1080px] overflow-hidden rounded-[48px] bg-slate-950 shadow-[0_40px_120px_rgba(0,0,0,0.55)]"
+                        style={storyCanvasTransformStyle as React.CSSProperties}
+                      >
+                        <SchedulePreview
+                          schedule={schedule ?? { date: userGymName, items: [] }}
+                          style={styleState}
+                          visibleElements={visibleElements}
+                          elementStyles={elementStyles}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <aside
+                className="relative w-[420px] bg-slate-900/95 backdrop-blur-xl border-l border-white/10 flex flex-col overflow-hidden"
+                style={{ width: `${panelWidth}px` }}
+              >
+                <button
+                  type="button"
+                  onPointerDown={handleResizeStart}
+                  className={`absolute left-0 top-0 z-20 h-full w-1 cursor-ew-resize transition ${
+                    isDragging ? 'bg-purple-500' : 'bg-transparent hover:bg-purple-500/40'
+                  }`}
+                  aria-label="Resize panel"
+                />
+                <div className="m-5 flex gap-1 rounded-xl bg-white/3 p-1.5">
+                  {(['style', 'content', 'layout'] as const).map((tab) => (
+                    <button
+                      key={tab}
+                      className={`flex-1 rounded-lg border-none bg-transparent px-4 py-2.5 text-slate-400 font-medium transition-all duration-200 ${
+                        activeTab === tab ? 'bg-purple-500/15 text-purple-400' : 'hover:text-slate-300'
+                      }`}
+                      onClick={() => setActiveTab(tab)}
+                    >
+                      {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex-1 overflow-y-auto px-6 py-6">
+                  {activeTab === 'style' ? (
+                    <StyleTab
+                      palettes={STYLE_COLOR_PALETTES}
+                      selectedPaletteId={selectedPaletteId}
+                      onSelectPalette={handlePaletteSelect}
+                      style={styleState}
+                      onBackgroundUpload={handleBackgroundUpload}
+                      onRemoveBackground={handleRemoveBackground}
+                      onLogoUpload={handleLogoUpload}
+                      onRemoveLogo={handleRemoveLogo}
+                      onLogoPositionChange={handleLogoPositionChange}
+                      isBackgroundUploading={isBackgroundUploading}
+                      isLogoUploading={isLogoUploading}
+                    />
+                  ) : activeTab === 'content' ? (
+                    <ContentTab
+                      visibleElements={visibleElements}
+                      hiddenElements={hiddenElements}
+                      elementsMeta={CONTENT_ELEMENT_META}
+                      onReorder={handleReorderElements}
+                      onToggleVisibility={handleToggleElementVisibility}
+                      onOpenFontSettings={handleOpenFontSettings}
+                      onOpenColorPicker={handleOpenColorPicker}
+                      staticVisibility={staticVisibility}
+                      onToggleStaticElement={handleToggleStaticElement}
+                    />
+                  ) : activeTab === 'layout' ? (
+                    <LayoutTab style={styleState} onUpdate={updateStyle} />
+                  ) : null}
+                </div>
+              </aside>
+            </div>
+          )}
           </motion.div>
         )}
       </AnimatePresence>
