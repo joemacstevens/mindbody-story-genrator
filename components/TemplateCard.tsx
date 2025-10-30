@@ -95,6 +95,17 @@ const TemplateCard: React.FC<TemplateCardProps> = ({
       {/* Template Info */}
       <div className="p-4 rounded-b-3xl bg-slate-950/70 border-t border-white/5">
         <h3 className="font-semibold text-center text-sm truncate text-slate-100">{name}</h3>
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onSelect(id);
+          }}
+          className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-500/90 py-2 text-sm font-semibold text-white shadow-lg transition hover:bg-indigo-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+        >
+          <span>Load Template</span>
+          <span aria-hidden="true" className="text-base leading-none">→</span>
+        </button>
       </div>
     </div>
   );
