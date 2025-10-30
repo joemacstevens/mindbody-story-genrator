@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { Style, Schedule, TemplateId, LogoPosition, SelectedElement } from '../../types';
+import { DEFAULT_APP_SETTINGS } from '../../constants';
 import BackgroundLayer from '../BackgroundLayer';
 
 type EditableField = 'heading' | 'subtitle' | 'footer';
@@ -34,6 +35,7 @@ const dividerClasses: Record<NonNullable<Style['dividerStyle']>, string> = {
 };
 
 const DefaultStoryRenderer: React.FC<StoryRendererProps> = ({
+  templateId,
   style,
   schedule,
   isFullSize = false,
@@ -158,12 +160,13 @@ const DefaultStoryRenderer: React.FC<StoryRendererProps> = ({
   const effectiveClassCount = Math.min(Math.max(classCount || 1, 1), 20);
   const density = (effectiveClassCount - 1) / 19;
   const availableHeight = scheduleHeight || 0;
-  const fallbackBodySize = style.bodySize || 36;
-  const rawBodySize = availableHeight
-    ? availableHeight / (effectiveClassCount * 2.1)
-    : fallbackBodySize;
-  const bodyFontSize = Math.max(18, Math.min(rawBodySize, fallbackBodySize));
-  const fontScale = bodyFontSize / fallbackBodySize;
+  const templateDefaults = DEFAULT_APP_SETTINGS.configs[templateId];
+  const baseBodySize = templateDefaults?.bodySize && templateDefaults.bodySize > 0 ? templateDefaults.bodySize : 36;
+  const userBodySize = style.bodySize && style.bodySize > 0 ? style.bodySize : baseBodySize;
+  const rawBodySize = availableHeight ? availableHeight / (effectiveClassCount * 2.1) : baseBodySize;
+  const clampedBaseSize = Math.max(18, Math.min(rawBodySize, baseBodySize));
+  const bodyFontSize = Math.max(18, clampedBaseSize * (userBodySize / baseBodySize));
+  const fontScale = bodyFontSize / (userBodySize || 1);
   const spacingCompression = 1 - density * 0.5;
   const itemGap = Math.max(12, Math.round(44 * spacingCompression * Math.max(fontScale, 0.7)));
   const columnGap = Math.max(16, Math.round(32 * spacingCompression * Math.max(fontScale, 0.7)));
