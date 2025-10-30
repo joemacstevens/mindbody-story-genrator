@@ -74,7 +74,7 @@ const SearchSection: React.FC<{
         onChange={(e) => onGymNameChange(e.target.value)}
       />
       {(suggestions.length > 0 || isSearching) && (
-        <div className="absolute inset-x-0 top-full z-10 mt-2 overflow-hidden rounded-xl border border-white/15 bg-slate-900/98 shadow-2xl backdrop-blur-xl">
+        <div className="absolute inset-x-0 top-full z-10 mt-2 overflow-hidden rounded-xl border border-white/15 bg-slate-900/90 shadow-2xl backdrop-blur-xl">
           {isSearching ? (
             <div className="flex items-center gap-3 px-4 py-4 text-sm text-slate-300">
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-transparent" aria-hidden="true" />

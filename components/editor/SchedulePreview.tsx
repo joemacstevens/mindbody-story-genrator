@@ -56,6 +56,7 @@ export const SchedulePreview: React.FC<SchedulePreviewProps> = ({
   const showSubtitle = style.showSubtitle !== false;
   const showSchedule = style.showSchedule !== false;
   const showFooter = style.showFooter !== false;
+  const showScheduleDate = style.showScheduleDate !== false;
 
   const hasBackgroundImage = Boolean(style.bgImage);
   const accentTextColor = getReadableTextColor(style.accent, style.backgroundColor);
@@ -83,6 +84,11 @@ export const SchedulePreview: React.FC<SchedulePreviewProps> = ({
   const instructorFontScale = 0.98 - density * 0.2;
   const secondaryFontScale = 0.96 - density * 0.16;
   const lineHeightScale = 1 - density * 0.08;
+  const headingElementStyle = elementStyles.heading ?? getDefaultElementStyle('heading');
+  const subtitleElementStyle = elementStyles.subtitle ?? getDefaultElementStyle('subtitle');
+  const scheduleDateElementStyle =
+    elementStyles.scheduleDate ?? getDefaultElementStyle('scheduleDate');
+  const footerElementStyle = elementStyles.footer ?? getDefaultElementStyle('footer');
 
   const scaledItemGap = Math.max(6, Math.round(spacingConfig.itemGap * gapScale));
   const scaledItemPadding = Math.max(12, Math.round(spacingConfig.itemPadding * paddingScale));
@@ -147,16 +153,44 @@ export const SchedulePreview: React.FC<SchedulePreviewProps> = ({
             {showHeading && (
               <h1
                 className="text-4xl font-bold tracking-tight sm:text-5xl"
-                style={{ color: style.textColorPrimary, fontWeight: style.headingWeight ?? '700', transition: 'color 0.3s ease' }}
+                style={{
+                  color: headingElementStyle.color ?? style.textColorPrimary,
+                  fontWeight: headingElementStyle.fontWeight ?? Number(style.headingWeight ?? '700'),
+                  fontSize: `${headingElementStyle.fontSize}px`,
+                  letterSpacing: `${(headingElementStyle.letterSpacing ?? 0).toFixed(2)}px`,
+                  lineHeight: headingElementStyle.lineHeight ?? 1.1,
+                  transition: 'color 0.3s ease, font-size 0.3s ease',
+                }}
               >
                 {style.heading}
               </h1>
             )}
-            <p className="text-sm uppercase tracking-[0.4em] text-text-tertiary">{schedule.date}</p>
+            {showScheduleDate && (
+              <p
+                className="text-sm uppercase"
+                style={{
+                  color: scheduleDateElementStyle.color ?? style.textColorSecondary,
+                  fontSize: `${scheduleDateElementStyle.fontSize}px`,
+                  fontWeight: scheduleDateElementStyle.fontWeight ?? 600,
+                  letterSpacing: `${(scheduleDateElementStyle.letterSpacing ?? 0).toFixed(2)}px`,
+                  lineHeight: scheduleDateElementStyle.lineHeight ?? 1.2,
+                  transition: 'color 0.3s ease',
+                }}
+              >
+                {schedule.date}
+              </p>
+            )}
             {showSubtitle && (
               <p
-                className="text-base text-text-secondary"
-                style={{ color: style.textColorSecondary, transition: 'color 0.3s ease' }}
+                className="text-base"
+                style={{
+                  color: subtitleElementStyle.color ?? style.textColorSecondary,
+                  fontSize: `${subtitleElementStyle.fontSize}px`,
+                  fontWeight: subtitleElementStyle.fontWeight ?? 500,
+                  letterSpacing: `${(subtitleElementStyle.letterSpacing ?? 0).toFixed(2)}px`,
+                  lineHeight: subtitleElementStyle.lineHeight ?? 1.3,
+                  transition: 'color 0.3s ease',
+                }}
               >
                 {style.subtitle}
               </p>
@@ -396,7 +430,18 @@ export const SchedulePreview: React.FC<SchedulePreviewProps> = ({
                 style={{ backgroundColor: style.accent, transition: 'background-color 0.3s ease' }}
               />
             )}
-            <p style={{ color: style.textColorSecondary, transition: 'color 0.3s ease' }}>{style.footer}</p>
+            <p
+              style={{
+                color: footerElementStyle.color ?? style.textColorSecondary,
+                fontSize: `${footerElementStyle.fontSize}px`,
+                fontWeight: footerElementStyle.fontWeight ?? 500,
+                letterSpacing: `${(footerElementStyle.letterSpacing ?? 0).toFixed(2)}px`,
+                lineHeight: footerElementStyle.lineHeight ?? 1.4,
+                transition: 'color 0.3s ease',
+              }}
+            >
+              {style.footer}
+            </p>
           </footer>
         )}
       </div>

@@ -4,6 +4,7 @@ import { ToggleSwitch } from '../ui';
 import { cn } from '../../utils/cn';
 import type { ScheduleElementId, ScheduleElementMeta } from '../../types';
 import { useStaggerAnimation } from '../../hooks/useStaggerAnimation';
+import { HERO_ELEMENT_IDS, FOOTER_ELEMENT_IDS } from './contentElements';
 
 interface ContentTabProps {
   visibleElements: ScheduleElementId[];
@@ -13,6 +14,8 @@ interface ContentTabProps {
   onToggleVisibility: (elementId: ScheduleElementId) => void;
   onOpenFontSettings: (elementId: ScheduleElementId) => void;
   onOpenColorPicker: (elementId: ScheduleElementId) => void;
+  staticVisibility: Partial<Record<ScheduleElementId, boolean>>;
+  onToggleStaticElement: (elementId: ScheduleElementId, next: boolean) => void;
 }
 
 interface ElementItemProps {
@@ -20,7 +23,7 @@ interface ElementItemProps {
   meta: ScheduleElementMeta;
   visible: boolean;
   draggable?: boolean;
-  onToggle: (next: boolean) => void;
+  onToggle?: (next: boolean) => void;
   onOpenFontSettings?: () => void;
   onOpenColorPicker?: () => void;
   onDragStart?: (event: React.DragEvent<HTMLDivElement>) => void;
@@ -66,6 +69,7 @@ const ElementItem: React.FC<ElementItemProps> = ({
   isDragging = false,
   style,
 }) => {
+  const isToggleable = typeof onToggle === 'function';
   const iconButtonClass = cn(
     'w-7 h-7 rounded-md bg-white/5 border-none text-slate-400 cursor-pointer flex items-center justify-center transition-all text-sm',
     'hover:bg-purple-500/20 hover:text-purple-400',
@@ -76,7 +80,7 @@ const ElementItem: React.FC<ElementItemProps> = ({
       role="listitem"
       data-element-id={id}
       className={cn(
-        'flex items-center gap-3 rounded-lg border bg-white/5 px-3.5 py-3.5 transition-all duration-200 cursor-move',
+        'flex items-center gap-3 rounded-lg border bg-white/5 px-3.5 py-3.5 transition-all duration-200',
         visible ? 'border-white/10 text-slate-200' : 'border-white/10 text-slate-400 opacity-50',
         draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-default',
         isDragging && 'border-purple-500 bg-purple-500/10',
@@ -89,7 +93,11 @@ const ElementItem: React.FC<ElementItemProps> = ({
       onDragEnd={onDragEnd}
       style={style}
     >
-      <div className="text-slate-500 text-lg cursor-grab">☰</div>
+      {draggable ? (
+        <div className="text-slate-500 text-lg cursor-grab">☰</div>
+      ) : (
+        <div className="w-4" aria-hidden="true" />
+      )}
       <div className="flex-1 text-sm text-slate-200">{meta.label}</div>
       <div className="flex items-center gap-2">
         <button
@@ -102,12 +110,14 @@ const ElementItem: React.FC<ElementItemProps> = ({
         <button type="button" onClick={onOpenColorPicker} className={cn(iconButtonClass, 'hidden sm:flex')}>
           🎨
         </button>
-        <ToggleSwitch
-          checked={visible}
-          onChange={onToggle}
-          className="ml-1 h-6 w-12"
-          label={visible ? `Hide ${meta.label}` : `Show ${meta.label}`}
-        />
+        {isToggleable ? (
+          <ToggleSwitch
+            checked={visible}
+            onChange={(next) => onToggle?.(next)}
+            className="ml-1 h-6 w-12"
+            label={visible ? `Hide ${meta.label}` : `Show ${meta.label}`}
+          />
+        ) : null}
       </div>
     </div>
   );
@@ -121,10 +131,20 @@ export const ContentTab: React.FC<ContentTabProps> = ({
   onToggleVisibility,
   onOpenFontSettings,
   onOpenColorPicker,
+  staticVisibility,
+  onToggleStaticElement,
 }) => {
   const [draggingId, setDraggingId] = useState<ScheduleElementId | null>(null);
   const visibleAnimations = useStaggerAnimation(visibleElements.length, 70);
   const hiddenAnimations = useStaggerAnimation(hiddenElements.length, 70, visibleElements.length * 70);
+  const heroElementIds = HERO_ELEMENT_IDS.filter((elementId) => elementsMeta[elementId]);
+  const footerElementIds = FOOTER_ELEMENT_IDS.filter((elementId) => elementsMeta[elementId]);
+  const heroAnimations = useStaggerAnimation(heroElementIds.length, 70, (visibleElements.length + hiddenElements.length) * 70);
+  const footerAnimations = useStaggerAnimation(
+    footerElementIds.length,
+    70,
+    (visibleElements.length + hiddenElements.length + heroElementIds.length) * 70,
+  );
 
   const handleDragStart = useCallback(
     (id: ScheduleElementId) => (event: React.DragEvent<HTMLDivElement>) => {
@@ -227,6 +247,54 @@ export const ContentTab: React.FC<ContentTabProps> = ({
           </div>
         </div>
       </Section>
+
+      {heroElementIds.length > 0 ? (
+        <Section title="Header & Details" badge="✨ Hero">
+          <div className="space-y-2" role="list">
+            {heroElementIds.map((elementId, index) => {
+              const meta = elementsMeta[elementId];
+              if (!meta) return null;
+              const isVisible = staticVisibility[elementId] !== false;
+              return (
+                <ElementItem
+                  key={elementId}
+                  id={elementId}
+                  meta={meta}
+                  visible={isVisible}
+                  onToggle={(next) => onToggleStaticElement(elementId, next)}
+                  onOpenFontSettings={() => onOpenFontSettings(elementId)}
+                  onOpenColorPicker={() => onOpenColorPicker(elementId)}
+                  style={heroAnimations[index]?.style}
+                />
+              );
+            })}
+          </div>
+        </Section>
+      ) : null}
+
+      {footerElementIds.length > 0 ? (
+        <Section title="Footer" badge="📣 Brand">
+          <div className="space-y-2" role="list">
+            {footerElementIds.map((elementId, index) => {
+              const meta = elementsMeta[elementId];
+              if (!meta) return null;
+              const isVisible = staticVisibility[elementId] !== false;
+              return (
+                <ElementItem
+                  key={elementId}
+                  id={elementId}
+                  meta={meta}
+                  visible={isVisible}
+                  onToggle={(next) => onToggleStaticElement(elementId, next)}
+                  onOpenFontSettings={() => onOpenFontSettings(elementId)}
+                  onOpenColorPicker={() => onOpenColorPicker(elementId)}
+                  style={footerAnimations[index]?.style}
+                />
+              );
+            })}
+          </div>
+        </Section>
+      ) : null}
     </div>
   );
 };

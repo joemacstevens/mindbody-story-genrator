@@ -33,6 +33,9 @@ export const FontSettings: React.FC<FontSettingsProps> = ({
   const [fontWeight, setFontWeight] = useState<number>(value.fontWeight);
   const [letterSpacing, setLetterSpacing] = useState<number>(value.letterSpacing ?? 0);
   const [lineHeight, setLineHeight] = useState<number>(value.lineHeight ?? 1.3);
+  const baseFontSize = defaults.fontSize ?? value.fontSize ?? 16;
+  const fontSizeMin = Math.max(10, Math.floor(baseFontSize * 0.5));
+  const fontSizeMax = Math.max(42, Math.round(baseFontSize + 28));
 
   useEffect(() => {
     setFontSize(value.fontSize);
@@ -71,7 +74,7 @@ export const FontSettings: React.FC<FontSettingsProps> = ({
           <span>Font Size</span>
           <span>{fontSize}px</span>
         </div>
-        <Slider min={10} max={42} value={fontSize} onChange={setFontSize} />
+        <Slider min={fontSizeMin} max={fontSizeMax} value={fontSize} onChange={setFontSize} />
       </div>
 
       <div className="space-y-3">

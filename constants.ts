@@ -26,6 +26,7 @@ const BASE_STYLE_SHARED = {
   showSubtitle: true,
   showSchedule: true,
   showFooter: true,
+  showScheduleDate: true,
 };
 
 // --- New Theme Presets ---

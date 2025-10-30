@@ -40,6 +40,7 @@ export type Style = {
   showSubtitle?: boolean;
   showSchedule?: boolean;
   showFooter?: boolean;
+  showScheduleDate?: boolean;
   cardCornerRadius?: number;
   spacing?: 'compact' | 'comfortable' | 'spacious';
   layoutStyle?: 'grid' | 'list' | 'card';
@@ -104,6 +105,10 @@ export type EditorColorPalette = {
 };
 
 export type ScheduleElementId =
+  | 'heading'
+  | 'subtitle'
+  | 'scheduleDate'
+  | 'footer'
   | 'time'
   | 'className'
   | 'instructor'
@@ -121,7 +126,14 @@ export type ScheduleElementMeta = {
   defaultLineHeight?: number;
   defaultColor: string;
   icon?: string;
-  field: keyof ScheduleItem;
+  field?: keyof ScheduleItem;
+  category: 'hero' | 'schedule' | 'footer';
+  toggleKey?:
+    | 'showHeading'
+    | 'showSubtitle'
+    | 'showSchedule'
+    | 'showFooter'
+    | 'showScheduleDate';
 };
 
 export type ScheduleElementStyle = {

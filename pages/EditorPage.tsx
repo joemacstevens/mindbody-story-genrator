@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { ensureUserDocument, fetchUserRoot } from '../services/userData';
@@ -158,6 +158,15 @@ const EditorPage: React.FC = () => {
     ...defaultPalette.colors,
   }));
   const [selectedPaletteId, setSelectedPaletteId] = useState<string>(defaultPalette.id);
+  const staticVisibility = useMemo(
+    () => ({
+      heading: styleState.showHeading !== false,
+      subtitle: styleState.showSubtitle !== false,
+      scheduleDate: styleState.showScheduleDate !== false,
+      footer: styleState.showFooter !== false,
+    }),
+    [styleState.showHeading, styleState.showSubtitle, styleState.showScheduleDate, styleState.showFooter],
+  );
 
   const updateStyle = useCallback((updates: Partial<Style>) => {
     setStyleState((prev) => ({
@@ -395,13 +404,16 @@ const EditorPage: React.FC = () => {
   }, []);
 
   const handleElementColorChange = useCallback((elementId: ScheduleElementId, color: string) => {
-    setElementStyles((prev) => ({
-      ...prev,
-      [elementId]: {
-        ...prev[elementId],
-        color,
-      },
-    }));
+    setElementStyles((prev) => {
+      const baseStyle = prev[elementId] ?? getDefaultElementStyle(elementId);
+      return {
+        ...prev,
+        [elementId]: {
+          ...baseStyle,
+          color,
+        },
+      };
+    });
   }, []);
 
   const handleElementColorReset = useCallback((elementId: ScheduleElementId) => {
@@ -409,7 +421,7 @@ const EditorPage: React.FC = () => {
     setElementStyles((prev) => ({
       ...prev,
       [elementId]: {
-        ...prev[elementId],
+        ...(prev[elementId] ?? defaults),
         color: defaults.color,
       },
     }));
@@ -434,6 +446,28 @@ const EditorPage: React.FC = () => {
       });
     },
     [],
+  );
+
+  const handleToggleStaticElement = useCallback(
+    (elementId: ScheduleElementId, next: boolean) => {
+      switch (elementId) {
+        case 'heading':
+          updateStyle({ showHeading: next });
+          break;
+        case 'subtitle':
+          updateStyle({ showSubtitle: next });
+          break;
+        case 'scheduleDate':
+          updateStyle({ showScheduleDate: next });
+          break;
+        case 'footer':
+          updateStyle({ showFooter: next });
+          break;
+        default:
+          break;
+      }
+    },
+    [updateStyle],
   );
 
   const handleReorderElements = useCallback(
@@ -948,6 +982,8 @@ const EditorPage: React.FC = () => {
                   onToggleVisibility={handleToggleElementVisibility}
                   onOpenFontSettings={handleOpenFontSettings}
                   onOpenColorPicker={handleOpenColorPicker}
+                  staticVisibility={staticVisibility}
+                  onToggleStaticElement={handleToggleStaticElement}
                 />
               ) : activeTab === 'layout' ? (
                 <LayoutTab
@@ -1099,6 +1135,8 @@ const EditorPage: React.FC = () => {
                 onToggleVisibility={handleToggleElementVisibility}
                 onOpenFontSettings={handleOpenFontSettings}
                 onOpenColorPicker={handleOpenColorPicker}
+                staticVisibility={staticVisibility}
+                onToggleStaticElement={handleToggleStaticElement}
               />
             ) : activeTab === 'layout' ? (
               <LayoutTab
