@@ -1,6 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import type { Style, TemplateId, Schedule } from '../types';
-import StoryRenderer from './StoryRenderer';
+import { SchedulePreview } from './editor/SchedulePreview';
+import {
+  DEFAULT_VISIBLE_ELEMENTS,
+  buildInitialElementStyles,
+} from './editor/contentElements';
 import MoreVertIcon from './icons/MoreVertIcon';
 import CheckIcon from './icons/CheckIcon';
 import { cn } from '../utils/cn';
@@ -34,6 +38,8 @@ const TemplateCard: React.FC<TemplateCardProps> = ({
     e.stopPropagation();
     onMenuClick?.(id, e);
   };
+
+  const elementStyles = useMemo(() => buildInitialElementStyles(), []);
 
   return (
     <div
@@ -80,13 +86,15 @@ const TemplateCard: React.FC<TemplateCardProps> = ({
               height: '1920px',
               transform: 'scale(0.1)',
               transformOrigin: 'center center',
+              pointerEvents: 'none',
             }}
           >
-            <StoryRenderer
-              templateId={id}
-              style={style}
+            <SchedulePreview
               schedule={schedule}
-              isFullSize={false}
+              style={style}
+              device="mobile"
+              visibleElements={DEFAULT_VISIBLE_ELEMENTS}
+              elementStyles={elementStyles}
             />
           </div>
         </div>
