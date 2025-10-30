@@ -96,14 +96,6 @@ const EditorPage: React.FC = () => {
     user?.displayName?.charAt(0)?.toUpperCase() ||
     user?.email?.charAt(0)?.toUpperCase() ||
     'U';
-  const gallerySettings = useMemo(
-    () => ({
-      activeTemplateId,
-      configs: templateConfigs,
-    }),
-    [activeTemplateId, templateConfigs],
-  );
-
   useEffect(() => {
     if (!user?.uid) return;
     const fetchData = async () => {
@@ -163,6 +155,13 @@ const EditorPage: React.FC = () => {
   const initialTemplateId = DEFAULT_APP_SETTINGS.activeTemplateId as TemplateId;
 
   const [activeTemplateId, setActiveTemplateId] = useState<TemplateId>(initialTemplateId);
+  const gallerySettings = useMemo(
+    () => ({
+      activeTemplateId,
+      configs: templateConfigs,
+    }),
+    [activeTemplateId, templateConfigs],
+  );
   const [styleState, setStyleState] = useState<Style>(() => ({
     ...templateConfigs[initialTemplateId],
   }));
