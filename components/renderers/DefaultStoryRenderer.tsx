@@ -47,12 +47,45 @@ const DefaultStoryRenderer: React.FC<StoryRendererProps> = ({
   const headingRef = useRef<HTMLHeadingElement>(null);
   const subtitleRef = useRef<HTMLParagraphElement>(null);
   const footerRef = useRef<HTMLParagraphElement>(null);
+  const scheduleContainerRef = useRef<HTMLDivElement | null>(null);
+  const [scheduleHeight, setScheduleHeight] = useState(0);
 
   const fieldRefs: Record<EditableField, React.RefObject<HTMLElement>> = {
     heading: headingRef,
     subtitle: subtitleRef,
     footer: footerRef,
   };
+
+  useEffect(() => {
+    const node = scheduleContainerRef.current;
+    if (!node || typeof window === 'undefined') {
+      return;
+    }
+
+    const updateHeight = () => {
+      const nextHeight = node.getBoundingClientRect().height;
+      setScheduleHeight((prev) => (Math.abs(prev - nextHeight) > 1 ? nextHeight : prev));
+    };
+
+    updateHeight();
+
+    if ('ResizeObserver' in window) {
+      const observer = new ResizeObserver(() => {
+        updateHeight();
+      });
+      observer.observe(node);
+
+      return () => {
+        observer.disconnect();
+      };
+    }
+
+    const handle = window.setInterval(updateHeight, 250);
+
+    return () => {
+      window.clearInterval(handle);
+    };
+  }, [schedule.items.length, isFullSize]);
 
   useEffect(() => {
     if (editingField && fieldRefs[editingField]?.current) {
@@ -121,11 +154,32 @@ const DefaultStoryRenderer: React.FC<StoryRendererProps> = ({
     backgroundRepeat: 'no-repeat',
   };
   
-  const bodyFontSize = style.bodySize || 36;
+  const classCount = schedule.items.length;
+  const effectiveClassCount = Math.min(Math.max(classCount || 1, 1), 20);
+  const density = (effectiveClassCount - 1) / 19;
+  const availableHeight = scheduleHeight || 0;
+  const fallbackBodySize = style.bodySize || 36;
+  const rawBodySize = availableHeight
+    ? availableHeight / (effectiveClassCount * 2.1)
+    : fallbackBodySize;
+  const bodyFontSize = Math.max(18, Math.min(rawBodySize, fallbackBodySize));
+  const fontScale = bodyFontSize / fallbackBodySize;
+  const spacingCompression = 1 - density * 0.5;
+  const itemGap = Math.max(12, Math.round(44 * spacingCompression * Math.max(fontScale, 0.7)));
+  const columnGap = Math.max(16, Math.round(32 * spacingCompression * Math.max(fontScale, 0.7)));
+  const textStackGap = Math.max(6, Math.round(14 * spacingCompression));
+  const schedulePaddingBlock = Math.max(28, Math.round(60 * spacingCompression));
+  const timeFontSize = Math.max(bodyFontSize * (1.08 - density * 0.08), bodyFontSize + 2);
+  const classFontSize = bodyFontSize * (0.98 - density * 0.04);
+  const coachFontSize = Math.max(bodyFontSize * (0.76 - density * 0.06), bodyFontSize * 0.62);
+  const locationFontSize = Math.max(bodyFontSize * (0.7 - density * 0.05), bodyFontSize * 0.58);
+  const accentLineHeight = 1.1;
+  const textLineHeight = 1.18;
+  const timeLineHeight = 1.12;
   const itemCoachStyle: React.CSSProperties = {
     color: style.textColorSecondary,
-    fontSize: `${Math.round(bodyFontSize * 0.85)}px`,
-    marginTop: '4px',
+    fontSize: `${Math.round(coachFontSize)}px`,
+    lineHeight: textLineHeight,
   };
 
   const showHeading = style.showHeading !== false;
@@ -235,27 +289,63 @@ const DefaultStoryRenderer: React.FC<StoryRendererProps> = ({
 
         {showSchedule ? (
           <main
-            className={`flex-grow flex flex-col overflow-y-auto pr-4 -mr-4 cursor-pointer ${selectionRingClass('schedule')}`}
+            ref={scheduleContainerRef}
+            className={`flex-grow flex flex-col overflow-hidden cursor-pointer ${selectionRingClass('schedule')}`}
             onClick={(event) => handleElementClick(event, 'schedule')}
+            style={{ paddingTop: `${schedulePaddingBlock}px`, paddingBottom: `${schedulePaddingBlock}px` }}
           >
-            <ul className="space-y-10 my-auto">
+            <ul className="flex flex-col" style={{ gap: `${itemGap}px` }}>
               {schedule.items.length > 0 ? (
                 schedule.items.map((item, index) => (
-                  <li key={index} className="grid grid-cols-12 gap-6 items-center">
-                    <div className="col-span-4 text-left font-semibold" style={{ color: style.accent, fontSize: `${bodyFontSize}px` }}>
+                  <li key={index} className="flex items-start">
+                    <div
+                      className="font-semibold"
+                      style={{
+                        color: style.accent,
+                        fontSize: `${Math.round(timeFontSize)}px`,
+                        lineHeight: timeLineHeight,
+                        minWidth: `${Math.max(96, Math.round(170 * spacingCompression * Math.max(fontScale, 0.7)))}px`,
+                      }}
+                    >
                       {item.time}
                     </div>
-                    <div className="col-span-8">
-                      <p className="font-bold" style={{ color: style.textColorPrimary, fontSize: `${bodyFontSize}px` }}>
+                    <div
+                      className="flex min-w-0 flex-1 flex-col"
+                      style={{ gap: `${textStackGap}px`, marginLeft: `${columnGap}px` }}
+                    >
+                      <p
+                        className="font-bold"
+                        style={{
+                          color: style.textColorPrimary,
+                          fontSize: `${Math.round(classFontSize)}px`,
+                          lineHeight: accentLineHeight,
+                        }}
+                      >
                         {item.class}
                       </p>
-                      <p style={itemCoachStyle}>with {item.coach}</p>
+                      {item.coach ? (
+                        <p style={itemCoachStyle}>with {item.coach}</p>
+                      ) : null}
+                      {item.location ? (
+                        <p
+                          style={{
+                            color: style.textColorSecondary,
+                            fontSize: `${Math.round(locationFontSize)}px`,
+                            lineHeight: textLineHeight,
+                          }}
+                        >
+                          📍 {item.location}
+                        </p>
+                      ) : null}
                     </div>
                   </li>
                 ))
               ) : (
-                <li className="flex items-center justify-center h-full">
-                  <p className="font-semibold" style={{ color: style.textColorSecondary, fontSize: `${bodyFontSize}px` }}>
+                <li className="flex items-center justify-center">
+                  <p
+                    className="font-semibold text-center"
+                    style={{ color: style.textColorSecondary, fontSize: `${Math.round(bodyFontSize)}px`, lineHeight: 1.3 }}
+                  >
                     No classes today.
                   </p>
                 </li>

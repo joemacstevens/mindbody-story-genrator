@@ -52,11 +52,44 @@ export const SchedulePreview: React.FC<SchedulePreviewProps> = ({
   visibleElements,
   elementStyles,
 }) => {
+  const scheduleContainerRef = React.useRef<HTMLDivElement | null>(null);
+  const [scheduleHeight, setScheduleHeight] = React.useState(0);
   const showHeading = style.showHeading !== false;
   const showSubtitle = style.showSubtitle !== false;
   const showSchedule = style.showSchedule !== false;
   const showFooter = style.showFooter !== false;
   const showScheduleDate = style.showScheduleDate !== false;
+
+  React.useLayoutEffect(() => {
+    const node = scheduleContainerRef.current;
+    if (!node || typeof window === 'undefined') {
+      return;
+    }
+
+    const updateHeight = () => {
+      const nextHeight = node.getBoundingClientRect().height;
+      setScheduleHeight((prev) => (Math.abs(prev - nextHeight) > 1 ? nextHeight : prev));
+    };
+
+    updateHeight();
+
+    if ('ResizeObserver' in window) {
+      const observer = new ResizeObserver(() => {
+        updateHeight();
+      });
+      observer.observe(node);
+
+      return () => {
+        observer.disconnect();
+      };
+    }
+
+    const handle = window.setInterval(updateHeight, 250);
+
+    return () => {
+      window.clearInterval(handle);
+    };
+  }, [device, schedule.items.length]);
 
   const hasBackgroundImage = Boolean(style.bgImage);
   const accentTextColor = getReadableTextColor(style.accent, style.backgroundColor);
@@ -73,39 +106,52 @@ export const SchedulePreview: React.FC<SchedulePreviewProps> = ({
   const itemCornerRadius = style.cardCornerRadius ?? 24;
 
   const classCount = schedule.items.length;
-  const clampedClassCount = Math.min(Math.max(classCount || 1, 1), 10);
-  const density = (clampedClassCount - 1) / 9;
+  const effectiveClassCount = Math.min(Math.max(classCount || 1, 1), 20);
+  const density = (effectiveClassCount - 1) / 19;
+  const availableHeight = scheduleHeight || 0;
+  const baseDynamicFont = React.useMemo(() => {
+    if (!availableHeight || effectiveClassCount === 0) {
+      return 18;
+    }
 
-  const scheduleAreaPercent = 75 + density * 5; // 75% for a single class → 80% for ten classes
-  const gapScale = 1.15 - density * 0.45; // generous gaps for few classes, tighter for dense schedules
-  const paddingScale = 1.2 - density * 0.35;
-  const timeFontScale = 1.08 - density * 0.28;
-  const classFontScale = 1.02 - density * 0.24;
-  const instructorFontScale = 0.98 - density * 0.2;
-  const secondaryFontScale = 0.96 - density * 0.16;
-  const lineHeightScale = 1 - density * 0.08;
+    const rawSize = availableHeight / (effectiveClassCount * 1.85);
+    return Math.max(11, Math.min(rawSize, 22));
+  }, [availableHeight, effectiveClassCount]);
+
+  const fontSizeScale = baseDynamicFont / 18;
+  const scheduleAreaPercent = 68 + density * 12; // 68% for sparse schedules → 80% for dense ones
+  const spacingTightness = 1 - density * 0.5;
+  const fontTightness = 0.9 + Math.min(fontSizeScale, 1.1) * 0.1;
+  const combinedSpacingScale = spacingTightness * fontTightness;
+  const paddingScale = 1.15 * combinedSpacingScale;
+  const timeFontScale = (1.08 - density * 0.32) * fontSizeScale;
+  const classFontScale = (1.02 - density * 0.26) * fontSizeScale;
+  const instructorFontScale = (0.98 - density * 0.22) * fontSizeScale;
+  const secondaryFontScale = (0.96 - density * 0.18) * fontSizeScale;
+  const lineHeightScale = Math.max(0.9, (1 - density * 0.1) * (0.92 + fontSizeScale * 0.08));
   const headingElementStyle = elementStyles.heading ?? getDefaultElementStyle('heading');
   const subtitleElementStyle = elementStyles.subtitle ?? getDefaultElementStyle('subtitle');
   const scheduleDateElementStyle =
     elementStyles.scheduleDate ?? getDefaultElementStyle('scheduleDate');
   const footerElementStyle = elementStyles.footer ?? getDefaultElementStyle('footer');
 
-  const scaledItemGap = Math.max(6, Math.round(spacingConfig.itemGap * gapScale));
-  const scaledItemPadding = Math.max(12, Math.round(spacingConfig.itemPadding * paddingScale));
-  const timePaddingY = Math.max(8, Math.round(14 * paddingScale));
-  const timePaddingX = Math.max(12, Math.round(18 * paddingScale));
-  const timeMinWidth = Math.max(64, Math.round(88 * paddingScale));
-  const innerColumnGap = Math.max(8, Math.round(16 * gapScale));
-  const timeStackGap = Math.max(6, Math.round(12 * gapScale));
-  const textStackGap = Math.max(6, Math.round(12 * gapScale));
-  const accentVerticalInset = Math.max(6, Math.round(scaledItemPadding * 0.45));
-  const accentHorizontalOffset = Math.max(10, Math.round(scaledItemPadding * 0.35));
+  const scaledItemGap = Math.max(4, Math.round(spacingConfig.itemGap * combinedSpacingScale));
+  const scaledItemPadding = Math.max(10, Math.round(spacingConfig.itemPadding * paddingScale));
+  const timePaddingY = Math.max(6, Math.round(14 * combinedSpacingScale));
+  const timePaddingX = Math.max(10, Math.round(18 * combinedSpacingScale));
+  const timeMinWidth = Math.max(56, Math.round(88 * combinedSpacingScale));
+  const innerColumnGap = Math.max(6, Math.round(16 * combinedSpacingScale));
+  const timeStackGap = Math.max(4, Math.round(12 * combinedSpacingScale));
+  const textStackGap = Math.max(4, Math.round(12 * combinedSpacingScale));
+  const accentVerticalInset = Math.max(4, Math.round(scaledItemPadding * 0.42));
+  const accentHorizontalOffset = Math.max(8, Math.round(scaledItemPadding * 0.32));
 
-  const showStripedCards = clampedClassCount > 6;
+  const showStripedCards = effectiveClassCount > 6;
 
   const getScaledFontSize = (value: number, scale: number, minimum: number) => {
     const scaled = value * scale;
-    return Math.max(minimum, Math.round(scaled * 10) / 10);
+    const minSize = minimum * fontSizeScale;
+    return Math.max(minSize, Math.round(scaled * 10) / 10);
   };
 
   const getScaledLineHeight = (value: number | string | undefined) => {
@@ -207,6 +253,7 @@ export const SchedulePreview: React.FC<SchedulePreviewProps> = ({
 
         {showSchedule && (
           <main
+            ref={scheduleContainerRef}
             className="relative flex flex-col overflow-hidden"
             style={{
               flex: '0 0 auto',
