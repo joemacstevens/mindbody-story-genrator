@@ -99,15 +99,21 @@ const ElementItem: React.FC<ElementItemProps> = ({
         <div className="w-4" aria-hidden="true" />
       )}
       <div className="flex-1 text-sm text-slate-200">{meta.label}</div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
         <button
           type="button"
           onClick={onOpenFontSettings}
-          className={cn(iconButtonClass, 'hidden sm:flex')}
+          className={iconButtonClass}
+          aria-label={`Adjust font for ${meta.label}`}
         >
           Aa
         </button>
-        <button type="button" onClick={onOpenColorPicker} className={cn(iconButtonClass, 'hidden sm:flex')}>
+        <button
+          type="button"
+          onClick={onOpenColorPicker}
+          className={iconButtonClass}
+          aria-label={`Adjust color for ${meta.label}`}
+        >
           🎨
         </button>
         {isToggleable ? (
