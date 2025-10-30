@@ -3,21 +3,12 @@ import type { Schedule, Style, ScheduleElementId, ScheduleElementStyle } from '.
 import { cn } from '../../utils/cn';
 import { CONTENT_ELEMENT_META, getDefaultElementStyle } from './contentElements';
 
-type DeviceOption = 'mobile' | 'tablet' | 'desktop';
-
 interface SchedulePreviewProps {
   schedule: Schedule;
   style: Style;
-  device: DeviceOption;
   visibleElements: ScheduleElementId[];
   elementStyles: Record<ScheduleElementId, ScheduleElementStyle>;
 }
-
-const devicePadding: Record<DeviceOption, string> = {
-  mobile: 'px-8 py-10',
-  tablet: 'px-12 py-12',
-  desktop: 'px-16 py-14',
-};
 
 const dividerClass: Record<NonNullable<Style['dividerStyle']>, string> = {
   none: 'border-none',
@@ -48,7 +39,6 @@ const getReadableTextColor = (color: string, fallback: string): string => {
 export const SchedulePreview: React.FC<SchedulePreviewProps> = ({
   schedule,
   style,
-  device,
   visibleElements,
   elementStyles,
 }) => {
@@ -89,7 +79,7 @@ export const SchedulePreview: React.FC<SchedulePreviewProps> = ({
     return () => {
       window.clearInterval(handle);
     };
-  }, [device, schedule.items.length]);
+  }, [schedule.items.length]);
 
   const hasBackgroundImage = Boolean(style.bgImage);
   const accentTextColor = getReadableTextColor(style.accent, style.backgroundColor);
@@ -187,8 +177,7 @@ export const SchedulePreview: React.FC<SchedulePreviewProps> = ({
   return (
     <div
       className={cn(
-        'relative flex h-full w-full flex-col overflow-hidden rounded-[inherit]',
-        devicePadding[device],
+        'relative flex h-full w-full flex-col justify-evenly overflow-hidden rounded-[inherit] px-6 py-10',
       )}
       style={backgroundStyles}
     >
