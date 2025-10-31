@@ -1,15 +1,34 @@
 import React from 'react';
-import type { Schedule, Style, ScheduleElementId, ScheduleElementStyle } from '../../types';
+import type {
+  Schedule,
+  Style,
+  ScheduleElementId,
+  ScheduleElementStyle,
+  TemplateId,
+} from '../../types';
 import { cn } from '../../utils/cn';
-import { CONTENT_ELEMENT_META, getDefaultElementStyle } from './contentElements';
-import type { SmartSpacingScales, StoryMetrics } from './smartTextSizing';
+import {
+  CONTENT_ELEMENT_META,
+  DEFAULT_VISIBLE_ELEMENTS,
+  getDefaultElementStyle,
+  buildInitialElementStyles,
+} from './contentElements';
+import {
+  DEFAULT_SMART_SPACING,
+  type SmartSpacingScales,
+  type StoryMetrics,
+} from './smartTextSizing';
+import { getTemplateDefinition } from '../../lib/templates';
+import { isTemplateRegistryPreviewEnabled } from '../../lib/templates/featureFlags';
+import { DEFAULT_APP_SETTINGS } from '../../constants';
 
 interface SchedulePreviewProps {
   schedule: Schedule;
-  style: Style;
-  visibleElements: ScheduleElementId[];
-  elementStyles: Record<ScheduleElementId, ScheduleElementStyle>;
-  spacingScales: SmartSpacingScales;
+  templateId?: TemplateId | null;
+  style?: Style;
+  visibleElements?: ScheduleElementId[];
+  elementStyles?: Record<ScheduleElementId, ScheduleElementStyle>;
+  spacingScales?: SmartSpacingScales;
   onMetricsChange?: (metrics: StoryMetrics) => void;
 }
 
@@ -43,10 +62,11 @@ const getReadableTextColor = (color: string, fallback: string): string => {
 
 export const SchedulePreview: React.FC<SchedulePreviewProps> = ({
   schedule,
-  style,
-  visibleElements,
-  elementStyles,
-  spacingScales,
+  templateId,
+  style: styleProp,
+  visibleElements: visibleElementsProp,
+  elementStyles: elementStylesProp,
+  spacingScales: spacingScalesProp,
   onMetricsChange,
 }) => {
   const rootRef = React.useRef<HTMLDivElement | null>(null);
@@ -55,6 +75,91 @@ export const SchedulePreview: React.FC<SchedulePreviewProps> = ({
   const scheduleContainerRef = React.useRef<HTMLDivElement | null>(null);
   const metricsRef = React.useRef<StoryMetrics | null>(null);
   const [scheduleHeight, setScheduleHeight] = React.useState(0);
+  const isTestEnv = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
+
+  const registryDefinition = React.useMemo(() => {
+    if (!isTemplateRegistryPreviewEnabled()) {
+      return null;
+    }
+    return getTemplateDefinition(templateId ?? undefined);
+  }, [templateId]);
+
+  React.useEffect(() => {
+    if (!isTemplateRegistryPreviewEnabled()) {
+      return;
+    }
+    if (templateId && registryDefinition && registryDefinition.id !== templateId && !isTestEnv) {
+      console.warn(
+        `SchedulePreview: template "${templateId}" is not registered. Falling back to "${registryDefinition.id}".`,
+      );
+    }
+  }, [templateId, registryDefinition, isTestEnv]);
+
+  const defaultStyle = React.useMemo<Style>(() => {
+    if (registryDefinition) {
+      try {
+        return registryDefinition.defaults.createStyle();
+      } catch (error) {
+        if (!isTestEnv) {
+          console.error('SchedulePreview: failed to derive style from template definition.', error);
+        }
+      }
+    }
+
+    const fallbackStyle =
+      DEFAULT_APP_SETTINGS.configs[DEFAULT_APP_SETTINGS.activeTemplateId] ||
+      Object.values(DEFAULT_APP_SETTINGS.configs)[0];
+
+    if (!fallbackStyle) {
+      throw new Error('SchedulePreview: unable to resolve a fallback style.');
+    }
+
+    return { ...fallbackStyle };
+  }, [registryDefinition]);
+
+  const defaultVisibleElements = React.useMemo<ScheduleElementId[]>(() => {
+    if (registryDefinition) {
+      try {
+        return registryDefinition.defaults.createVisibleElements();
+      } catch (error) {
+        if (!isTestEnv) {
+          console.error('SchedulePreview: failed to derive visible elements from template definition.', error);
+        }
+      }
+    }
+    return [...DEFAULT_VISIBLE_ELEMENTS];
+  }, [registryDefinition]);
+
+  const defaultElementStyles = React.useMemo(() => {
+    if (registryDefinition) {
+      try {
+        return registryDefinition.defaults.createElementStyles();
+      } catch (error) {
+        if (!isTestEnv) {
+          console.error('SchedulePreview: failed to derive element styles from template definition.', error);
+        }
+      }
+    }
+    return buildInitialElementStyles();
+  }, [registryDefinition]);
+
+  const defaultSpacing = React.useMemo<SmartSpacingScales>(() => {
+    if (registryDefinition) {
+      try {
+        return registryDefinition.defaults.createSmartSpacing();
+      } catch (error) {
+        if (!isTestEnv) {
+          console.error('SchedulePreview: failed to derive spacing scales from template definition.', error);
+        }
+      }
+    }
+    return { ...DEFAULT_SMART_SPACING };
+  }, [registryDefinition]);
+
+  const style = styleProp ?? defaultStyle;
+  const visibleElements = visibleElementsProp ?? defaultVisibleElements;
+  const elementStyles = elementStylesProp ?? defaultElementStyles;
+  const spacingScales = spacingScalesProp ?? defaultSpacing;
 
   const showHeading = style.showHeading !== false;
   const showSubtitle = style.showSubtitle !== false;

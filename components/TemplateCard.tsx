@@ -1,19 +1,17 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import type { Style, TemplateId, Schedule } from '../types';
 import { SchedulePreview } from './editor/SchedulePreview';
-import { DEFAULT_SMART_SPACING } from './editor/smartTextSizing';
-import {
-  DEFAULT_VISIBLE_ELEMENTS,
-  buildInitialElementStyles,
-} from './editor/contentElements';
 import MoreVertIcon from './icons/MoreVertIcon';
 import CheckIcon from './icons/CheckIcon';
 import { cn } from '../utils/cn';
+import { getTemplateDefinition } from '../lib/templates';
+import { isTemplateRegistryPreviewEnabled } from '../lib/templates/featureFlags';
+import { DEFAULT_APP_SETTINGS } from '../constants';
 
 interface TemplateCardProps {
   id: TemplateId;
   name: string;
-  style: Style;
+  style?: Style;
   schedule: Schedule;
   isActive: boolean;
   onSelect: (id: TemplateId) => void;
@@ -24,13 +22,15 @@ interface TemplateCardProps {
 const TemplateCard: React.FC<TemplateCardProps> = ({
   id,
   name,
-  style,
+  style: styleProp,
   schedule,
   isActive,
   onSelect,
   onMenuClick,
   isUserTemplate = false,
 }) => {
+  const isTestEnv = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
+
   const handleClick = () => {
     onSelect(id);
   };
@@ -40,7 +40,52 @@ const TemplateCard: React.FC<TemplateCardProps> = ({
     onMenuClick?.(id, e);
   };
 
-  const elementStyles = useMemo(() => buildInitialElementStyles(), []);
+  const registryDefinition = useMemo(() => {
+    if (!isTemplateRegistryPreviewEnabled()) {
+      return null;
+    }
+    return getTemplateDefinition(id ?? undefined);
+  }, [id]);
+
+  useEffect(() => {
+    if (!isTemplateRegistryPreviewEnabled()) {
+      return;
+    }
+    if (registryDefinition && registryDefinition.id !== id && !isTestEnv) {
+      console.warn(
+        `TemplateCard: template "${id}" is not registered. Falling back to "${registryDefinition.id}".`,
+      );
+    }
+  }, [id, registryDefinition, isTestEnv]);
+
+  const resolvedStyle = useMemo<Style>(() => {
+    if (styleProp) {
+      return styleProp;
+    }
+
+    if (registryDefinition) {
+      try {
+        return registryDefinition.defaults.createStyle();
+      } catch (error) {
+        if (!isTestEnv) {
+          console.error('TemplateCard: failed to derive style from template definition.', error);
+        }
+      }
+    }
+
+    const fallback =
+      DEFAULT_APP_SETTINGS.configs[id] ||
+      DEFAULT_APP_SETTINGS.configs[DEFAULT_APP_SETTINGS.activeTemplateId] ||
+      Object.values(DEFAULT_APP_SETTINGS.configs)[0];
+
+    if (!fallback) {
+      throw new Error(`TemplateCard: unable to resolve a fallback style for template "${id}".`);
+    }
+
+    return { ...fallback };
+  }, [styleProp, registryDefinition, id, isTestEnv]);
+
+  const previewTemplateId = registryDefinition?.id ?? id;
 
   return (
     <div
@@ -91,11 +136,9 @@ const TemplateCard: React.FC<TemplateCardProps> = ({
             }}
           >
             <SchedulePreview
+              templateId={previewTemplateId}
               schedule={schedule}
-              style={style}
-              visibleElements={DEFAULT_VISIBLE_ELEMENTS}
-              elementStyles={elementStyles}
-              spacingScales={DEFAULT_SMART_SPACING}
+              style={resolvedStyle}
             />
           </div>
         </div>
