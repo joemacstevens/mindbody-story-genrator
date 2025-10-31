@@ -37,22 +37,18 @@
    - Added Vitest harness with registry unit tests to guard contract regressions.
 14. **Phase 11.2 – Schedule preview integration**
    - Schedule preview and template card now resolve default configs via the registry with feature-flagged fallback handling plus coverage.
+15. **Phase 11.4 – Template module migration**
+   - Classic template promoted into module with gallery previews, registry alignment, and snapshot coverage.
 
 ## Outstanding Work
 - **Phase 10 Prompt 10.1 – Loading states polish**
 - Continue remaining prompts in `templates/studiogram-implementation-guide.md` (10.1 → 10.2).
 
 ## Upcoming – Phase 11 Template Modularization
-1. **Phase 11.2 – Schedule preview integration**
-   - Refactor `SchedulePreview` and `TemplateCard` to read from the registry with graceful fallback plus feature flag.
-   - Tests: rendering tests asserting preview output stays consistent and fallback engages when id is missing.
-2. **Phase 11.3 – Editor panel adapters**
+1. **Phase 11.3 – Editor panel adapters**
    - Make `StyleTab`, `ContentTab`, and `LayoutTab` consume template-provided configs for controls, defaulting to shared presets.
    - Tests: component tests verifying control availability toggles per template and existing classic flow remains unchanged.
-3. **Phase 11.4 – Template module migration**
-   - Convert current design into `templates/classic` module, scaffold structure for additional templates, and update gallery previews.
-   - Tests: snapshot/visual regression for classic template and smoke test for new module registration.
-4. **Phase 11.5 – Persistence & rollout**
+2. **Phase 11.5 – Persistence & rollout**
    - Extend saved template schema with `templateId`, add migration for legacy entries, and gate release behind feature flag.
    - Tests: integration test covering save/load roundtrip with and without template id plus manual QA checklist for editor/export.
 

@@ -1,4 +1,5 @@
 import type { AppSettings, Schedule, Style, ColorPalette } from './types';
+import { CLASSIC_TEMPLATE_BASE_STYLE, CLASSIC_TEMPLATE_ID } from './templates';
 
 // --- Base styles to reduce repetition ---
 // FIX: Added `as const` to properties with string literal union types (`logoPosition`,
@@ -430,52 +431,9 @@ const ULTRA_COMPACT_LIST: Style = {
 };
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
-  activeTemplateId: 'compact-time-blocks',
+  activeTemplateId: CLASSIC_TEMPLATE_ID,
   configs: {
-    'compact-time-blocks': COMPACT_TIME_BLOCKS,
-    'timeline-gradient': TIMELINE_GRADIENT,
-    'bold-cards-stack': BOLD_CARDS_STACK,
-    'minimal-list': MINIMAL_LIST,
-    'two-column-split': TWO_COLUMN_SPLIT,
-    'color-gradient-flow': COLOR_GRADIENT_FLOW,
-    'compact-table-grid': COMPACT_TABLE_GRID,
-    'neon-fitness': NEON_FITNESS,
-    'morning-to-evening': MORNING_TO_EVENING,
-    'ultra-compact-list': ULTRA_COMPACT_LIST,
-  },
-};
-
-// Template metadata for categorization and display
-export const TEMPLATE_CATEGORIES = {
-  compact: {
-    name: 'Compact',
-    description: 'Maximum density lists and split layouts',
-    icon: '🧱',
-    templates: ['compact-time-blocks', 'two-column-split', 'ultra-compact-list'],
-  },
-  timeline: {
-    name: 'Timeline',
-    description: 'Vertical progression through the day',
-    icon: '🕒',
-    templates: ['timeline-gradient', 'morning-to-evening'],
-  },
-  colorful: {
-    name: 'Colorful',
-    description: 'Gradients and vibrant accents',
-    icon: '🌈',
-    templates: ['color-gradient-flow', 'neon-fitness'],
-  },
-  minimal: {
-    name: 'Minimal',
-    description: 'Simple, clean layouts',
-    icon: '🧼',
-    templates: ['minimal-list', 'compact-table-grid'],
-  },
-  bold: {
-    name: 'Bold',
-    description: 'Large type and striking cards',
-    icon: '🧨',
-    templates: ['bold-cards-stack'],
+    [CLASSIC_TEMPLATE_ID]: { ...CLASSIC_TEMPLATE_BASE_STYLE },
   },
 };
 
