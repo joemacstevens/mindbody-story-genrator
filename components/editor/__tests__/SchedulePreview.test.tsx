@@ -43,6 +43,14 @@ describe('SchedulePreview registry integration', () => {
     expect(registryMarkup).toBe(manualMarkup);
   });
 
+  it('matches the canonical classic template snapshot', () => {
+    const markup = renderToStaticMarkup(
+      <SchedulePreview templateId={CLASSIC_TEMPLATE_ID} schedule={MOCK_SCHEDULE} />,
+    );
+
+    expect(markup).toMatchSnapshot();
+  });
+
   it('falls back to the registered default template when id is missing', () => {
     const fallbackMarkup = renderToStaticMarkup(
       <SchedulePreview templateId={CLASSIC_TEMPLATE_ID} schedule={MOCK_SCHEDULE} />,
