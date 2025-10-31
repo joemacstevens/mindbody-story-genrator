@@ -1,5 +1,10 @@
 import type { AppSettings, Schedule, Style, ColorPalette } from './types';
-import { CLASSIC_TEMPLATE_BASE_STYLE, CLASSIC_TEMPLATE_ID } from './templates';
+import {
+  CLASSIC_TEMPLATE_BASE_STYLE,
+  CLASSIC_TEMPLATE_ID,
+  FEMME_FRIDAY_TEMPLATE_BASE_STYLE,
+  FEMME_FRIDAY_TEMPLATE_ID,
+} from './templates';
 
 // --- Base styles to reduce repetition ---
 // FIX: Added `as const` to properties with string literal union types (`logoPosition`,
@@ -434,6 +439,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   activeTemplateId: CLASSIC_TEMPLATE_ID,
   configs: {
     [CLASSIC_TEMPLATE_ID]: { ...CLASSIC_TEMPLATE_BASE_STYLE },
+    [FEMME_FRIDAY_TEMPLATE_ID]: { ...FEMME_FRIDAY_TEMPLATE_BASE_STYLE },
   },
 };
 

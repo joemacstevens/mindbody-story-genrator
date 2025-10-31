@@ -1,6 +1,17 @@
 import type { TemplateId } from '../types';
 import type { TemplateGalleryCategory, TemplateModule } from './types';
-import { CLASSIC_TEMPLATE_MODULE, CLASSIC_TEMPLATE_ID, CLASSIC_TEMPLATE_BASE_STYLE, CLASSIC_TEMPLATE_METADATA } from './classic';
+import {
+  CLASSIC_TEMPLATE_MODULE,
+  CLASSIC_TEMPLATE_ID,
+  CLASSIC_TEMPLATE_BASE_STYLE,
+  CLASSIC_TEMPLATE_METADATA,
+} from './classic';
+import {
+  FEMME_FRIDAY_TEMPLATE_MODULE,
+  FEMME_FRIDAY_TEMPLATE_ID,
+  FEMME_FRIDAY_TEMPLATE_BASE_STYLE,
+  FEMME_FRIDAY_TEMPLATE_METADATA,
+} from './femmeFriday';
 
 export const TEMPLATE_GALLERY_CATEGORIES: TemplateGalleryCategory[] = [
   {
@@ -11,7 +22,7 @@ export const TEMPLATE_GALLERY_CATEGORIES: TemplateGalleryCategory[] = [
   },
 ];
 
-export const TEMPLATE_MODULES: TemplateModule[] = [CLASSIC_TEMPLATE_MODULE];
+export const TEMPLATE_MODULES: TemplateModule[] = [CLASSIC_TEMPLATE_MODULE, FEMME_FRIDAY_TEMPLATE_MODULE];
 
 export const BUILT_IN_TEMPLATE_IDS = new Set<TemplateId>(
   TEMPLATE_MODULES.map((module) => module.id),
@@ -20,6 +31,15 @@ export const BUILT_IN_TEMPLATE_IDS = new Set<TemplateId>(
 export const getTemplateModule = (templateId: TemplateId): TemplateModule | null =>
   TEMPLATE_MODULES.find((module) => module.id === templateId) ?? null;
 
-export { CLASSIC_TEMPLATE_ID, CLASSIC_TEMPLATE_BASE_STYLE, CLASSIC_TEMPLATE_METADATA } from './classic';
+export {
+  CLASSIC_TEMPLATE_ID,
+  CLASSIC_TEMPLATE_BASE_STYLE,
+  CLASSIC_TEMPLATE_METADATA,
+} from './classic';
+export {
+  FEMME_FRIDAY_TEMPLATE_ID,
+  FEMME_FRIDAY_TEMPLATE_BASE_STYLE,
+  FEMME_FRIDAY_TEMPLATE_METADATA,
+} from './femmeFriday';
 export type { TemplateModule, TemplateGalleryCategory } from './types';
 export type { TemplateGalleryCategoryId } from './types';
