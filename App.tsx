@@ -9,6 +9,7 @@ import AuthPage from './pages/AuthPage';
 import { useAuth } from './contexts/AuthContext';
 import EditorPage from './pages/EditorPage';
 import { PageTransition } from './components/transition/PageTransition';
+import './lib/templates';
 
 const AuthenticatedLayout: React.FC = () => {
   const { user, signOut } = useAuth();
