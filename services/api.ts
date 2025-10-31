@@ -16,6 +16,7 @@ import {
   fetchUserRoot,
   saveEditorTemplate as firestoreSaveEditorTemplate,
 } from './userData';
+import type { UserScheduleDocument } from './userData';
 
 const DEFAULT_SCHEDULE_SLUG = 'global';
 
@@ -52,11 +53,24 @@ export const saveAppSettings = async (settings: AppSettings, userId?: string): P
   }
 };
 
-export const getUserSchedule = async (slug: string, userId: string): Promise<Schedule | null> => {
+export type UserScheduleSnapshot = {
+  schedule: Schedule;
+  lastRequestedDate?: string | null;
+  mindbodyMeta?: UserScheduleDocument['mindbodyMeta'];
+};
+
+export const getUserSchedule = async (
+  slug: string,
+  userId: string,
+): Promise<UserScheduleSnapshot | null> => {
   try {
     const doc = await firestoreFetchUserSchedule(userId, resolveScheduleSlug(slug));
     if (doc?.schedule && isSchedule(doc.schedule)) {
-      return doc.schedule;
+      return {
+        schedule: doc.schedule,
+        lastRequestedDate: doc.lastRequestedDate ?? null,
+        mindbodyMeta: doc.mindbodyMeta ?? undefined,
+      };
     }
   } catch (error) {
     console.error(`Failed to fetch schedule for slug "${slug}" from Firestore.`, error);
@@ -64,10 +78,21 @@ export const getUserSchedule = async (slug: string, userId: string): Promise<Sch
   return null;
 };
 
-export const saveSchedule = async (schedule: Schedule, slug: string, userId: string): Promise<string> => {
+export const saveSchedule = async (
+  schedule: Schedule,
+  slug: string,
+  userId: string,
+  options: {
+    date?: string;
+    meta?: UserScheduleDocument['mindbodyMeta'];
+  } = {},
+): Promise<string> => {
   const resolvedSlug = resolveScheduleSlug(slug);
   try {
-    await firestoreSaveUserSchedule(userId, resolvedSlug, schedule);
+    await firestoreSaveUserSchedule(userId, resolvedSlug, schedule, {
+      lastRequestedDate: options.date,
+      mindbodyMeta: options.meta,
+    });
   } catch (error) {
     console.error(`Failed to save schedule for slug "${resolvedSlug}" to Firestore.`, error);
     throw error;

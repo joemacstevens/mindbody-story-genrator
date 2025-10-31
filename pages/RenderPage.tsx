@@ -90,8 +90,8 @@ const RenderPage: React.FC = () => {
     let isMounted = true;
     getUserSchedule(activeSlug, user.uid)
       .then((userSchedule) => {
-        if (isMounted && userSchedule) {
-          setSchedule(userSchedule);
+        if (isMounted && userSchedule?.schedule) {
+          setSchedule(userSchedule.schedule);
           setKey(Date.now());
         }
       })

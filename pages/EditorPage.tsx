@@ -37,7 +37,7 @@ import type {
 } from '../types';
 import { cn } from '../utils/cn';
 import { uploadImage } from '../services/storage';
-import { saveTemplate, getUserSchedule } from '../services/api';
+import { saveTemplate, getUserSchedule, saveSchedule } from '../services/api';
 import { toPng } from 'html-to-image';
 import TemplateGallery from '../components/TemplateGallery';
 
@@ -70,6 +70,15 @@ const EditorPage: React.FC = () => {
   const dragOffsetRef = useRef(0);
   const layoutRef = useRef<HTMLDivElement | null>(null);
   const [zoomMode, setZoomMode] = useState<ZoomMode>('fit');
+  const todayIso = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const scheduleEndpoint = useMemo(
+    () => (import.meta.env.VITE_SCHEDULE_ENDPOINT as string | undefined) || '/api/schedule',
+    [],
+  );
+  const clientTimezone = useMemo(
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'America/New_York',
+    [],
+  );
   const [storyScale, setStoryScale] = useState(1);
   const previewAreaRef = useRef<HTMLDivElement | null>(null);
   const storyCanvasRef = useRef<HTMLDivElement | null>(null);
@@ -104,6 +113,13 @@ const EditorPage: React.FC = () => {
   const [schedule, setSchedule] = useState<Schedule | null>(null);
   const [isScheduleLoading, setIsScheduleLoading] = useState(false);
   const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [scheduleSuccessMessage, setScheduleSuccessMessage] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string>(todayIso);
+  const [scheduleMeta, setScheduleMeta] = useState<{
+    locationSlug?: string | null;
+    radius?: number | null;
+    timezone?: string | null;
+  }>({});
   const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(true);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const isMobile = !isDesktop;
@@ -142,10 +158,17 @@ const EditorPage: React.FC = () => {
     setScheduleError(null);
 
     getUserSchedule(userGymSlug, user.uid)
-      .then((result) => {
+      .then((snapshot) => {
         if (!isActive) return;
-        if (result) {
-          setSchedule(result);
+        if (snapshot?.schedule) {
+          setSchedule(snapshot.schedule);
+          setSelectedDate(snapshot.lastRequestedDate ?? todayIso);
+          setScheduleMeta({
+            locationSlug: snapshot.mindbodyMeta?.locationSlug ?? userGymSlug,
+            radius: snapshot.mindbodyMeta?.radius ?? null,
+            timezone: snapshot.mindbodyMeta?.timezone ?? null,
+          });
+          setScheduleSuccessMessage(null);
         } else {
           setSchedule(null);
           setScheduleError('No schedule saved for this gym yet. Load one from Gym Finder to get started.');
@@ -357,6 +380,92 @@ const EditorPage: React.FC = () => {
     [updateStyle],
   );
 
+  const handleDateInputChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    setSelectedDate(event.target.value);
+    setScheduleSuccessMessage(null);
+    setScheduleError(null);
+  }, []);
+
+  const handleLoadScheduleForDate = useCallback(async () => {
+    if (!selectedDate) {
+      return;
+    }
+    if (!user?.uid) {
+      setScheduleError('You need to be signed in to load schedules.');
+      return;
+    }
+
+    const effectiveSlug = scheduleMeta.locationSlug ?? userGymSlug;
+    if (!effectiveSlug) {
+      setScheduleError('Choose a gym in Gym Finder first to load schedules.');
+      return;
+    }
+
+    const effectiveRadius = scheduleMeta.radius && Number(scheduleMeta.radius) > 0 ? Number(scheduleMeta.radius) : 5;
+    const effectiveTimezone = scheduleMeta.timezone ?? clientTimezone;
+
+    setIsScheduleLoading(true);
+    setScheduleError(null);
+    setScheduleSuccessMessage(null);
+
+    try {
+      const response = await fetch(scheduleEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          locationSlug: effectiveSlug,
+          date: selectedDate,
+          radius: effectiveRadius,
+          timezone: effectiveTimezone,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Request failed with status ${response.status}`);
+      }
+
+      const data = await response.json();
+      const nextSchedule: Schedule | null = data?.schedule ?? null;
+      if (!nextSchedule) {
+        throw new Error('Schedule payload missing from response.');
+      }
+
+      const responseSlug = typeof data?.slug === 'string' && data.slug ? data.slug : effectiveSlug;
+      const metaPayload = {
+        locationSlug: responseSlug,
+        radius: effectiveRadius,
+        timezone: effectiveTimezone,
+      } as { locationSlug?: string; radius?: number; timezone?: string };
+
+      const savedSlug = await saveSchedule(nextSchedule, responseSlug, user.uid, {
+        date: selectedDate,
+        meta: metaPayload,
+      });
+
+      const refreshed = await getUserSchedule(savedSlug, user.uid);
+      if (refreshed?.schedule) {
+        setSchedule(refreshed.schedule);
+        setSelectedDate(refreshed.lastRequestedDate ?? selectedDate);
+        setScheduleMeta({
+          locationSlug: refreshed.mindbodyMeta?.locationSlug ?? savedSlug,
+          radius: refreshed.mindbodyMeta?.radius ?? effectiveRadius,
+          timezone: refreshed.mindbodyMeta?.timezone ?? effectiveTimezone,
+        });
+        setScheduleSuccessMessage(`Loaded schedule for ${refreshed.schedule.date}.`);
+        setUserGymSlug(savedSlug);
+        setUserGymName(savedSlug.replace(/-/g, ' '));
+      } else {
+        setSchedule(nextSchedule);
+        setScheduleSuccessMessage(`Loaded schedule for ${nextSchedule.date}.`);
+      }
+    } catch (error) {
+      console.error('Failed to load schedule for date:', error);
+      setScheduleError('Could not load the schedule for that date. Please try again.');
+    } finally {
+      setIsScheduleLoading(false);
+    }
+  }, [clientTimezone, scheduleEndpoint, scheduleMeta, selectedDate, user?.uid, userGymSlug]);
+
   const handleTemplateSelect = useCallback(
     (templateId: TemplateId) => {
       const templateStyle = templateConfigs[templateId];
@@ -479,19 +588,28 @@ const EditorPage: React.FC = () => {
 
   const handleStoryMetricsChange = useCallback(
     (metrics: StoryMetrics) => {
+      const normalized: StoryMetrics = {
+        contentHeight: Math.round(metrics.contentHeight),
+        availableHeight: Math.round(metrics.availableHeight),
+        heroHeight: Math.round(metrics.heroHeight),
+        scheduleHeight: Math.round(metrics.scheduleHeight),
+        footerHeight: Math.round(metrics.footerHeight),
+        itemCount: metrics.itemCount,
+      };
+
       setStoryMetrics((prev) => {
         if (
           prev &&
-          prev.contentHeight === metrics.contentHeight &&
-          prev.availableHeight === metrics.availableHeight &&
-          prev.heroHeight === metrics.heroHeight &&
-          prev.scheduleHeight === metrics.scheduleHeight &&
-          prev.footerHeight === metrics.footerHeight &&
-          prev.itemCount === metrics.itemCount
+          prev.contentHeight === normalized.contentHeight &&
+          prev.availableHeight === normalized.availableHeight &&
+          prev.heroHeight === normalized.heroHeight &&
+          prev.scheduleHeight === normalized.scheduleHeight &&
+          prev.footerHeight === normalized.footerHeight &&
+          prev.itemCount === normalized.itemCount
         ) {
           return prev;
         }
-        return metrics;
+        return normalized;
       });
     },
     [],
@@ -952,6 +1070,10 @@ const EditorPage: React.FC = () => {
     <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-100 text-center">
       {scheduleError}
     </div>
+  ) : scheduleSuccessMessage ? (
+    <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-xs text-emerald-100 text-center">
+      {scheduleSuccessMessage}
+    </div>
   ) : null;
 
   return (
@@ -1199,6 +1321,37 @@ const EditorPage: React.FC = () => {
                     <h2 className="text-sm font-medium uppercase tracking-wider text-slate-400">Live Preview</h2>
                   </div>
                   <div className="mb-6 flex flex-wrap items-center justify-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-200">
+                      <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                        Schedule Date
+                      </label>
+                      <input
+                        type="date"
+                        value={selectedDate}
+                        onChange={handleDateInputChange}
+                        className="rounded-md border border-white/10 bg-slate-900/70 px-2 py-1 text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-purple-400"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleLoadScheduleForDate}
+                        disabled={isScheduleLoading || !selectedDate}
+                        className="inline-flex items-center gap-2 rounded-md border border-white/10 bg-purple-500/20 px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-purple-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {isScheduleLoading ? (
+                          <>
+                            <SaveSpinner />
+                            <span>Loading…</span>
+                          </>
+                        ) : (
+                          <>
+                            <span role="img" aria-hidden="true">
+                              📅
+                            </span>
+                            <span>Load</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
                     {ZOOM_OPTIONS.map((option) => (
                       <button
                         key={option}
@@ -1355,6 +1508,37 @@ const EditorPage: React.FC = () => {
                     <div className="mb-4 w-full max-w-sm text-center">{scheduleStatusMessage}</div>
                   ) : null}
                   <div className="relative z-20 mb-6 flex flex-wrap items-center justify-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-200">
+                      <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                        Schedule Date
+                      </label>
+                      <input
+                        type="date"
+                        value={selectedDate}
+                        onChange={handleDateInputChange}
+                        className="rounded-md border border-white/10 bg-slate-900/70 px-2 py-1 text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-purple-400"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleLoadScheduleForDate}
+                        disabled={isScheduleLoading || !selectedDate}
+                        className="inline-flex items-center gap-2 rounded-md border border-white/10 bg-purple-500/20 px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-purple-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {isScheduleLoading ? (
+                          <>
+                            <SaveSpinner />
+                            <span>Loading…</span>
+                          </>
+                        ) : (
+                          <>
+                            <span role="img" aria-hidden="true">
+                              📅
+                            </span>
+                            <span>Load</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
                     {ZOOM_OPTIONS.map((option) => (
                       <button
                         key={option}

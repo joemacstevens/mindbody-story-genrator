@@ -62,6 +62,11 @@ const HomePage: React.FC = () => {
     }
   }, [history, currentIndex]);
 
+  const clientTimezone = React.useMemo(
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'America/New_York',
+    [],
+  );
+
   const fetchInitialData = useCallback(async () => {
     if (!user?.uid) {
       setHistory([DEFAULT_APP_SETTINGS]);
@@ -83,8 +88,11 @@ const HomePage: React.FC = () => {
 
     if (lastSlug) {
       const existing = await getUserSchedule(lastSlug, user.uid);
-      if (existing) {
-        setSchedule(existing);
+      if (existing?.schedule) {
+        setSchedule(existing.schedule);
+        if (existing.lastRequestedDate) {
+          setScheduleDateInput(existing.lastRequestedDate);
+        }
         return;
       }
     }
@@ -208,6 +216,7 @@ const HomePage: React.FC = () => {
             locationSlug: renderSlug,
             date: targetDate,
             radius: 5,
+            timezone: clientTimezone,
           }),
         });
 
@@ -224,12 +233,16 @@ const HomePage: React.FC = () => {
 
         const responseSlug = typeof data?.slug === 'string' && data.slug ? data.slug : renderSlug;
 
-        const savedSlug = await saveSchedule(nextSchedule, responseSlug, user.uid);
+        const meta = { locationSlug: responseSlug, radius: 5, timezone: clientTimezone };
+        const savedSlug = await saveSchedule(nextSchedule, responseSlug, user.uid, {
+          date: targetDate,
+          meta,
+        });
         const refreshed = await getUserSchedule(savedSlug, user.uid);
-        setSchedule(refreshed ?? nextSchedule);
+        setSchedule(refreshed?.schedule ?? nextSchedule);
         setRenderSlug(savedSlug);
-        setScheduleDateInput(targetDate);
-        setScheduleLoadSuccess(`Loaded schedule for ${nextSchedule.date}.`);
+        setScheduleDateInput(refreshed?.lastRequestedDate ?? targetDate);
+        setScheduleLoadSuccess(`Loaded schedule for ${refreshed?.schedule.date ?? nextSchedule.date}.`);
       } catch (error) {
         console.error('Failed to load schedule for date:', error);
         setScheduleLoadError('Could not load the schedule for that date. Please try again.');
@@ -237,7 +250,7 @@ const HomePage: React.FC = () => {
         setIsScheduleLoading(false);
       }
     },
-    [renderSlug, scheduleEndpoint, user?.uid],
+    [clientTimezone, renderSlug, scheduleEndpoint, user?.uid],
   );
 
   const handleStyleSave = async () => {

@@ -103,9 +103,9 @@ export const SchedulePreview: React.FC<SchedulePreviewProps> = ({
   const effectiveClassCount = clamp(classCount || 1, 1, 18);
   const density = (effectiveClassCount - 1) / 14;
   const scheduleAreaPercent = clamp(
-    68 + density * 10 + (layoutStyle === 'grid' ? 4 : 0) - (spacingPreset === 'spacious' ? 3 : 0),
-    62,
-    84,
+    68 - density * 6 + (layoutStyle === 'grid' ? 2 : 0) - (spacingPreset === 'spacious' ? 2 : 0),
+    58,
+    80,
   );
   const showStripedCards = effectiveClassCount > 6;
 
@@ -542,7 +542,7 @@ export const SchedulePreview: React.FC<SchedulePreviewProps> = ({
                         : 'var(--story-card-padding)',
                       display: 'flex',
                       flexDirection: 'column',
-                      flex: layoutStyle === 'grid' ? '0 0 auto' : '1 1 0%',
+                      flex: layoutStyle === 'grid' ? '0 0 auto' : '0 1 auto',
                       minHeight: layoutStyle === 'grid' ? undefined : 0,
                       transition: 'background-color 0.3s ease, border-color 0.3s ease',
                       animation: `slide-up-fade 0.6s ease ${index * 0.08}s both`,
@@ -633,4 +633,3 @@ export const SchedulePreview: React.FC<SchedulePreviewProps> = ({
 };
 
 export default SchedulePreview;
-
