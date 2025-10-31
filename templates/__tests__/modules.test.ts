@@ -4,23 +4,42 @@ import {
   TEMPLATE_GALLERY_CATEGORIES,
   CLASSIC_TEMPLATE_ID,
   CLASSIC_TEMPLATE_METADATA,
+  FEMME_FRIDAY_TEMPLATE_ID,
+  FEMME_FRIDAY_TEMPLATE_METADATA,
 } from '../../templates';
-import { CLASSIC_TEMPLATE_DEFINITION } from '../../lib/templates';
+import { CLASSIC_TEMPLATE_DEFINITION, FEMME_FRIDAY_TEMPLATE_DEFINITION } from '../../lib/templates';
+
+const MODULE_EXPECTATIONS = [
+  {
+    id: CLASSIC_TEMPLATE_ID,
+    metadata: CLASSIC_TEMPLATE_METADATA,
+    definition: CLASSIC_TEMPLATE_DEFINITION,
+  },
+  {
+    id: FEMME_FRIDAY_TEMPLATE_ID,
+    metadata: FEMME_FRIDAY_TEMPLATE_METADATA,
+    definition: FEMME_FRIDAY_TEMPLATE_DEFINITION,
+  },
+] as const;
 
 describe('template modules', () => {
-  it('includes the classic template module with matching metadata', () => {
-    const classicModule = TEMPLATE_MODULES.find((module) => module.id === CLASSIC_TEMPLATE_ID);
-    expect(classicModule).toBeDefined();
-    expect(classicModule?.metadata.name).toBe(CLASSIC_TEMPLATE_METADATA.name);
-    expect(classicModule?.metadata.version).toBe(CLASSIC_TEMPLATE_DEFINITION.metadata.version);
-    expect(classicModule?.gallery.categoryId).toBe('signature');
+  it('includes the built-in template modules with matching metadata', () => {
+    MODULE_EXPECTATIONS.forEach(({ id, metadata, definition }) => {
+      const module = TEMPLATE_MODULES.find((entry) => entry.id === id);
+      expect(module).toBeDefined();
+      expect(module?.metadata.name).toBe(metadata.name);
+      expect(module?.metadata.version).toBe(definition.metadata.version);
+      expect(module?.gallery.categoryId).toBe('signature');
+    });
   });
 
   it('provides a preview style aligned with the registry defaults', () => {
-    const classicModule = TEMPLATE_MODULES.find((module) => module.id === CLASSIC_TEMPLATE_ID);
-    const previewStyle = classicModule?.previewStyle;
-    const definitionStyle = CLASSIC_TEMPLATE_DEFINITION.defaults.createStyle();
-    expect(previewStyle).toEqual(definitionStyle);
+    MODULE_EXPECTATIONS.forEach(({ id, definition }) => {
+      const module = TEMPLATE_MODULES.find((entry) => entry.id === id);
+      const previewStyle = module?.previewStyle;
+      const definitionStyle = definition.defaults.createStyle();
+      expect(previewStyle).toEqual(definitionStyle);
+    });
   });
 
   it('maps every module to a declared gallery category', () => {

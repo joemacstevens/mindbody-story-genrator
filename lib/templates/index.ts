@@ -1,4 +1,5 @@
 import { CLASSIC_TEMPLATE_DEFINITION } from './definitions/classic';
+import { FEMME_FRIDAY_TEMPLATE_DEFINITION } from './definitions/femmeFriday';
 import {
   registerTemplate,
   setFallbackTemplateId,
@@ -18,6 +19,10 @@ import {
 
 if (!isTemplateRegistered(CLASSIC_TEMPLATE_DEFINITION.id)) {
   registerTemplate(CLASSIC_TEMPLATE_DEFINITION, { fallback: true });
+}
+
+if (!isTemplateRegistered(FEMME_FRIDAY_TEMPLATE_DEFINITION.id)) {
+  registerTemplate(FEMME_FRIDAY_TEMPLATE_DEFINITION);
 }
 
 export {
@@ -41,3 +46,4 @@ export type {
 };
 
 export { CLASSIC_TEMPLATE_DEFINITION, CLASSIC_TEMPLATE_ID } from './definitions/classic';
+export { FEMME_FRIDAY_TEMPLATE_DEFINITION, FEMME_FRIDAY_TEMPLATE_ID } from './definitions/femmeFriday';
