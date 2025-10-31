@@ -120,9 +120,25 @@ const EditorPage: React.FC = () => {
     radius?: number | null;
     timezone?: string | null;
   }>({});
-  const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(true);
+  const [activeMobileDrawer, setActiveMobileDrawer] = useState<'none' | 'edit' | 'date'>('none');
+  const [areMobileFabsVisible, setAreMobileFabsVisible] = useState(true);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const isMobile = !isDesktop;
+  const previewPointerStartRef = useRef<{ x: number; y: number } | null>(null);
+  const previewPointerMovedRef = useRef(false);
+  const lastPreviewTapRef = useRef(0);
+  const closeMobileDrawer = useCallback(() => {
+    setActiveMobileDrawer('none');
+    setAreMobileFabsVisible(true);
+  }, []);
+  const openMobileEditDrawer = useCallback(() => {
+    setActiveMobileDrawer('edit');
+    setAreMobileFabsVisible(false);
+  }, []);
+  const openMobileDateDrawer = useCallback(() => {
+    setActiveMobileDrawer('date');
+    setAreMobileFabsVisible(false);
+  }, []);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
   const avatarFallback =
     user?.displayName?.charAt(0)?.toUpperCase() ||
@@ -146,6 +162,25 @@ const EditorPage: React.FC = () => {
     };
     void fetchData();
   }, [user]);
+
+  useEffect(() => {
+    if (!isMobile) {
+      return;
+    }
+    if (isGalleryOpen) {
+      closeMobileDrawer();
+      setAreMobileFabsVisible(false);
+    }
+  }, [closeMobileDrawer, isGalleryOpen, isMobile]);
+
+  useEffect(() => {
+    if (!isMobile) {
+      return;
+    }
+    if (!isGalleryOpen && activeMobileDrawer === 'none') {
+      setAreMobileFabsVisible(true);
+    }
+  }, [activeMobileDrawer, isGalleryOpen, isMobile]);
 
   useEffect(() => {
     if (!user?.uid || !userGymSlug) {
@@ -315,9 +350,9 @@ const EditorPage: React.FC = () => {
 
   useEffect(() => {
     if (!isMobile) {
-      setIsMobilePanelOpen(true);
+      closeMobileDrawer();
     }
-  }, [isMobile]);
+  }, [closeMobileDrawer, isMobile]);
 
   const handleBackgroundUpload = useCallback(
     async (file: File, previewUrl: string) => {
@@ -386,19 +421,19 @@ const EditorPage: React.FC = () => {
     setScheduleError(null);
   }, []);
 
-  const handleLoadScheduleForDate = useCallback(async () => {
+  const handleLoadScheduleForDate = useCallback(async (): Promise<boolean> => {
     if (!selectedDate) {
-      return;
+      return false;
     }
     if (!user?.uid) {
       setScheduleError('You need to be signed in to load schedules.');
-      return;
+      return false;
     }
 
     const effectiveSlug = scheduleMeta.locationSlug ?? userGymSlug;
     if (!effectiveSlug) {
       setScheduleError('Choose a gym in Gym Finder first to load schedules.');
-      return;
+      return false;
     }
 
     const effectiveRadius = scheduleMeta.radius && Number(scheduleMeta.radius) > 0 ? Number(scheduleMeta.radius) : 5;
@@ -458,13 +493,21 @@ const EditorPage: React.FC = () => {
         setSchedule(nextSchedule);
         setScheduleSuccessMessage(`Loaded schedule for ${nextSchedule.date}.`);
       }
+      return true;
     } catch (error) {
       console.error('Failed to load schedule for date:', error);
       setScheduleError('Could not load the schedule for that date. Please try again.');
+      return false;
     } finally {
       setIsScheduleLoading(false);
     }
   }, [clientTimezone, scheduleEndpoint, scheduleMeta, selectedDate, user?.uid, userGymSlug]);
+  const handleMobileLoadScheduleForDate = useCallback(async () => {
+    const success = await handleLoadScheduleForDate();
+    if (success) {
+      closeMobileDrawer();
+    }
+  }, [closeMobileDrawer, handleLoadScheduleForDate]);
 
   const handleTemplateSelect = useCallback(
     (templateId: TemplateId) => {
@@ -480,17 +523,73 @@ const EditorPage: React.FC = () => {
       setVisibleElements(DEFAULT_VISIBLE_ELEMENTS);
       setHiddenElements(DEFAULT_HIDDEN_ELEMENTS);
       setElementStyles(buildInitialElementStyles());
+      closeMobileDrawer();
       setIsGalleryOpen(false);
     },
-    [templateConfigs],
+    [closeMobileDrawer, templateConfigs],
   );
 
   const handleOpenGallery = useCallback(() => {
+    closeMobileDrawer();
     setIsGalleryOpen(true);
-  }, []);
+  }, [closeMobileDrawer]);
 
   const handleCloseGallery = useCallback(() => {
     setIsGalleryOpen(false);
+  }, []);
+
+  const isMobileDrawerOpen = activeMobileDrawer !== 'none';
+
+  const handleMobilePreviewTap = useCallback(() => {
+    const allowToggle =
+      isMobile &&
+      !isMobileDrawerOpen &&
+      !isGalleryOpen &&
+      !isFontModalOpen &&
+      !isColorModalOpen;
+
+    if (!allowToggle) {
+      previewPointerMovedRef.current = false;
+      return;
+    }
+
+    if (previewPointerMovedRef.current) {
+      previewPointerMovedRef.current = false;
+      return;
+    }
+
+    const now = Date.now();
+    if (now - lastPreviewTapRef.current < 180) {
+      return;
+    }
+    lastPreviewTapRef.current = now;
+    setAreMobileFabsVisible((prev) => !prev);
+    previewPointerMovedRef.current = false;
+  }, [isColorModalOpen, isFontModalOpen, isGalleryOpen, isMobile, isMobileDrawerOpen]);
+
+  const handlePreviewPointerDown = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (!isMobile) {
+        return;
+      }
+      previewPointerStartRef.current = { x: event.clientX, y: event.clientY };
+      previewPointerMovedRef.current = false;
+    },
+    [isMobile],
+  );
+
+  const handlePreviewPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (!isMobile) return;
+    if (!previewPointerStartRef.current) return;
+    const dx = Math.abs(event.clientX - previewPointerStartRef.current.x);
+    const dy = Math.abs(event.clientY - previewPointerStartRef.current.y);
+    if (dx > 8 || dy > 8) {
+      previewPointerMovedRef.current = true;
+    }
+  }, [isMobile]);
+
+  const handlePreviewPointerUp = useCallback(() => {
+    previewPointerStartRef.current = null;
   }, []);
 
   const handleExport = useCallback(async () => {
@@ -1075,6 +1174,9 @@ const EditorPage: React.FC = () => {
       {scheduleSuccessMessage}
     </div>
   ) : null;
+  const allowMobileFabs = isMobile && !isGalleryOpen && !isMobileDrawerOpen && !isFontModalOpen && !isColorModalOpen;
+  const fabMotionState = allowMobileFabs && areMobileFabsVisible ? 'visible' : 'hidden';
+  const fabInteractionEnabled = allowMobileFabs && areMobileFabsVisible;
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-900 text-slate-50">
@@ -1249,13 +1351,6 @@ const EditorPage: React.FC = () => {
         </div>
       </header>
 
-      {/* Mobile Bottom Actions */}
-      {isMobile && !isGalleryOpen && (
-        <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-white/10 bg-slate-900/95 px-4 py-4 backdrop-blur-lg">
-          {actionButtons}
-        </div>
-      )}
-
       {/* Main Layout */}
       <AnimatePresence mode="wait" initial={false}>
         {isGalleryOpen ? (
@@ -1268,16 +1363,16 @@ const EditorPage: React.FC = () => {
             transition={{ duration: 0.25, ease: 'easeOut' }}
           >
             <div className="flex h-[calc(100vh-72px)] flex-col overflow-hidden">
-              <div className="flex-shrink-0 border-b border-white/10 bg-slate-950/90 px-4 py-5 sm:px-8 sm:py-7">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Templates</p>
-                    <h1 className="text-2xl font-semibold text-white sm:text-3xl">Template Gallery</h1>
-                    <p className="mt-1 text-sm text-slate-300/80">
-                      {schedule ? 'Preview each design with your live schedule data.' : 'Preview each design with sample schedule data until you connect a gym.'}
-                    </p>
-                  </div>
-                  {!isMobile && (
+              {!isMobile && (
+                <div className="flex-shrink-0 border-b border-white/10 bg-slate-950/90 px-4 py-5 sm:px-8 sm:py-7">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Templates</p>
+                      <h1 className="text-2xl font-semibold text-white sm:text-3xl">Template Gallery</h1>
+                      <p className="mt-1 text-sm text-slate-300/80">
+                        {schedule ? 'Preview each design with your live schedule data.' : 'Preview each design with sample schedule data until you connect a gym.'}
+                      </p>
+                    </div>
                     <Button
                       variant="secondary"
                       size="sm"
@@ -1287,9 +1382,9 @@ const EditorPage: React.FC = () => {
                       <span role="img" aria-hidden="true">↩️</span>
                       <span>Back to Editor</span>
                     </Button>
-                  )}
+                  </div>
                 </div>
-              </div>
+              )}
               <div className="flex-1 overflow-hidden">
                 <TemplateGallery
                   settings={gallerySettings}
@@ -1309,194 +1404,295 @@ const EditorPage: React.FC = () => {
             transition={{ duration: 0.25, ease: 'easeOut' }}
           >
           {isMobile ? (
-            <div className="flex h-[calc(100vh-72px-72px)] flex-col overflow-hidden pb-20">
-              <div className="relative flex-1 overflow-hidden bg-slate-900">
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(139,123,216,0.03),transparent_50%),radial-gradient(circle_at_80%_70%,rgba(139,123,216,0.03),transparent_50%)]" />
-                <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px] opacity-50" />
-                <div className="relative z-10 flex h-full flex-col items-center px-4 py-6">
-                  {scheduleStatusMessage ? (
-                    <div className="mb-4 w-full max-w-sm">{scheduleStatusMessage}</div>
-                  ) : null}
-                  <div className="mb-4 text-center">
-                    <h2 className="text-sm font-medium uppercase tracking-wider text-slate-400">Live Preview</h2>
-                  </div>
-                  <div className="mb-6 flex flex-wrap items-center justify-center gap-2">
-                    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-200">
-                      <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                        Schedule Date
-                      </label>
-                      <input
-                        type="date"
-                        value={selectedDate}
-                        onChange={handleDateInputChange}
-                        className="rounded-md border border-white/10 bg-slate-900/70 px-2 py-1 text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-purple-400"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleLoadScheduleForDate}
-                        disabled={isScheduleLoading || !selectedDate}
-                        className="inline-flex items-center gap-2 rounded-md border border-white/10 bg-purple-500/20 px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-purple-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+            <div className="relative flex h-[calc(100vh-72px)] flex-col overflow-hidden bg-slate-950">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(139,123,216,0.03),transparent_55%),radial-gradient(circle_at_80%_70%,rgba(139,123,216,0.03),transparent_55%)]" />
+              <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px] opacity-50" />
+              <div className="relative z-10 flex flex-1 flex-col items-center px-4 pt-6 pb-16">
+                {scheduleStatusMessage ? (
+                  <div className="mb-4 w-full max-w-xs">{scheduleStatusMessage}</div>
+                ) : null}
+                <div
+                  ref={previewAreaRef}
+                  onClick={handleMobilePreviewTap}
+                  onPointerDown={handlePreviewPointerDown}
+                  onPointerMove={handlePreviewPointerMove}
+                  onPointerUp={handlePreviewPointerUp}
+                  onPointerLeave={handlePreviewPointerUp}
+                  onPointerCancel={handlePreviewPointerUp}
+                  className="relative flex min-h-0 w-full flex-1 items-center justify-center"
+                >
+                  <div className="relative flex items-center justify-center" style={scaledCanvasWrapperStyle}>
+                    <div className="relative" style={baseCanvasStyle}>
+                      <PhoneFrameOverlay />
+                      <div
+                        id="story-canvas"
+                        ref={storyCanvasRef}
+                        className="story-canvas z-0 overflow-hidden rounded-[48px] bg-slate-950 shadow-[0_30px_90px_rgba(0,0,0,0.5)]"
+                        style={storyCanvasTransformStyle as React.CSSProperties}
                       >
-                        {isScheduleLoading ? (
-                          <>
-                            <SaveSpinner />
-                            <span>Loading…</span>
-                          </>
-                        ) : (
-                          <>
-                            <span role="img" aria-hidden="true">
-                              📅
-                            </span>
-                            <span>Load</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                    {ZOOM_OPTIONS.map((option) => (
-                      <button
-                        key={option}
-                        type="button"
-                        onClick={() => handleZoomSelect(option)}
-                        className={cn(
-                          'rounded-lg border border-white/10 px-3 py-2 text-xs font-medium transition',
-                          zoomMode === option
-                            ? 'bg-purple-500/20 text-white shadow-[0_0_25px_rgba(99,102,241,0.35)]'
-                            : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white',
-                        )}
-                      >
-                        {ZOOM_LABELS[option]}
-                      </button>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={handleExport}
-                      disabled={isExporting}
-                      className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {isExporting ? (
-                        <>
-                          <SaveSpinner />
-                          <span>Exporting…</span>
-                        </>
-                      ) : (
-                        <>
-                          <span role="img" aria-hidden="true">
-                            📥
-                          </span>
-                          <span>Export</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                  <div
-                    ref={previewAreaRef}
-                    className="story-preview relative z-10 flex h-full w-full min-h-0 min-w-0 flex-1 items-center justify-center overflow-auto"
-                  >
-                    <div className="relative flex items-center justify-center" style={scaledCanvasWrapperStyle}>
-                      <div className="relative" style={baseCanvasStyle}>
-                        <PhoneFrameOverlay />
-                        <div
-                          id="story-canvas"
-                          ref={storyCanvasRef}
-                          className="story-canvas z-0 overflow-hidden rounded-[48px] bg-slate-950 shadow-[0_30px_90px_rgba(0,0,0,0.5)]"
-                          style={storyCanvasTransformStyle as React.CSSProperties}
-                        >
-                          <SchedulePreview
-                            schedule={schedule ?? { date: userGymName, items: [] }}
-                            style={styleState}
-                            visibleElements={visibleElements}
-                            elementStyles={elementStyles}
-                            spacingScales={smartSpacing}
-                            onMetricsChange={handleStoryMetricsChange}
-                          />
-                        </div>
+                        <SchedulePreview
+                          schedule={schedule ?? { date: userGymName, items: [] }}
+                          style={styleState}
+                          visibleElements={visibleElements}
+                          elementStyles={elementStyles}
+                          spacingScales={smartSpacing}
+                          onMetricsChange={handleStoryMetricsChange}
+                        />
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-              <div
-                className={cn(
-                  'relative bg-slate-900/95 backdrop-blur-xl border-t border-white/10 flex flex-col overflow-hidden transition-[height] duration-300 ease-out',
-                  !isMobilePanelOpen && 'shadow-[0_-18px_40px_rgba(0,0,0,0.4)]',
-                )}
-                style={{ height: isMobilePanelOpen ? '52vh' : '64px' }}
+
+              <motion.div
+                className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center"
+                style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 20px)' }}
+                variants={{
+                  visible: { opacity: 1, y: 0 },
+                  hidden: { opacity: 0, y: 24 },
+                }}
+                initial={false}
+                animate={fabMotionState}
+                transition={{ duration: 0.24, ease: 'easeOut' }}
               >
-                <button
-                  type="button"
-                  onClick={() => setIsMobilePanelOpen((prev) => !prev)}
-                  aria-expanded={isMobilePanelOpen}
+                <div
                   className={cn(
-                    'absolute left-1/2 -top-6 z-50 flex h-10 w-20 -translate-x-1/2 items-center justify-center rounded-full border border-white/20 bg-white/12 shadow-[0_12px_30px_rgba(5,12,24,0.35)] backdrop-blur-md transition-all duration-300 ease-out hover:bg-white/18',
-                    isMobilePanelOpen ? 'opacity-100' : 'opacity-95',
+                    'flex items-center gap-4 rounded-full',
+                    fabInteractionEnabled ? 'pointer-events-auto' : 'pointer-events-none',
                   )}
                 >
-                  <span className="sr-only">{isMobilePanelOpen ? 'Collapse editor panel' : 'Expand editor panel'}</span>
-                  <span
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      if (!allowMobileFabs) return;
+                      openMobileEditDrawer();
+                    }}
+                    className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-purple-400 text-xl text-white shadow-[0_18px_38px_rgba(88,80,214,0.55)] transition hover:scale-105 active:scale-95"
+                    aria-label="Open editor drawer"
+                  >
+                    <span role="img" aria-hidden="true">✏️</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      if (!fabInteractionEnabled || isExporting) {
+                        return;
+                      }
+                      void handleExport();
+                    }}
+                    disabled={!fabInteractionEnabled || isExporting}
                     className={cn(
-                      'inline-flex h-1.5 w-12 items-center justify-center rounded-full bg-white/40 transition-transform duration-300 ease-out',
-                      isMobilePanelOpen ? 'rotate-0' : 'rotate-180',
+                      'flex h-14 w-14 items-center justify-center rounded-full bg-white/10 text-xl text-white shadow-[0_18px_38px_rgba(15,23,42,0.55)] transition hover:bg-white/20 hover:scale-105 active:scale-95',
+                      (isExporting || !fabInteractionEnabled) && 'opacity-60',
                     )}
-                    aria-hidden="true"
-                  />
-                </button>
-                <div
-                  className={cn(
-                    'm-5 flex gap-1 rounded-xl bg-white/3 p-1.5 transition-all duration-300 ease-out',
-                    isMobilePanelOpen ? 'opacity-100 translate-y-0' : 'pointer-events-none translate-y-2 opacity-0',
-                  )}
-                >
-                  {(['style', 'content', 'layout'] as const).map((tab) => (
-                    <button
-                      key={tab}
-                      className={`flex-1 rounded-lg border-none bg-transparent px-4 py-2.5 text-slate-400 transition-all duration-200 ${
-                        activeTab === tab ? 'bg-purple-500/15 text-purple-400' : 'hover:text-slate-300'
-                      }`}
-                      onClick={() => setActiveTab(tab)}
+                    aria-label="Export story"
+                  >
+                    {isExporting ? <SaveSpinner /> : <span role="img" aria-hidden="true">⬇️</span>}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      if (!allowMobileFabs) return;
+                      openMobileDateDrawer();
+                    }}
+                    disabled={!fabInteractionEnabled}
+                    className={cn(
+                      'flex h-12 w-12 items-center justify-center rounded-full bg-slate-800/90 text-base text-slate-100 shadow-[0_14px_30px_rgba(15,23,42,0.45)] transition hover:bg-slate-700 hover:scale-105 active:scale-95',
+                      !fabInteractionEnabled && 'opacity-60',
+                    )}
+                    aria-label="Select schedule date"
+                  >
+                    <span role="img" aria-hidden="true">🗓️</span>
+                  </button>
+                </div>
+              </motion.div>
+
+              <AnimatePresence>
+                {isMobile && !isGalleryOpen && isMobileDrawerOpen && (
+                  <>
+                    <motion.button
+                      key="mobile-drawer-backdrop"
+                      type="button"
+                      aria-label="Close menu"
+                      onClick={closeMobileDrawer}
+                      className="fixed inset-0 z-40 bg-slate-950/65 backdrop-blur"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                    />
+                    <motion.div
+                      key="mobile-drawer"
+                      className="fixed inset-x-0 bottom-0 z-50"
+                      initial={{ y: '100%' }}
+                      animate={{ y: 0 }}
+                      exit={{ y: '100%' }}
+                      transition={{ duration: 0.28, ease: 'easeOut' }}
                     >
-                      {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                    </button>
-                  ))}
-                </div>
-                <div
-                  className={cn(
-                    'flex-1 overflow-y-auto px-6 pb-20 transition-opacity duration-300 ease-out',
-                    isMobilePanelOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0',
-                  )}
-                >
-                  {activeTab === 'style' ? (
-                    <StyleTab
-                      palettes={STYLE_COLOR_PALETTES}
-                      selectedPaletteId={selectedPaletteId}
-                      onSelectPalette={handlePaletteSelect}
-                      style={styleState}
-                      onBackgroundUpload={handleBackgroundUpload}
-                      onRemoveBackground={handleRemoveBackground}
-                      onLogoUpload={handleLogoUpload}
-                      onRemoveLogo={handleRemoveLogo}
-                      onLogoPositionChange={handleLogoPositionChange}
-                      isBackgroundUploading={isBackgroundUploading}
-                      isLogoUploading={isLogoUploading}
-                    />
-                  ) : activeTab === 'content' ? (
-                    <ContentTab
-                      visibleElements={visibleElements}
-                      hiddenElements={hiddenElements}
-                      elementsMeta={CONTENT_ELEMENT_META}
-                      onReorder={handleReorderElements}
-                      onToggleVisibility={handleToggleElementVisibility}
-                      onOpenFontSettings={handleOpenFontSettings}
-                      onOpenColorPicker={handleOpenColorPicker}
-                      staticVisibility={staticVisibility}
-                      onToggleStaticElement={handleToggleStaticElement}
-                      onApplySmartSizing={handleApplySmartSizing}
-                      isSmartSizing={isSmartSizing}
-                    />
-                  ) : activeTab === 'layout' ? (
-                    <LayoutTab style={styleState} onUpdate={updateStyle} />
-                  ) : null}
-                </div>
-              </div>
+                      <div className="rounded-t-3xl border-t border-white/10 bg-slate-900/95 px-5 pt-4 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] shadow-[0_-24px_60px_rgba(5,12,24,0.65)] backdrop-blur-2xl max-h-[82vh] overflow-hidden">
+                        <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-white/20" />
+                        {activeMobileDrawer === 'edit' ? (
+                          <>
+                            <div className="mb-4 flex items-center justify-between">
+                              <div>
+                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Editor</p>
+                                <h2 className="text-base font-semibold text-white">Customize Story</h2>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={closeMobileDrawer}
+                                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-lg text-slate-200 transition hover:bg-white/20"
+                                aria-label="Close editor"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                            <div className="mb-4 flex gap-1 rounded-xl bg-white/5 p-1.5">
+                              {([
+                                { key: 'layout' as const, label: 'Template' },
+                                { key: 'style' as const, label: 'Styles' },
+                                { key: 'content' as const, label: 'Schedule' },
+                              ]).map(({ key, label }) => (
+                                <button
+                                  key={key}
+                                  type="button"
+                                  className={cn(
+                                    'flex-1 rounded-lg px-4 py-2 text-sm font-medium text-slate-300 transition',
+                                    activeTab === key ? 'bg-white text-slate-900 shadow-lg' : 'hover:text-white',
+                                  )}
+                                  onClick={() => setActiveTab(key)}
+                                >
+                                  {label}
+                                </button>
+                              ))}
+                            </div>
+                            <div className="max-h-[60vh] overflow-y-auto pr-1">
+                              {activeTab === 'style' ? (
+                                <StyleTab
+                                  palettes={STYLE_COLOR_PALETTES}
+                                  selectedPaletteId={selectedPaletteId}
+                                  onSelectPalette={handlePaletteSelect}
+                                  style={styleState}
+                                  onBackgroundUpload={handleBackgroundUpload}
+                                  onRemoveBackground={handleRemoveBackground}
+                                  onLogoUpload={handleLogoUpload}
+                                  onRemoveLogo={handleRemoveLogo}
+                                  onLogoPositionChange={handleLogoPositionChange}
+                                  isBackgroundUploading={isBackgroundUploading}
+                                  isLogoUploading={isLogoUploading}
+                                />
+                              ) : activeTab === 'content' ? (
+                                <ContentTab
+                                  visibleElements={visibleElements}
+                                  hiddenElements={hiddenElements}
+                                  elementsMeta={CONTENT_ELEMENT_META}
+                                  onReorder={handleReorderElements}
+                                  onToggleVisibility={handleToggleElementVisibility}
+                                  onOpenFontSettings={handleOpenFontSettings}
+                                  onOpenColorPicker={handleOpenColorPicker}
+                                  staticVisibility={staticVisibility}
+                                  onToggleStaticElement={handleToggleStaticElement}
+                                  onApplySmartSizing={handleApplySmartSizing}
+                                  isSmartSizing={isSmartSizing}
+                                />
+                              ) : (
+                                <LayoutTab style={styleState} onUpdate={updateStyle} />
+                              )}
+                            </div>
+                            <div className="mt-5 flex flex-col gap-2">
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={handleOpenGallery}
+                                fullWidth
+                              >
+                                <span role="img" aria-hidden="true">🖼️</span>
+                                <span>Open Template Gallery</span>
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={handleSaveTemplate}
+                                disabled={isSaving || !user?.uid}
+                                className={cn(
+                                  saveSuccess &&
+                                    'from-emerald-500 to-emerald-600 shadow-[0_4px_16px_rgba(16,185,129,0.45)] animate-[successPulse_0.5s_ease-out]',
+                                )}
+                                fullWidth
+                              >
+                                {isSaving ? (
+                                  <>
+                                    <SaveSpinner />
+                                    <span>Saving...</span>
+                                  </>
+                                ) : saveSuccess ? (
+                                  <>
+                                    <span className="text-base">✓</span>
+                                    <span>Saved!</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span role="img" aria-hidden="true">💾</span>
+                                    <span>Save Template</span>
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          </>
+                        ) : activeMobileDrawer === 'date' ? (
+                          <div className="space-y-5">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Schedule</p>
+                                <h2 className="text-base font-semibold text-white">Pick a date</h2>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={closeMobileDrawer}
+                                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-lg text-slate-200 transition hover:bg-white/20"
+                                aria-label="Close date picker"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                            <div className="space-y-3">
+                              <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                                Schedule date
+                              </label>
+                              <input
+                                type="date"
+                                value={selectedDate}
+                                onChange={handleDateInputChange}
+                                className="w-full rounded-xl border border-white/10 bg-slate-800/70 px-4 py-3 text-sm text-slate-100 shadow-inner focus:outline-none focus:ring-2 focus:ring-purple-400"
+                              />
+                            </div>
+                            <Button
+                              size="sm"
+                              onClick={handleMobileLoadScheduleForDate}
+                              disabled={isScheduleLoading || !selectedDate}
+                              className="w-full"
+                            >
+                              {isScheduleLoading ? (
+                                <>
+                                  <SaveSpinner />
+                                  <span>Loading…</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span role="img" aria-hidden="true">📅</span>
+                                  <span>Load Schedule</span>
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        ) : null}
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
             </div>
           ) : (
             <div className="flex h-[calc(100vh-72px)] overflow-hidden">
