@@ -8,6 +8,11 @@ import {
 import { DEFAULT_SMART_SPACING } from '../../../components/editor/smartTextSizing';
 import type { Style } from '../../../types';
 import type { TemplateDefinition } from '../registry';
+import {
+  DEFAULT_CONTENT_TAB_CONTROLS,
+  DEFAULT_LAYOUT_TAB_CONTROLS,
+  DEFAULT_STYLE_TAB_CONTROLS,
+} from '../editorConfig';
 
 const deriveBaseStyle = (): Style => {
   const defaultTemplateId = DEFAULT_APP_SETTINGS.activeTemplateId;
@@ -41,6 +46,11 @@ const createClassicTemplateDefinition = (): TemplateDefinition => ({
     createElementOrder: () => [...ELEMENT_ORDER],
     createElementStyles: () => buildInitialElementStyles(),
     createSmartSpacing: () => ({ ...DEFAULT_SMART_SPACING }),
+  },
+  editor: {
+    styleTab: DEFAULT_STYLE_TAB_CONTROLS,
+    contentTab: DEFAULT_CONTENT_TAB_CONTROLS,
+    layoutTab: DEFAULT_LAYOUT_TAB_CONTROLS,
   },
 });
 

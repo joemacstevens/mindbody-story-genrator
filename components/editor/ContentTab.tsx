@@ -1,10 +1,10 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { ToggleSwitch, Button } from '../ui';
 import { cn } from '../../utils/cn';
 import type { ScheduleElementId, ScheduleElementMeta } from '../../types';
 import { useStaggerAnimation } from '../../hooks/useStaggerAnimation';
-import { HERO_ELEMENT_IDS, FOOTER_ELEMENT_IDS } from './contentElements';
+import { resolveContentTabControls, type TemplateContentTabControls } from '../../lib/templates/editorConfig';
 
 interface ContentTabProps {
   visibleElements: ScheduleElementId[];
@@ -18,6 +18,7 @@ interface ContentTabProps {
   onToggleStaticElement: (elementId: ScheduleElementId, next: boolean) => void;
   onApplySmartSizing: () => void;
   isSmartSizing: boolean;
+  config?: TemplateContentTabControls | null;
 }
 
 interface ElementItemProps {
@@ -143,53 +144,86 @@ export const ContentTab: React.FC<ContentTabProps> = ({
   onToggleStaticElement,
   onApplySmartSizing,
   isSmartSizing,
+  config,
 }) => {
+  const resolvedControls = useMemo(() => resolveContentTabControls(config), [config]);
+  const meta = useMemo(
+    () => ({ ...resolvedControls.elementsMeta, ...elementsMeta }),
+    [elementsMeta, resolvedControls.elementsMeta],
+  );
+  const allowedScheduleIds = useMemo(() => new Set(resolvedControls.scheduleElementIds), [resolvedControls]);
+  const filteredVisible = useMemo(
+    () => visibleElements.filter((elementId) => allowedScheduleIds.has(elementId) && meta[elementId]),
+    [allowedScheduleIds, meta, visibleElements],
+  );
+  const filteredHidden = useMemo(
+    () => hiddenElements.filter((elementId) => allowedScheduleIds.has(elementId) && meta[elementId]),
+    [allowedScheduleIds, meta, hiddenElements],
+  );
+  const heroElementIds = useMemo(
+    () => resolvedControls.heroElementIds.filter((elementId) => Boolean(meta[elementId])),
+    [meta, resolvedControls.heroElementIds],
+  );
+  const footerElementIds = useMemo(
+    () => resolvedControls.footerElementIds.filter((elementId) => Boolean(meta[elementId])),
+    [meta, resolvedControls.footerElementIds],
+  );
+
   const [draggingId, setDraggingId] = useState<ScheduleElementId | null>(null);
-  const visibleAnimations = useStaggerAnimation(visibleElements.length, 70);
-  const hiddenAnimations = useStaggerAnimation(hiddenElements.length, 70, visibleElements.length * 70);
-  const heroElementIds = HERO_ELEMENT_IDS.filter((elementId) => elementsMeta[elementId]);
-  const footerElementIds = FOOTER_ELEMENT_IDS.filter((elementId) => elementsMeta[elementId]);
-  const heroAnimations = useStaggerAnimation(heroElementIds.length, 70, (visibleElements.length + hiddenElements.length) * 70);
+  const visibleAnimations = useStaggerAnimation(filteredVisible.length, 70);
+  const hiddenAnimations = useStaggerAnimation(filteredHidden.length, 70, filteredVisible.length * 70);
+  const heroAnimations = useStaggerAnimation(heroElementIds.length, 70, (filteredVisible.length + filteredHidden.length) * 70);
   const footerAnimations = useStaggerAnimation(
     footerElementIds.length,
     70,
-    (visibleElements.length + hiddenElements.length + heroElementIds.length) * 70,
+    (filteredVisible.length + filteredHidden.length + heroElementIds.length) * 70,
   );
+
+  const allowReorder = resolvedControls.allowReorder;
+  const allowVisibilityToggles = resolvedControls.allowVisibilityToggles;
+  const allowStaticVisibility = resolvedControls.allowStaticVisibilityToggles;
 
   const handleDragStart = useCallback(
     (id: ScheduleElementId) => (event: React.DragEvent<HTMLDivElement>) => {
+      if (!allowReorder) return;
       event.dataTransfer.effectAllowed = 'move';
       event.dataTransfer.setData('text/plain', id);
       setDraggingId(id);
     },
-    [],
+    [allowReorder],
   );
 
-  const handleDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
-  }, []);
+  const handleDragOver = useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      if (!allowReorder) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+    },
+    [allowReorder],
+  );
 
   const handleDropOnItem = useCallback(
     (targetId: ScheduleElementId) => (event: React.DragEvent<HTMLDivElement>) => {
+      if (!allowReorder) return;
       event.preventDefault();
       const sourceId = draggingId ?? (event.dataTransfer.getData('text/plain') as ScheduleElementId);
       if (!sourceId || sourceId === targetId) return;
       onReorder(sourceId, targetId);
       setDraggingId(null);
     },
-    [draggingId, onReorder],
+    [allowReorder, draggingId, onReorder],
   );
 
   const handleDropOnList = useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
+      if (!allowReorder) return;
       event.preventDefault();
       const sourceId = draggingId ?? (event.dataTransfer.getData('text/plain') as ScheduleElementId);
       if (!sourceId) return;
       onReorder(sourceId, null);
       setDraggingId(null);
     },
-    [draggingId, onReorder],
+    [allowReorder, draggingId, onReorder],
   );
 
   const handleDragEnd = useCallback(() => {
@@ -198,47 +232,45 @@ export const ContentTab: React.FC<ContentTabProps> = ({
 
   return (
     <div className="space-y-7">
-      <Section title="Smart Text Sizing" badge="Auto fit">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-slate-400 sm:max-w-xs">
-            Automatically balances headings and class details so everything fits the frame. Great when you just want it to look right.
-          </p>
-          <Button
-            size="sm"
-            onClick={onApplySmartSizing}
-            className="w-full sm:w-auto"
-            disabled={isSmartSizing}
-            aria-busy={isSmartSizing}
-          >
-            {isSmartSizing ? 'Balancing…' : 'Smart Fit Text'}
-          </Button>
-        </div>
-      </Section>
+      {resolvedControls.showSmartTextSizing ? (
+        <Section title="Smart Text Sizing" badge="Auto fit">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-slate-400 sm:max-w-xs">
+              Automatically balances headings and class details so everything fits the frame. Great when you just want it to look right.
+            </p>
+            <Button
+              size="sm"
+              onClick={onApplySmartSizing}
+              className="w-full sm:w-auto"
+              disabled={isSmartSizing}
+              aria-busy={isSmartSizing}
+            >
+              {isSmartSizing ? 'Balancing…' : 'Smart Fit Text'}
+            </Button>
+          </div>
+        </Section>
+      ) : null}
 
-      <Section title="Schedule Elements" badge="💡 Drag to reorder">
-        <div
-          role="list"
-          className="space-y-2"
-          onDragOver={handleDragOver}
-          onDrop={handleDropOnList}
-        >
-          {visibleElements.map((elementId, index) => {
-            const meta = elementsMeta[elementId];
-            if (!meta) return null;
+      <Section title="Schedule Elements" badge={allowReorder ? '💡 Drag to reorder' : undefined}>
+        <div role="list" className="space-y-2" onDragOver={handleDragOver} onDrop={handleDropOnList}>
+          {filteredVisible.map((elementId, index) => {
+            const metaEntry = meta[elementId];
+            if (!metaEntry) return null;
+            const draggable = allowReorder;
             return (
               <ElementItem
                 key={elementId}
                 id={elementId}
-                meta={meta}
+                meta={metaEntry}
                 visible
-                draggable
-                onToggle={(next) => onToggleVisibility(elementId)}
+                draggable={draggable}
+                onToggle={allowVisibilityToggles ? () => onToggleVisibility(elementId) : undefined}
                 onOpenFontSettings={() => onOpenFontSettings(elementId)}
                 onOpenColorPicker={() => onOpenColorPicker(elementId)}
-                onDragStart={handleDragStart(elementId)}
-                onDragOver={handleDragOver}
-                onDrop={handleDropOnItem(elementId)}
-                onDragEnd={handleDragEnd}
+                onDragStart={draggable ? handleDragStart(elementId) : undefined}
+                onDragOver={draggable ? handleDragOver : undefined}
+                onDrop={draggable ? handleDropOnItem(elementId) : undefined}
+                onDragEnd={draggable ? handleDragEnd : undefined}
                 isDragging={draggingId === elementId}
                 style={visibleAnimations[index]?.style}
               />
@@ -247,23 +279,21 @@ export const ContentTab: React.FC<ContentTabProps> = ({
         </div>
 
         <div className="mt-5 pt-5 border-t border-white/8">
-          <div className="text-xs uppercase tracking-wider text-slate-500 mb-3">
-            Hidden Elements
-          </div>
+          <div className="text-xs uppercase tracking-wider text-slate-500 mb-3">Hidden Elements</div>
           <div className="space-y-2" role="list">
-            {hiddenElements.length === 0 ? (
+            {filteredHidden.length === 0 ? (
               <p className="text-xs text-slate-500">No hidden elements</p>
             ) : (
-              hiddenElements.map((elementId, index) => {
-                const meta = elementsMeta[elementId];
-                if (!meta) return null;
+              filteredHidden.map((elementId, index) => {
+                const metaEntry = meta[elementId];
+                if (!metaEntry) return null;
                 return (
                   <ElementItem
                     key={elementId}
                     id={elementId}
-                    meta={meta}
+                    meta={metaEntry}
                     visible={false}
-                    onToggle={(next) => onToggleVisibility(elementId)}
+                    onToggle={allowVisibilityToggles ? () => onToggleVisibility(elementId) : undefined}
                     onOpenFontSettings={() => onOpenFontSettings(elementId)}
                     onOpenColorPicker={() => onOpenColorPicker(elementId)}
                     style={hiddenAnimations[index]?.style}
@@ -279,16 +309,16 @@ export const ContentTab: React.FC<ContentTabProps> = ({
         <Section title="Header & Details" badge="✨ Hero">
           <div className="space-y-2" role="list">
             {heroElementIds.map((elementId, index) => {
-              const meta = elementsMeta[elementId];
-              if (!meta) return null;
+              const metaEntry = meta[elementId];
+              if (!metaEntry) return null;
               const isVisible = staticVisibility[elementId] !== false;
               return (
                 <ElementItem
                   key={elementId}
                   id={elementId}
-                  meta={meta}
+                  meta={metaEntry}
                   visible={isVisible}
-                  onToggle={(next) => onToggleStaticElement(elementId, next)}
+                  onToggle={allowStaticVisibility ? (next) => onToggleStaticElement(elementId, next) : undefined}
                   onOpenFontSettings={() => onOpenFontSettings(elementId)}
                   onOpenColorPicker={() => onOpenColorPicker(elementId)}
                   style={heroAnimations[index]?.style}
@@ -303,16 +333,16 @@ export const ContentTab: React.FC<ContentTabProps> = ({
         <Section title="Footer" badge="📣 Brand">
           <div className="space-y-2" role="list">
             {footerElementIds.map((elementId, index) => {
-              const meta = elementsMeta[elementId];
-              if (!meta) return null;
+              const metaEntry = meta[elementId];
+              if (!metaEntry) return null;
               const isVisible = staticVisibility[elementId] !== false;
               return (
                 <ElementItem
                   key={elementId}
                   id={elementId}
-                  meta={meta}
+                  meta={metaEntry}
                   visible={isVisible}
-                  onToggle={(next) => onToggleStaticElement(elementId, next)}
+                  onToggle={allowStaticVisibility ? (next) => onToggleStaticElement(elementId, next) : undefined}
                   onOpenFontSettings={() => onOpenFontSettings(elementId)}
                   onOpenColorPicker={() => onOpenColorPicker(elementId)}
                   style={footerAnimations[index]?.style}

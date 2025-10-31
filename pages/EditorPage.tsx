@@ -19,7 +19,6 @@ import {
 import { DEFAULT_APP_SETTINGS } from '../constants';
 import { STYLE_COLOR_PALETTES } from '../components/editor/stylePalettes';
 import {
-  CONTENT_ELEMENT_META,
   DEFAULT_VISIBLE_ELEMENTS,
   DEFAULT_HIDDEN_ELEMENTS,
   ELEMENT_ORDER,
@@ -40,6 +39,9 @@ import { uploadImage } from '../services/storage';
 import { saveTemplate, getUserSchedule, saveSchedule } from '../services/api';
 import { toPng } from 'html-to-image';
 import TemplateGallery from '../components/TemplateGallery';
+import { getTemplateDefinition } from '../lib/templates';
+import { isTemplateRegistryPreviewEnabled } from '../lib/templates/featureFlags';
+import { resolveContentTabControls } from '../lib/templates/editorConfig';
 
 const SaveSpinner: React.FC = () => (
   <span
@@ -229,6 +231,18 @@ const EditorPage: React.FC = () => {
   const initialTemplateId = DEFAULT_APP_SETTINGS.activeTemplateId as TemplateId;
 
   const [activeTemplateId, setActiveTemplateId] = useState<TemplateId>(initialTemplateId);
+  const isTemplateRegistryEnabled = isTemplateRegistryPreviewEnabled();
+  const templateDefinition = useMemo(() => {
+    if (!isTemplateRegistryEnabled) {
+      return null;
+    }
+    return getTemplateDefinition(activeTemplateId) ?? null;
+  }, [activeTemplateId, isTemplateRegistryEnabled]);
+  const contentTabControls = useMemo(
+    () => resolveContentTabControls(templateDefinition?.editor?.contentTab ?? null),
+    [templateDefinition],
+  );
+  const contentElementsMeta = contentTabControls.elementsMeta;
   const gallerySettings = useMemo(
     () => ({
       activeTemplateId,
@@ -965,7 +979,7 @@ const EditorPage: React.FC = () => {
     [revokeBackgroundPreview, revokeLogoPreview],
   );
 
-  const activeFontMeta = activeFontElement ? CONTENT_ELEMENT_META[activeFontElement] : null;
+  const activeFontMeta = activeFontElement ? contentElementsMeta[activeFontElement] : null;
   const activeFontStyles =
     activeFontElement != null
       ? elementStyles[activeFontElement] ?? getDefaultElementStyle(activeFontElement)
@@ -973,7 +987,7 @@ const EditorPage: React.FC = () => {
   const activeFontDefaults =
     activeFontElement != null ? getDefaultElementStyle(activeFontElement) : null;
 
-  const activeColorMeta = activeColorElement ? CONTENT_ELEMENT_META[activeColorElement] : null;
+  const activeColorMeta = activeColorElement ? contentElementsMeta[activeColorElement] : null;
   const activeColorValue =
     activeColorElement != null
       ? elementStyles[activeColorElement]?.color ?? getDefaultElementStyle(activeColorElement).color
@@ -1583,12 +1597,13 @@ const EditorPage: React.FC = () => {
                                   onLogoPositionChange={handleLogoPositionChange}
                                   isBackgroundUploading={isBackgroundUploading}
                                   isLogoUploading={isLogoUploading}
+                                  config={templateDefinition?.editor?.styleTab ?? null}
                                 />
                               ) : activeTab === 'content' ? (
                                 <ContentTab
                                   visibleElements={visibleElements}
                                   hiddenElements={hiddenElements}
-                                  elementsMeta={CONTENT_ELEMENT_META}
+                                  elementsMeta={contentElementsMeta}
                                   onReorder={handleReorderElements}
                                   onToggleVisibility={handleToggleElementVisibility}
                                   onOpenFontSettings={handleOpenFontSettings}
@@ -1597,9 +1612,14 @@ const EditorPage: React.FC = () => {
                                   onToggleStaticElement={handleToggleStaticElement}
                                   onApplySmartSizing={handleApplySmartSizing}
                                   isSmartSizing={isSmartSizing}
+                                  config={templateDefinition?.editor?.contentTab ?? null}
                                 />
                               ) : (
-                                <LayoutTab style={styleState} onUpdate={updateStyle} />
+                                <LayoutTab
+                                  style={styleState}
+                                  onUpdate={updateStyle}
+                                  config={templateDefinition?.editor?.layoutTab ?? null}
+                                />
                               )}
                             </div>
                             <div className="mt-5 flex flex-col gap-2">
@@ -1837,12 +1857,13 @@ const EditorPage: React.FC = () => {
                       onLogoPositionChange={handleLogoPositionChange}
                       isBackgroundUploading={isBackgroundUploading}
                       isLogoUploading={isLogoUploading}
+                      config={templateDefinition?.editor?.styleTab ?? null}
                     />
                   ) : activeTab === 'content' ? (
                     <ContentTab
                       visibleElements={visibleElements}
                       hiddenElements={hiddenElements}
-                      elementsMeta={CONTENT_ELEMENT_META}
+                      elementsMeta={contentElementsMeta}
                       onReorder={handleReorderElements}
                       onToggleVisibility={handleToggleElementVisibility}
                       onOpenFontSettings={handleOpenFontSettings}
@@ -1851,9 +1872,14 @@ const EditorPage: React.FC = () => {
                       onToggleStaticElement={handleToggleStaticElement}
                       onApplySmartSizing={handleApplySmartSizing}
                       isSmartSizing={isSmartSizing}
+                      config={templateDefinition?.editor?.contentTab ?? null}
                     />
                   ) : activeTab === 'layout' ? (
-                    <LayoutTab style={styleState} onUpdate={updateStyle} />
+                    <LayoutTab
+                      style={styleState}
+                      onUpdate={updateStyle}
+                      config={templateDefinition?.editor?.layoutTab ?? null}
+                    />
                   ) : null}
                 </div>
               </aside>
