@@ -2,61 +2,78 @@
 
 Studiogram is a web application for generating daily Instagram Story schedules. It allows users to choose between light and dark templates, customize the styling, and render a final 1080x1920 HTML page ready for screenshotting.
 
+## Key Features
+
+*   **Beautiful Templates:** Choose from a selection of pre-designed light and dark templates.
+*   **Easy Customization:** A simple editor allows you to tweak colors, fonts, and styles to match your brand.
+*   **Mindbody Integration:** Automatically fetch and display class schedules from any gym that uses Mindbody.
+*   **Manual Entry:** Don't use Mindbody? No problem. You can manually input your schedule.
+*   **Automation-Friendly:** Ingest schedule data via a URL for automated story generation.
+*   **Perfectly Sized:** Renders a 1080x1920 story, ready for screenshotting and sharing.
+
 ## How It Works
 
-The application is a client-side React SPA. It uses `localStorage` to persist style configurations and `sessionStorage` for temporary schedule data provided during an active session.
+Studiogram is a client-side React single-page application (SPA). It uses `localStorage` to persist your style configurations and `sessionStorage` for temporary schedule data.
 
-### Endpoints
+The application also includes a Vercel serverless function that acts as a proxy for the Mindbody API, allowing you to fetch class schedules without exposing sensitive API keys on the client-side.
 
--   **`GET /`**: The homepage, which displays template previews and the style editor.
--   **`GET /#/render/<slug>`**: Renders the active template at full 1080x1920 resolution for a specific gym/location slug. Visiting `/#/render` without a slug now instructs you to open a slugged URL instead.
--   **`GET /#/ingest`**: The data ingestion endpoint. See details below.
--   **`GET /#/gym-finder`**: Onboarding page that helps you look up a Mindbody schedule and push it directly into the editor.
+## Getting Started
 
-### Mindbody schedule function (`/api/schedule`)
+Follow these instructions to get the project running on your local machine for development and testing purposes.
 
-The app ships with a Vercel serverless function that proxies Mindbody’s `classTime` search, reshapes the response into the app’s `Schedule` type, and returns it to the UI.  
-This powers the Gym Finder page and can also be called directly.
+### Prerequisites
 
-#### Environment variables
+*   [Node.js](https://nodejs.org/) (v18 or later recommended)
+*   [npm](https://www.npmjs.com/)
+*   [Vercel CLI](https://vercel.com/docs/cli)
 
-Add the following values in Vercel (or a local `.env` consumed by `vercel dev`):
+### Installation
 
-| Variable | Purpose |
-| --- | --- |
-| `MINDBODY_CLASS_SEARCH_URL` | Full URL of the Mindbody search endpoint you want to call. |
-| `MINDBODY_API_KEY` | Optional API key header for the request. |
-| `MINDBODY_SITE_ID` | Optional site identifier sent as `Site-Id`. |
-| `MINDBODY_BEARER_TOKEN` | Optional Bearer token if the endpoint requires OAuth. |
-| `MINDBODY_USE_SAMPLE` | Set to `true` to force the function to use `mindbody/response` as a local fixture (helpful for development). |
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/your-username/instagram-story-schedule-generator.git
+    cd instagram-story-schedule-generator
+    ```
 
-If `MINDBODY_CLASS_SEARCH_URL` is omitted or `MINDBODY_USE_SAMPLE=true`, the function automatically falls back to the sample payload in `mindbody/response`.
+2.  **Install dependencies:**
+    ```bash
+    npm install
+    ```
 
-#### Local testing with the Vercel CLI
+3.  **Set up environment variables:**
 
-1. `npm install -g vercel` (once), then `vercel login`.
-2. Inside this repo run `vercel link` to connect to an existing project or create a new one.
-3. Use `vercel env pull .env.local` (optional) to sync env vars locally.
-4. `vercel dev` starts both Vite and the serverless function at `http://localhost:3000/api/schedule`.
+    Create a file named `.env.local` in the root of the project and add the following variables. These are used by the Vercel serverless function to connect to the Mindbody API.
 
-Deploy with `vercel` (preview) or `vercel deploy --prod` once you are ready.
+    ```
+    MINDBODY_CLASS_SEARCH_URL="YOUR_MINDBODY_API_ENDPOINT"
+    MINDBODY_API_KEY="YOUR_MINDBODY_API_KEY"
+    MINDBODY_SITE_ID="YOUR_MINDBODY_SITE_ID"
+    MINDBODY_BEARER_TOKEN="YOUR_MINDBODY_BEARER_TOKEN"
+    ```
 
-## Data Ingestion via URL
+    **Note:** If you don't have access to the Mindbody API, you can set `MINDBODY_USE_SAMPLE=true` to use mock data from `mindbody/response`.
 
-To dynamically provide schedule and configuration data (e.g., from an automation service), use the `/#/ingest` route. This route processes URL parameters and then redirects to the final render page.
+4.  **Run the development server:**
 
-### Parameters
+    The best way to run the app locally is with the Vercel CLI, as it will run both the Vite dev server and the serverless function.
 
--   `schedule` (required): A base64-encoded JSON string of the schedule object.
--   `config` (optional): A base64-encoded JSON string of the configuration object. Overwrites existing styles if provided.
--   `scheduleUrl` (required if `schedule` is not used): A URL-encoded link to a JSON file containing the schedule.
--   `configUrl` (optional): A URL-encoded link to a JSON file containing the configuration.
+    ```bash
+    vercel dev
+    ```
 
-**Note:** The direct `schedule` and `config` parameters take precedence over their `...Url` counterparts.
+    This will start the application at `http://localhost:3000`.
 
-### Example: Using `schedule` parameter
+## Usage
 
-Here's how to generate a valid ingestion URL from JavaScript:
+There are a few ways to use Studiogram:
+
+*   **Gym Finder:** The easiest way to get started. The app will guide you through finding your gym's Mindbody schedule and will automatically pull the data into the editor.
+*   **Manual Entry:** If your gym doesn't use Mindbody, you can manually enter your schedule information.
+*   **Data Ingestion via URL:** For automation, you can provide schedule and configuration data directly via URL parameters. This is perfect for integrating with other services or scripts.
+
+### Data Ingestion Example
+
+To dynamically provide a schedule, you can construct a URL like this:
 
 ```javascript
 const schedule = {
@@ -73,35 +90,34 @@ const jsonString = JSON.stringify(schedule);
 // 2. Base64-encode the string
 const base64String = btoa(jsonString);
 
-// 3. Create the URL (adjust domain as needed)
+// 3. Create the URL
 const ingestUrl = `/#/ingest?schedule=${base64String}`;
 
-console.log(ingestUrl);
 // You can now navigate to this URL to ingest the data and render the story.
+console.log(ingestUrl);
 ```
 
-### Example: Using `scheduleUrl` parameter
+## Deployment
 
-```javascript
-const scheduleUrl = "https://api.example.com/schedules/today.json";
-const encodedUrl = encodeURIComponent(scheduleUrl);
-const ingestUrl = `/#/ingest?scheduleUrl=${encodedUrl}`;
-```
+This project is optimized for deployment on [Vercel](https://vercel.com/).
 
-## Usage with Browserless
+1.  **Link your project:**
+    ```bash
+    vercel link
+    ```
+
+2.  **Deploy to production:**
+    ```bash
+    vercel --prod
+    ```
+
+    Make sure to add your environment variables to the Vercel project settings.
+
+## Advanced Usage: Automation with Browserless
+
+You can use a service like [Browserless](https://www.browserless.io/) to automatically generate and screenshot your stories.
 
 1.  **Prepare the Ingest URL**: Use an automation tool (like n8n or a script) to construct the `/#/ingest` URL with the latest schedule data.
-2.  **Navigate and Screenshot**: Instruct Browserless to navigate to the generated ingest URL. The app will automatically redirect to `/#/render/<slug>` (or `/#/render` if no slug was provided).
+2.  **Navigate and Screenshot**: Instruct Browserless to navigate to the generated ingest URL. The app will automatically redirect to the final render page.
 3.  **Set Viewport**: Ensure Browserless is configured with a 1080x1920 viewport to capture the story perfectly.
-    ```json
-    {
-      "url": "YOUR_APP_URL/#/ingest?schedule=...",
-      "options": {
-        "viewport": {
-          "width": 1080,
-          "height": 1920
-        }
-      }
-    }
-    ```
 4.  **Post to Instagram**: Use the captured screenshot in your social media automation workflow.
