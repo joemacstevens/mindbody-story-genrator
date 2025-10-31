@@ -1,10 +1,6 @@
-import type {
-  TemplateId,
-  Style,
-  ScheduleElementId,
-  ScheduleElementStyle,
-} from '../../types';
+import type { TemplateId, Style, ScheduleElementId, ScheduleElementStyle } from '../../types';
 import type { SmartSpacingScales } from '../../components/editor/smartTextSizing';
+import type { TemplateEditorControls } from './editorConfig';
 
 export type TemplateValidationIssue = {
   readonly path: string;
@@ -37,6 +33,7 @@ export interface TemplateDefinition {
   readonly id: TemplateId;
   readonly metadata: TemplateMetadata;
   readonly defaults: TemplateDefaultFactories;
+  readonly editor?: TemplateEditorControls;
 }
 
 type RegistryMap = Map<TemplateId, TemplateDefinition>;
@@ -141,11 +138,61 @@ export const validateTemplateDefinition = (input: unknown): TemplateValidationRe
     }
   }
 
+  if (input.editor !== undefined && !isRecord(input.editor)) {
+    collectIssues(issues, 'definition.editor', 'Editor controls must be an object when provided.');
+  }
+
   if (issues.length > 0) {
     return { ok: false, issues };
   }
 
   return { ok: true, definition: input as TemplateDefinition };
+};
+
+const cloneStyleTabControls = (controls: TemplateEditorControls['styleTab']) => {
+  if (!controls) return undefined;
+  return {
+    ...controls,
+    palettes: controls.palettes
+      ? controls.palettes.map((palette) => ({
+          ...palette,
+          colors: { ...palette.colors },
+          preview: [...palette.preview],
+        }))
+      : undefined,
+    logoPositions: controls.logoPositions ? [...controls.logoPositions] : undefined,
+  };
+};
+
+const cloneContentTabControls = (controls: TemplateEditorControls['contentTab']) => {
+  if (!controls) return undefined;
+  return {
+    ...controls,
+    elementsMeta: controls.elementsMeta
+      ? Object.fromEntries(
+          Object.entries(controls.elementsMeta).map(([key, value]) => [
+            key,
+            value ? { ...value } : value,
+          ]),
+        )
+      : undefined,
+    heroElementIds: controls.heroElementIds ? [...controls.heroElementIds] : undefined,
+    footerElementIds: controls.footerElementIds ? [...controls.footerElementIds] : undefined,
+    scheduleElementIds: controls.scheduleElementIds ? [...controls.scheduleElementIds] : undefined,
+  };
+};
+
+const cloneLayoutTabControls = (controls: TemplateEditorControls['layoutTab']) => {
+  if (!controls) return undefined;
+  return {
+    ...controls,
+    cornerRadiusRange: controls.cornerRadiusRange ? { ...controls.cornerRadiusRange } : undefined,
+    spacingOptions: controls.spacingOptions
+      ? controls.spacingOptions.map((option) => ({ ...option }))
+      : undefined,
+    layoutOptions: controls.layoutOptions ? controls.layoutOptions.map((option) => ({ ...option })) : undefined,
+    dividerOptions: controls.dividerOptions ? controls.dividerOptions.map((option) => ({ ...option })) : undefined,
+  };
 };
 
 const freezeDefinition = (definition: TemplateDefinition): TemplateDefinition => ({
@@ -157,6 +204,13 @@ const freezeDefinition = (definition: TemplateDefinition): TemplateDefinition =>
   defaults: {
     ...definition.defaults,
   },
+  editor: definition.editor
+    ? {
+        styleTab: cloneStyleTabControls(definition.editor.styleTab),
+        contentTab: cloneContentTabControls(definition.editor.contentTab),
+        layoutTab: cloneLayoutTabControls(definition.editor.layoutTab),
+      }
+    : undefined,
 });
 
 export const registerTemplate = (

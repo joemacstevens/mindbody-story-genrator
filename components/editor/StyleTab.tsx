@@ -1,9 +1,10 @@
-import React, { useRef } from 'react';
+import React, { useMemo, useRef } from 'react';
 import type { CSSProperties } from 'react';
-import type { EditorColorPalette, Style, LogoPosition } from '../../types';
+import type { EditorColorPalette, LogoPosition, Style } from '../../types';
 import { Button } from '../ui';
 import { cn } from '../../utils/cn';
 import { useStaggerAnimation } from '../../hooks/useStaggerAnimation';
+import { resolveStyleTabControls, type TemplateStyleTabControls } from '../../lib/templates/editorConfig';
 
 interface StyleTabProps {
   palettes: EditorColorPalette[];
@@ -17,6 +18,7 @@ interface StyleTabProps {
   onLogoPositionChange: (position: LogoPosition) => void;
   isBackgroundUploading?: boolean;
   isLogoUploading?: boolean;
+  config?: TemplateStyleTabControls | null;
 }
 
 interface PaletteCardProps {
@@ -72,7 +74,6 @@ const ImageUploadArea: React.FC<ImageUploadAreaProps> = ({ currentImage, onUploa
 
     const previewUrl = URL.createObjectURL(file);
     onUpload(file, previewUrl);
-    // Reset input so the same file can be selected again if needed
     event.target.value = '';
   };
 
@@ -98,13 +99,7 @@ const ImageUploadArea: React.FC<ImageUploadAreaProps> = ({ currentImage, onUploa
           </div>
         ) : null}
       </div>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        hidden
-        onChange={handleFileChange}
-      />
+      <input ref={inputRef} type="file" accept="image/*" hidden onChange={handleFileChange} />
     </>
   );
 };
@@ -117,7 +112,7 @@ const ControlGroup: React.FC<{ label: string; children: React.ReactNode }> = ({ 
 );
 
 const RadioGroup: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="grid grid-cols-3 gap-2">{children}</div>
+  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{children}</div>
 );
 
 const RadioOption: React.FC<{ selected: boolean; onClick: () => void; children: React.ReactNode }> = ({
@@ -131,8 +126,8 @@ const RadioOption: React.FC<{ selected: boolean; onClick: () => void; children: 
     className={cn(
       'rounded-lg border-2 px-3 py-3 text-center text-sm transition-all duration-200',
       'hover:border-purple-500/50 hover:text-slate-50',
-      selected 
-        ? 'border-purple-500 bg-purple-500/10 text-purple-400' 
+      selected
+        ? 'border-purple-500 bg-purple-500/10 text-purple-400'
         : 'border-white/10 bg-white/5 text-slate-400',
     )}
   >
@@ -147,8 +142,8 @@ const PaletteCard: React.FC<PaletteCardProps> = ({ palette, selected, onSelect, 
     className={cn(
       'w-full rounded-xl border-2 bg-white/4 p-4 text-left transition-all duration-200 cursor-pointer',
       'hover:border-purple-500/40 hover:-translate-y-0.5 hover:shadow-lg',
-      selected 
-        ? 'border-purple-500 bg-purple-500/8 shadow-[0_0_0_3px_rgba(139,123,216,0.1)]' 
+      selected
+        ? 'border-purple-500 bg-purple-500/8 shadow-[0_0_0_3px_rgba(139,123,216,0.1)]'
         : 'border-white/10',
     )}
     style={style}
@@ -158,15 +153,21 @@ const PaletteCard: React.FC<PaletteCardProps> = ({ palette, selected, onSelect, 
     </div>
     <div className="flex gap-1.5">
       {palette.preview.map((color) => (
-        <span
-          key={color}
-          className="h-7 w-7 rounded-md border border-white/15"
-          style={{ backgroundColor: color }}
-        />
+        <span key={color} className="h-7 w-7 rounded-md border border-white/15" style={{ backgroundColor: color }} />
       ))}
     </div>
   </button>
 );
+
+const LOGO_POSITION_LABELS: Record<LogoPosition, string> = {
+  'top-left': 'Top Left',
+  'top-center': 'Top Center',
+  'top-right': 'Top Right',
+  center: 'Center',
+  'bottom-left': 'Bottom Left',
+  'bottom-center': 'Bottom Center',
+  'bottom-right': 'Bottom Right',
+};
 
 export const StyleTab: React.FC<StyleTabProps> = ({
   palettes,
@@ -180,102 +181,116 @@ export const StyleTab: React.FC<StyleTabProps> = ({
   onLogoPositionChange,
   isBackgroundUploading = false,
   isLogoUploading = false,
+  config,
 }) => {
-  const paletteAnimations = useStaggerAnimation(palettes.length, 70);
+  const resolvedControls = useMemo(() => resolveStyleTabControls(config), [config]);
+
+  const showPaletteSection = resolvedControls.showPaletteSection && resolvedControls.palettes.length > 0;
+  const showBackgroundSection = resolvedControls.showBackgroundSection;
+  const showLogoSection = resolvedControls.showLogoSection;
+  const logoPositions = resolvedControls.logoPositions;
+  const canAdjustLogoPosition = showLogoSection && logoPositions.length > 0;
+  const paletteList = resolvedControls.showPaletteSection ? resolvedControls.palettes : palettes;
+  const paletteAnimations = useStaggerAnimation(paletteList.length, 70);
 
   return (
     <div className="space-y-7">
-      <StyleSection title="Color Theme">
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          {palettes.map((palette, index) => (
-            <PaletteCard
-              key={palette.id}
-              palette={palette}
-              selected={palette.id === selectedPaletteId}
-              onSelect={onSelectPalette}
-              style={paletteAnimations[index]?.style}
-            />
-          ))}
-        </div>
-        <Button variant="secondary" fullWidth disabled>
-          🎨 Customize Colors
-        </Button>
-      </StyleSection>
-
-      <StyleSection title="Background">
-        <ImageUploadArea
-          currentImage={style.bgImage}
-          onUpload={onBackgroundUpload}
-          isUploading={isBackgroundUploading}
-        >
-          {style.bgImage ? (
-            <img
-              src={style.bgImage}
-              alt="Background preview"
-              className="max-h-[120px] w-full rounded-lg object-cover"
-            />
-          ) : (
-            <>
-              <span className="text-3xl opacity-50 mb-2">🖼️</span>
-              <div className="text-sm text-slate-400">
-                <p className="font-medium">Tap to upload image</p>
-                <p className="text-xs opacity-70 mt-1">or use solid color</p>
-              </div>
-            </>
-          )}
-        </ImageUploadArea>
-        {style.bgImage ? (
-          <Button
-            variant="secondary"
-            fullWidth
-            onClick={onRemoveBackground}
-            disabled={isBackgroundUploading}
-            className="mt-3"
-          >
-            🗑️ Remove Background
-          </Button>
-        ) : null}
-      </StyleSection>
-
-      <StyleSection title="Logo">
-        <ImageUploadArea
-          currentImage={style.logoUrl}
-          onUpload={onLogoUpload}
-          isUploading={isLogoUploading}
-        >
-          {style.logoUrl ? (
-            <img
-              src={style.logoUrl}
-              alt="Logo preview"
-              className="max-h-[100px] w-full rounded-lg object-contain p-4"
-            />
-          ) : (
-            <>
-              <span className="text-3xl opacity-50 mb-2">📌</span>
-              <div className="text-sm text-slate-400">
-                <p className="font-medium">Upload your logo</p>
-              </div>
-            </>
-          )}
-        </ImageUploadArea>
-        {style.logoUrl ? (
-          <div className="mt-4">
-            <ControlGroup label="Position">
-              <RadioGroup>
-                <RadioOption selected={style.logoPosition === 'top-center'} onClick={() => onLogoPositionChange('top-center')}>
-                  Top
-                </RadioOption>
-                <RadioOption selected={style.logoPosition === 'center'} onClick={() => onLogoPositionChange('center')}>
-                  Center
-                </RadioOption>
-                <RadioOption selected={style.logoPosition === 'bottom-center'} onClick={() => onLogoPositionChange('bottom-center')}>
-                  Bottom
-                </RadioOption>
-              </RadioGroup>
-            </ControlGroup>
+      {showPaletteSection ? (
+        <StyleSection title="Color Theme">
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            {paletteList.map((palette, index) => (
+              <PaletteCard
+                key={palette.id}
+                palette={palette}
+                selected={palette.id === selectedPaletteId}
+                onSelect={onSelectPalette}
+                style={paletteAnimations[index]?.style}
+              />
+            ))}
           </div>
-        ) : null}
-      </StyleSection>
+          <Button variant="secondary" fullWidth disabled>
+            🎨 Customize Colors
+          </Button>
+        </StyleSection>
+      ) : null}
+
+      {showBackgroundSection ? (
+        <StyleSection title="Background">
+          <ImageUploadArea currentImage={style.bgImage} onUpload={onBackgroundUpload} isUploading={isBackgroundUploading}>
+            {style.bgImage ? (
+              <img src={style.bgImage} alt="Background preview" className="max-h-[120px] w-full rounded-lg object-cover" />
+            ) : (
+              <>
+                <span className="text-3xl opacity-50 mb-2">🖼️</span>
+                <div className="text-sm text-slate-400">
+                  <p className="font-medium">Tap to upload image</p>
+                  <p className="text-xs opacity-70 mt-1">or use solid color</p>
+                </div>
+              </>
+            )}
+          </ImageUploadArea>
+          {style.bgImage ? (
+            <Button
+              variant="secondary"
+              fullWidth
+              onClick={onRemoveBackground}
+              disabled={isBackgroundUploading}
+              className="mt-3"
+            >
+              🗑️ Remove Background
+            </Button>
+          ) : null}
+        </StyleSection>
+      ) : null}
+
+      {showLogoSection ? (
+        <StyleSection title="Logo">
+          <ImageUploadArea currentImage={style.logoUrl} onUpload={onLogoUpload} isUploading={isLogoUploading}>
+            {style.logoUrl ? (
+              <img
+                src={style.logoUrl}
+                alt="Logo preview"
+                className="max-h-[100px] w-full rounded-lg object-contain p-4"
+              />
+            ) : (
+              <>
+                <span className="text-3xl opacity-50 mb-2">📌</span>
+                <div className="text-sm text-slate-400">
+                  <p className="font-medium">Upload your logo</p>
+                </div>
+              </>
+            )}
+          </ImageUploadArea>
+          {style.logoUrl ? (
+            <Button
+              variant="secondary"
+              fullWidth
+              onClick={onRemoveLogo}
+              disabled={isLogoUploading}
+              className="mt-3"
+            >
+              🗑️ Remove Logo
+            </Button>
+          ) : null}
+          {style.logoUrl && canAdjustLogoPosition ? (
+            <div className="mt-4">
+              <ControlGroup label="Position">
+                <RadioGroup>
+                  {logoPositions.map((position) => (
+                    <RadioOption
+                      key={position}
+                      selected={style.logoPosition === position}
+                      onClick={() => onLogoPositionChange(position)}
+                    >
+                      {LOGO_POSITION_LABELS[position] ?? position}
+                    </RadioOption>
+                  ))}
+                </RadioGroup>
+              </ControlGroup>
+            </div>
+          ) : null}
+        </StyleSection>
+      ) : null}
     </div>
   );
 };
