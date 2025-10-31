@@ -35,6 +35,8 @@
 13. **Phase 11.1 – Template contract & registry scaffolding**
    - Introduced template registry with runtime validation, fallback resolution, and classic template registration.
    - Added Vitest harness with registry unit tests to guard contract regressions.
+14. **Phase 11.2 – Schedule preview integration**
+   - Schedule preview and template card now resolve default configs via the registry with feature-flagged fallback handling plus coverage.
 
 ## Outstanding Work
 - **Phase 10 Prompt 10.1 – Loading states polish**
