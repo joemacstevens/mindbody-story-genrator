@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffe
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
-import { ensureUserDocument, fetchUserRoot } from '../services/userData';
+import { ensureUserDocument, subscribeToUserRoot } from '../services/userData';
 import { Button, Modal } from '../components/ui';
 import { SchedulePreview } from '../components/editor/SchedulePreview';
 import { StyleTab } from '../components/editor/StyleTab';
@@ -147,23 +147,42 @@ const EditorPage: React.FC = () => {
     user?.email?.charAt(0)?.toUpperCase() ||
     'U';
   useEffect(() => {
-    if (!user?.uid) return;
-    const fetchData = async () => {
+    if (!user?.uid) {
+      setUserGymSlug(null);
+      setUserGymName('Select a gym');
+      return;
+    }
+
+    let isActive = true;
+
+    const initialize = async () => {
       try {
         await ensureUserDocument(user.uid);
-        const root = await fetchUserRoot(user.uid);
-        if (root?.lastScheduleSlug) {
-          setUserGymName(root.lastScheduleSlug.replace(/-/g, ' '));
-          setUserGymSlug(root.lastScheduleSlug);
-        } else {
-          setUserGymSlug(null);
-        }
       } catch (error) {
-        console.error('Failed to load editor context', error);
+        console.error('Failed to ensure user document', error);
       }
     };
-    void fetchData();
-  }, [user]);
+
+    void initialize();
+
+    const unsubscribe = subscribeToUserRoot(user.uid, (root) => {
+      if (!isActive) {
+        return;
+      }
+      if (root?.lastScheduleSlug) {
+        setUserGymSlug(root.lastScheduleSlug);
+        setUserGymName(root.lastScheduleSlug.replace(/-/g, ' '));
+      } else {
+        setUserGymSlug(null);
+        setUserGymName('Select a gym');
+      }
+    });
+
+    return () => {
+      isActive = false;
+      unsubscribe();
+    };
+  }, [user?.uid]);
 
   useEffect(() => {
     if (!isMobile) {

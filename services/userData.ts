@@ -3,12 +3,14 @@ import {
   doc,
   getDoc,
   getDocs,
+  onSnapshot,
   serverTimestamp,
   setDoc,
   updateDoc,
   writeBatch,
   deleteDoc,
   Timestamp,
+  type Unsubscribe,
 } from 'firebase/firestore';
 import { firestore } from './firebase';
 import type {
@@ -163,6 +165,18 @@ export const fetchUserRoot = async (uid: string): Promise<UserRootDocument | nul
   }
   return snapshot.data() as UserRootDocument;
 };
+
+export const subscribeToUserRoot = (
+  uid: string,
+  callback: (doc: UserRootDocument | null) => void,
+): Unsubscribe =>
+  onSnapshot(userDocRef(uid), (snapshot) => {
+    if (!snapshot.exists()) {
+      callback(null);
+      return;
+    }
+    callback(snapshot.data() as UserRootDocument);
+  });
 
 export const saveUserRoot = async (
   uid: string,
